@@ -392,6 +392,7 @@ function H.Install(opts)
             end
         end
     end
+    _G.CLASS_ICON_TCOORDS = { ROGUE = { 0.49609375, 0.7421875, 0, 0.25 } }
     -- opts.minimap: a Minimap frame exists (the minimap button needs one)
     _G.Minimap = opts.minimap and NewFrame("Minimap") or nil
     -- opts.worldMap: the world map exists at load (otherwise it never loads)

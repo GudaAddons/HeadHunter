@@ -351,6 +351,15 @@ function Utils.RaceIcon(race, sex, size)
     return string.format("|A:%s-%s-%s:%d:%d|a", prefix, name, GENDER_ATLAS[sex] or "male", size, size)
 end
 
+-- Inline class icon for text, from the client's class icon sheet, or "" when unknown
+function Utils.ClassIcon(class, size)
+    local coords = type(class) == "string" and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
+    if not coords then return "" end
+    size = size or 14
+    return string.format("|TInterface\\WorldStateFrame\\ICONS-CLASSES:%d:%d:0:0:256:256:%d:%d:%d:%d|t", size, size,
+        coords[1] * 256, coords[2] * 256, coords[3] * 256, coords[4] * 256)
+end
+
 -- Map pin + tracked waypoint at x, y (0..1) on mapID. False when the client or the
 -- map does not allow it.
 function Utils.SetWaypoint(mapID, x, y)

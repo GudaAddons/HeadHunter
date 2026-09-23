@@ -95,7 +95,7 @@ return function(T, H)
         T.eq(select(2, M:Current()), "kills", "sort")
 
         M:OnRowClick(M.shownRows[1])
-        T.ok(H.Printed("Gank"), "details in chat")
+        T.eq(ns.Poster:ShownId(), "Gank-Stonespine", "the row opened the poster")
         H.Slash("")
         T.ok(not M:IsShown(), "closed")
         T.noErrors()

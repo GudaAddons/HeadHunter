@@ -4,8 +4,7 @@
 --   WANTED         who is WANTED now; sort by rank, kills or last kill
 --   Hall of Shame  every enemy with the Coward badge (killed lowbies), WANTED or not
 --   My deaths      our own PvP deaths, newest first
--- ("My marks" arrives with HH-050.) A row click prints the outlaw's details until the
--- poster view (HH-061) replaces it.
+-- ("My marks" arrives with HH-050.) A row click opens the outlaw's poster (UI/Poster.lua).
 --
 -- MainWindow.Rows(tab, sortKey, now) is the pure part (tested offline): one table per
 -- row with the text of each column. The rest only draws it, with templates both
@@ -60,6 +59,8 @@ local function ClassColored(text, class)
     if not color then return text end
     return string.format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, text)
 end
+
+MainWindow.ClassColored = ClassColored
 
 local function OutlawName(entry)
     return entry.key and ns.Utils.DisplayName(entry.key) or entry.name or "?"
@@ -407,15 +408,9 @@ function MainWindow:Current()
     return current.tab, current.sort
 end
 
--- Until the poster view (HH-061): the /hh outlaw details in chat
+-- A row opens the outlaw's poster (HH-061)
 function MainWindow:OnRowClick(data)
-    if not (data and data.id) then return end
-    local entry = ns.Wanted:Get(data.id)
-    if entry and entry.key then
-        ns.SlashCommands:Run("outlaw " .. entry.key)
-    elseif entry then
-        ns.SlashCommands:Run("outlaw " .. (entry.name or data.id))
-    end
+    if data and data.id then ns.Poster:Show(data.id) end
 end
 
 function MainWindow:IsShown()
