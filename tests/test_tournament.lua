@@ -169,7 +169,7 @@ return function(T, H)
         T.eq(#reply, 1, "reply whisper")
         T.eq(reply[1].target, "Dampa Lee", "to the player")
         T.ok(reply[1].message:find(";ok$") ~= nil, "ok")
-        T.eq(#Sent("^1AV:A.*;2~EVati Guda#%w+;2;Dampa Lee;Dampa Lee$", "CHANNEL"), 1,
+        T.eq(#Sent("^1AV:A.*;2;gurubashi~EVati Guda#%w+;2;Dampa Lee;Dampa Lee$", "CHANNEL"), 1,
             "new announce and its entrant broadcast together")
 
         Request(ns, t, "Low Bie", 20)
@@ -311,7 +311,7 @@ return function(T, H)
         local t = Announce(ns, { start = H.serverTime + 30 * 60 }, { { id = "Vati Guda", members = { "Vati Guda" } } })
         Run(5)
         T.ok(Centers("Blood Sands in 30 min"), "30 min: center text")
-        T.ok(H.Printed("starts in 30 min in Gurubashi Arena"), "and chat")
+        T.ok(H.Printed("starts in 30 min at Gurubashi Arena"), "and chat")
         T.ok(#H.sounds >= 1, "and a sound")
         H.centerTexts = {}
         Run(10)
@@ -345,7 +345,7 @@ return function(T, H)
         T.ok(popup ~= nil, "popup")
         T.eq(ns.Tournaments:JoinStatus(t), "checkin_me", "we must check in")
 
-        T.eq(select(2, ns.Tournaments:CheckIn(t.id)), "NOT_IN_ARENA", "not in the arena yet")
+        T.eq(select(2, ns.Tournaments:CheckIn(t.id)), "NOT_AT_VENUE", "not in the arena yet")
         InPit()
         T.eq(ns.Tournaments:CheckIn(t.id), "sent", "sent")
         Run(5)
@@ -449,11 +449,91 @@ return function(T, H)
         MW:SelectTab("tours")
         MW:OnRowClick(MW.shownRows[1])
         MW:TourAction()
-        T.ok(H.Printed("You must be in Gurubashi Arena"), "outside the arena")
+        T.ok(H.Printed("You must be at the tournament"), "outside the arena")
         InPit()
         MW:TourAction()
         T.ok(H.Printed("Check%-in sent for Blood Sands"), "sent")
         H.Slash("tour here")
+        T.noErrors()
+    end)
+
+    -------------------------------------------------
+    -- Venues: Gurubashi for both factions, capital gates for their own faction
+    -------------------------------------------------
+
+    T.case("venues: Gurubashi for all, each faction its own capital gates", function()
+        local ns = H.Boot({ client = "forever" })
+        local A = ns.Arena
+        local function Ids(list)
+            local out = {}
+            for i, v in ipairs(list) do out[i] = v.id end
+            return table.concat(out, ",")
+        end
+        T.eq(Ids(A.VenuesFor("Alliance")), "gurubashi,ironforge,stormwind", "Alliance")
+        T.eq(Ids(A.VenuesFor("Horde")), "gurubashi,orgrimmar,undercity", "Horde")
+        T.ok(A.VenueAllowed("gurubashi", "Horde") and not A.VenueAllowed("stormwind", "Horde"), "allowed")
+        local sw = A.VENUE.stormwind
+        T.eq(A.VenueWhere("stormwind", sw.mapID, sw.center.x, sw.center.y), "fight", "at the Stormwind gate")
+        T.eq(A.VenueWhere("stormwind", sw.mapID, sw.center.x + 0.1, sw.center.y), nil, "away from it")
+        T.eq(A.VenueWhere("stormwind", 1434, sw.center.x, sw.center.y), nil, "other zone")
+        T.eq(A.VenueWhere("gurubashi", 1434, 0.3055, 0.4785), "fight", "Gurubashi pit")
+
+        H.playerMap, H.playerX, H.playerY = sw.mapID, sw.center.x, sw.center.y
+        H.Slash("arena")
+        T.ok(H.Printed("at the Stormwind gate"), "/hh arena names the venue")
+        H.playerX = 0.9
+        H.Slash("arena")
+        T.ok(H.Printed("not at a tournament venue"), "and says when we are at none")
+        T.noErrors()
+    end)
+
+    T.case("venues: create, announce, chest rule only at Gurubashi, check-in at the venue", function()
+        local ns = H.Boot({ client = "forever" })
+        local TN = ns.Tournaments
+        -- The player is Alliance; realm 13:00, so 14:30 is too close to the 15:00 chest
+        T.eq(select(2, Create(ns, { venue = "orgrimmar" })), "VENUE", "a Horde venue")
+        T.eq(select(2, Create(ns, { start = H.serverTime + 90 * 60 })), "CHEST", "Gurubashi keeps the chest rule")
+        local t = Create(ns, { venue = "stormwind", start = H.serverTime + 90 * 60 })
+        T.ok(t ~= nil, "the Stormwind gate has no chest")
+        T.eq(t.venue, "stormwind", "venue kept")
+        local a = TN.DecodeAnnounce(TN.EncodeAnnounce(t):sub(2))
+        T.eq(a.venue, "stormwind", "sent with the announce")
+        T.eq(TN.DecodeAnnounce((TN.EncodeAnnounce(t):sub(2):gsub("stormwind$", "moonglade"))), nil, "unknown venue")
+        T.eq(TN.Where(t), "the Stormwind gate (Elwynn Forest)", "named")
+
+        -- Check-in at a Stormwind tournament: the pit does not count, the gate does
+        ns = H.Boot({ client = "forever" })
+        TN = ns.Tournaments
+        local g = Announce(ns, { state = "checkin", start = H.serverTime - 30, venue = "stormwind" },
+            { { id = "Vati Guda", members = { "Vati Guda" } } })
+        T.eq(g.venue, "stormwind", "received")
+        InPit()
+        T.eq(select(2, TN:CheckIn(g.id)), "NOT_AT_VENUE", "Gurubashi is the wrong place")
+        local sw = ns.Arena.VENUE.stormwind
+        H.playerMap, H.playerX, H.playerY = sw.mapID, sw.center.x, sw.center.y
+        T.eq(TN:CheckIn(g.id), "sent", "at the Stormwind gate")
+        T.ok(table.concat(ns.MainWindow.Rows("tours")[1].tooltip, "\n"):find("Where: the Stormwind gate", 1, true) ~= nil,
+            "the tab says where")
+        T.noErrors()
+    end)
+
+    T.case("create dialog: venue dropdown with our faction's venues; the chest only matters at Gurubashi", function()
+        local ns = H.Boot({ client = "forever" })
+        local D = ns.TournamentDialog
+        D:Open()
+        T.eq(D.values.venue, "gurubashi", "Gurubashi by default")
+        local dropdowns = D:Dropdowns()
+        T.eq(dropdowns.venue.dropdown.menuText, "Gurubashi Arena (Stranglethorn Vale)", "shown")
+        local entries = H.OpenDropdown(dropdowns.venue.dropdown)
+        T.eq(#entries, 3, "Gurubashi, Ironforge, Stormwind")
+        D.values.minutes = 90
+        T.ok(D.Preview(D.values):find("arena chest", 1, true) ~= nil, "chest warning at Gurubashi")
+        entries[3].func()
+        T.eq(D.values.venue, "stormwind", "picked the Stormwind gate")
+        T.ok(D.Preview(D.values):find("Starts at 14:30", 1, true) ~= nil, "no chest there")
+        D.values.name = "Gate Brawl"
+        local t = D:Submit()
+        T.eq(t and t.venue, "stormwind", "created there")
         T.noErrors()
     end)
 

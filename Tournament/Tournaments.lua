@@ -7,7 +7,7 @@
 -- running -> finished; cancelled from any of the first three. Forward only.
 --
 -- Messages (protocol type V; records start with a kind letter):
---   A  announce   id;organizer;name;format;bracket;bestOf;start;minLevel;maxTeams;state;version
+--   A  announce   id;organizer;name;format;bracket;bestOf;start;minLevel;maxTeams;state;version;venue
 --   E  entrant    id;version;teamId;member,+member...    (one per team, same version as A;
 --                                                          "+" = checked in)
 --   R  request    id;action(j|l);teamId;member:level,...  (addon whisper to the organizer)
@@ -23,10 +23,14 @@
 -- Teams: 1v1 is a player; 2v2+ is a premade party, registered by its leader (team id =
 -- the leader). Fires HH_TOURNAMENT_UPDATED(id).
 --
+-- Venues (Tournament/Arena.lua): Gurubashi Arena (default, the arena chest rule) or the
+-- organizer's faction's dueling spots outside the capitals. Tournaments are for the
+-- organizer's faction: other-faction messages are dropped (HH-100 decides the rest).
+--
 -- HH-104: reminders 30 and 5 min before the start (registered players: center text,
 -- chat, sound; players who could join: one chat line). Check-in: at the start the
--- organizer's client moves to checkin; registered players click "I'm here" inside
--- Gurubashi Arena within CHECKIN_WINDOW. A team counts only when all its members are
+-- organizer's client moves to checkin; registered players click "I'm here" at the
+-- venue within CHECKIN_WINDOW. A team counts only when all its members are
 -- in. Then (or as soon as everyone is in) the teams that are in go on and the state is
 -- running; fewer than 2 teams = cancelled. Every client builds the same bracket from
 -- the teams that are in (Tournaments:Bracket, seeded with the start time).
@@ -94,16 +98,18 @@ end
 
 function Tournaments.EncodeAnnounce(t)
     return "A" .. table.concat({ t.id, t.organizer, t.name, t.format, t.bracket == "robin" and "r" or "s",
-        t.bestOf, P.ToB36(t.start), t.minLevel, t.maxTeams, STATE_CODE[t.state], t.version }, ";")
+        t.bestOf, P.ToB36(t.start), t.minLevel, t.maxTeams, STATE_CODE[t.state], t.version,
+        t.venue or ns.Arena.DEFAULT_VENUE }, ";")
 end
 
 function Tournaments.DecodeAnnounce(body)
     local f = P.Split(body, ";")
-    if #f ~= 11 or f[1] == "" or f[2] == "" then return nil end
+    if #f ~= 12 or f[1] == "" or f[2] == "" or not ns.Arena.VENUE[f[12]] then return nil end
     local t = {
         id = f[1], organizer = f[2], name = Tournaments.Clean(f[3]), format = tonumber(f[4]),
         bracket = f[5] == "r" and "robin" or "single", bestOf = tonumber(f[6]), start = P.FromB36(f[7]),
         minLevel = tonumber(f[8]), maxTeams = tonumber(f[9]), state = STATE_NAME[f[10]], version = tonumber(f[11]),
+        venue = f[12],
     }
     if not (Tournaments.FORMATS[t.format] and Tournaments.BEST_OF[t.bestOf] and t.start and t.minLevel
         and t.maxTeams and t.state and t.version) then return nil end
@@ -154,6 +160,11 @@ end
 -------------------------------------------------
 -- Store and queries
 -------------------------------------------------
+
+-- "Gurubashi Arena (Stranglethorn Vale)", "the Orgrimmar gate (Durotar)" ...
+function Tournaments.Where(t)
+    return ns.Arena.VenueName(t.venue or ns.Arena.DEFAULT_VENUE)
+end
 
 function Tournaments:Get(id)
     local store = Store()
@@ -234,7 +245,9 @@ function Tournaments:Create(opts, click)
     local now = U.ServerTime()
     local start = tonumber(opts.start)
     if not start or start < now + self.MIN_LEAD or start > now + self.MAX_LEAD then return nil, "START" end
-    if not ns.Arena.StartClearOfChest(start, now) then return nil, "CHEST" end
+    local venue = opts.venue or ns.Arena.DEFAULT_VENUE
+    if not ns.Arena.VenueAllowed(venue, U.UnitFaction("player")) then return nil, "VENUE" end
+    if ns.Arena.VENUE[venue].chest and not ns.Arena.StartClearOfChest(start, now) then return nil, "CHEST" end
     local minLevel = math.floor(tonumber(opts.minLevel) or 1)
     if minLevel < 1 or minLevel > 60 then return nil, "LEVEL" end
     local cap = bracket == "robin" and self.ROBIN_MAX_TEAMS or self.MAX_TEAMS
@@ -246,7 +259,7 @@ function Tournaments:Create(opts, click)
     local t = {
         id = me .. "#" .. P.ToB36(now), organizer = me, name = name, format = opts.format, bracket = bracket,
         bestOf = bestOf, start = start, minLevel = minLevel, maxTeams = maxTeams, state = "scheduled", version = 1,
-        faction = U.UnitFaction("player"), entrants = {}, order = {}, heard = U.Now(),
+        venue = venue, faction = U.UnitFaction("player"), entrants = {}, order = {}, heard = U.Now(),
     }
     store[t.id] = t
     self:Broadcast(t, click)
@@ -435,7 +448,7 @@ function Tournaments:CheckIn(id)
     if not t then return nil, "UNKNOWN" end
     if t.state ~= "checkin" then return nil, "NOT_CHECKIN" end
     if not self:IsRegistered(t) then return nil, "NOT_REGISTERED" end
-    if not ns.Arena:InArena() then return nil, "NOT_IN_ARENA" end
+    if not ns.Arena:PlayerAt(t.venue) then return nil, "NOT_AT_VENUE" end
     if IsMine(t) then return self:OnReply(t.id, self:HandleCheckIn(t, Me())) end
     pending[t.id] = true
     ns.Transport:SendDirect(P.TYPES.TOURNAMENT, { "C" .. t.id }, t.organizer)
@@ -594,7 +607,7 @@ function Tournaments:Remind(t, now)
             if self:IsRegistered(t) then
                 ns.Alerts:Show({ key = "tour:" .. t.id .. ":" .. minutes, sound = true,
                     text = string.format(L.TOUR_REMIND_CENTER, t.name, minutesLeft),
-                    chat = string.format(L.TOUR_REMIND_CHAT, t.name, minutesLeft) })
+                    chat = string.format(L.TOUR_REMIND_CHAT, t.name, minutesLeft, Tournaments.Where(t)) })
             elseif minutes == self.REMINDERS[#self.REMINDERS] and self:JoinStatus(t) == "open" then
                 ns:Print(string.format(L.TOUR_REMIND_OPEN, t.name, minutesLeft))
             end
@@ -609,9 +622,9 @@ function Tournaments:CallCheckIn(t)
     t.checkinCalled = true
     local id = t.id
     ns.Alerts:Show({ key = "tour:" .. id .. ":checkin", sound = true,
-        text = string.format(L.TOUR_CHECKIN_CENTER, t.name),
-        chat = string.format(L.TOUR_CHECKIN_CHAT, t.name, self.CHECKIN_WINDOW / 60),
-        popup = { dialog = ns.Alerts.TOUR_POPUP, text = string.format(L.TOUR_CHECKIN_POPUP, t.name),
+        text = string.format(L.TOUR_CHECKIN_CENTER, t.name, Tournaments.Where(t)),
+        chat = string.format(L.TOUR_CHECKIN_CHAT, t.name, Tournaments.Where(t), self.CHECKIN_WINDOW / 60),
+        popup = { dialog = ns.Alerts.TOUR_POPUP, text = string.format(L.TOUR_CHECKIN_POPUP, t.name, Tournaments.Where(t)),
             accept = L.TOUR_BUTTON_HERE, decline = L.TOUR_BUTTON_LATER,
             onAccept = function() Tournaments:DoCheckIn(id) end } })
 end

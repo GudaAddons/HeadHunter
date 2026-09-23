@@ -288,6 +288,7 @@ local function TourRows(now)
         local tooltip = {
             "|cffffd100" .. t.name .. "|r",
             string.format(L.TIP_TOUR_FORMAT, t.format, t.format, bracket, t.bestOf),
+            string.format(L.TIP_TOUR_VENUE, TN.Where(t)),
             string.format(L.TIP_TOUR_START, start, ns.Arena.RealmClock((t.start - now) / 60) or "?"),
             string.format(L.TIP_TOUR_TEAMS, #t.order, t.maxTeams, t.minLevel),
             string.format(L.TIP_TOUR_ORGANIZER, organizer),
