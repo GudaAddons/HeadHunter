@@ -7,7 +7,7 @@
 --   2. offer   peer -> us (whisper)     O "<count>"   after a random delay, only if it
 --                                                     has records newer than <since>
 --   3. pull    us -> best peer (whisper) Q "p<since>" the peer with the most records
---   4. data    peer -> us (whisper)     S "D<death>" / "K<catch>" ... then "E<count>"
+--   4. data    peer -> us (whisper)     S "D<death>" / "K<catch>" / "U<duel>" ... then "E<count>"
 --
 -- Offers are tiny, and only one peer sends data, so a busy realm does not flood a
 -- player who logs in. <since> is our last logout minus MARGIN (the SavedVariables
@@ -35,6 +35,7 @@ CatchUp.NO_OFFER_WAIT = 30   -- no offer by then: nobody has anything for us
 CatchUp.GIVE_UP = 60         -- a pull that brings nothing is abandoned
 CatchUp.MARGIN = 600         -- ask from 10 min before our last logout
 CatchUp.MAX_RECORDS = 300    -- newest first, per answer
+CatchUp.MAX_DUELS = 100      -- High Noon duels on top of that (HH-091)
 CatchUp.ANSWER_COOLDOWN = 300 -- one answer per requester per 5 minutes
 CatchUp.PROMPT_AWAY = 900    -- Era: offer the realm-wide catch-up after 15 min away
 
@@ -135,6 +136,8 @@ function CatchUp:OnData(record, sender)
         if ns.Reports:AddRelayed(body) then received.reports = received.reports + 1 end
     elseif kind == "K" then
         if ns.Justice:AddRelayed(body, sender) then received.catches = received.catches + 1 end
+    elseif kind == "U" then
+        if ns.Duels:OnRecord(body, sender, "relay") then received.duels = (received.duels or 0) + 1 end
     elseif kind == "E" then
         self:Finish("complete")
     end
@@ -156,6 +159,11 @@ function CatchUp.Records(sinceTime)
         if #records >= CatchUp.MAX_RECORDS then break end
         local encoded = Protocol.EncodeDeath(report, maxLength)
         if encoded then records[#records + 1] = "D" .. encoded end
+    end
+    -- High Noon duels (HH-091) after the reports: they matter less
+    for _, duel in ipairs(ns.Duels:Since(sinceTime, CatchUp.MAX_DUELS)) do
+        if #records >= CatchUp.MAX_RECORDS + CatchUp.MAX_DUELS then break end
+        records[#records + 1] = "U" .. Protocol.EncodeDuel(duel)
     end
     return records
 end

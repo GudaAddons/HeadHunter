@@ -38,11 +38,13 @@ Sync\Reports.lua
 Sync\ReportPrompt.lua
 Sync\Justice.lua
 Sync\CatchUp.lua
+Sync\Duels.lua
 
 # Rules (M3)
 Rules\Engine.lua
 Rules\Wanted.lua
 Rules\Marks.lua
+Rules\HighNoon.lua
 
 # Alerts (M4)
 Alerts\Alerts.lua

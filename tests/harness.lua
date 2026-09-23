@@ -282,6 +282,7 @@ function H.Install(opts)
     _G.UnitClass = function(unit) local u = Unit(unit); if u then return u.class, u.class end end
     _G.UnitRace = function(unit) local u = Unit(unit); if u then return u.race, u.race end end
     _G.UnitSex = function(unit) local u = Unit(unit); return u and u.sex end
+    _G.UnitHealth = function(unit) local u = Unit(unit); return u and (u.health or 100) end
     _G.UnitGUID = function(unit) local u = Unit(unit); return u and u.guid end
     _G.UnitFactionGroup = function(unit) local u = Unit(unit); if u then return u.faction, u.faction end end
     _G.UnitIsPlayer = function(unit) local u = Unit(unit); return u ~= nil and u.isPlayer == true end

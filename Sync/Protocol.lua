@@ -26,6 +26,7 @@ Protocol.TYPES = {
     DEATH = "D", IDENTITY = "G", QUERY = "Q", SNAPSHOT = "S", POSSE = "J", HOTSPOT = "P",
     JUSTICE = "K", -- a WANTED outlaw killed by a HeadHunter or their group (HH-048)
     OFFER = "O",   -- catch-up: "I have N records for you" (HH-023)
+    DUEL = "U",    -- High Noon: a duel someone saw (HH-091); also accepted from the other faction
     PING = "T", -- /hh sync ping: manual connectivity test
 }
 
@@ -271,6 +272,42 @@ function Protocol.DecodePosse(s)
     local t = Protocol.FromB36(f[3])
     if not t then return nil end
     return f[1], Protocol.FromB36(f[2]), t, Protocol.FromB36(f[4]), Protocol.FromB36(f[5])
+end
+
+-------------------------------------------------
+-- Duel (High Noon, HH-091):
+--   winner ; loser ; time ; mapID ; flags ("r" = retreat) ; faction (A/H) ;
+--   winnerClass ; winnerRace ; loserClass ; loserRace   (codes, blank when unknown) ;
+--   winnerLevel ; loserLevel   (base 36)
+-------------------------------------------------
+
+local function Level(n)
+    return n and n >= 1 and Protocol.ToB36(n) or ""
+end
+
+function Protocol.EncodeDuel(duel)
+    return table.concat({
+        duel.winner, duel.loser, Protocol.ToB36(duel.t), duel.mapID and Protocol.ToB36(duel.mapID) or "",
+        duel.retreat and "r" or "", FACTION_CODE[duel.faction] or "",
+        CLASS_CODE[duel.winnerClass] or "", RACE_CODE[duel.winnerRace] or "",
+        CLASS_CODE[duel.loserClass] or "", RACE_CODE[duel.loserRace] or "",
+        Level(duel.winnerLevel), Level(duel.loserLevel),
+    }, ";")
+end
+
+-- Returns a duel table, or nil
+function Protocol.DecodeDuel(s)
+    if type(s) ~= "string" then return nil end
+    local f = Split(s, ";")
+    if #f ~= 12 or Blank(f[1]) or Blank(f[2]) then return nil end
+    local t = Protocol.FromB36(f[3])
+    if not t then return nil end
+    return {
+        winner = f[1], loser = f[2], t = t, mapID = Protocol.FromB36(f[4]), retreat = f[5] == "r" or nil,
+        faction = FACTION_NAME[f[6]], winnerClass = CLASS_NAME[f[7]], winnerRace = RACE_NAME[f[8]],
+        loserClass = CLASS_NAME[f[9]], loserRace = RACE_NAME[f[10]],
+        winnerLevel = Protocol.FromB36(f[11]), loserLevel = Protocol.FromB36(f[12]),
+    }
 end
 
 -------------------------------------------------

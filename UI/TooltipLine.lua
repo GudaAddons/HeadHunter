@@ -3,6 +3,7 @@
 --   WANTED enemy:           "WANTED · Ganker · 8 kills · Coward, Gunslinger"
 --   known, not WANTED now:  "HeadHunter: 12 kills known · caught 1x · Coward" (grey)
 --   unknown enemy:          nothing
+--   any player with duels:  "High Noon: Deadeye #3 (1250)" (HH-093)
 --
 -- Hook: TooltipDataProcessor (unit post-call) where the client has it, else the
 -- tooltip's OnTooltipSetUnit script. Either may run more than once for one tooltip,
@@ -47,6 +48,14 @@ function TooltipLine.EntryForUnit(unit)
     return guid and ns.Wanted:Get("guid:" .. guid)
 end
 
+-- HH-093: "High Noon: Deadeye #3 (1250)" on any player (friend or foe) with duels
+function TooltipLine.DuelLine(unit)
+    local U = ns.Utils
+    if not unit or not U.UnitIsPlayer(unit) then return nil end
+    local title = ns.HighNoon.Title(ns.HighNoon:Get(U.UnitKey(unit)))
+    return title and { string.format(L.DUEL_TOOLTIP, title), 1, 1, 1 } or nil
+end
+
 function TooltipLine:Enabled()
     return ns.db ~= nil and ns.db.settings.tooltip ~= false
 end
@@ -58,6 +67,8 @@ function TooltipLine:Fill(tooltip)
     local _, unit = U.SafeCall(tooltip.GetUnit, tooltip)
     unit = U.AccessibleString(unit)
     local lines = self.Lines(self.EntryForUnit(unit))
+    local duel = self.DuelLine(unit)
+    if duel then lines[#lines + 1] = duel end
     if #lines == 0 then return end
     tooltip.hhLineAdded = true
     for _, line in ipairs(lines) do

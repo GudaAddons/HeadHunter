@@ -82,6 +82,22 @@ SlashCommands:Register("debug", function(args)
         ns:Print(ns.Wanted.LevelWindowOff() and L.DEBUG_LEVELS_OFF or L.DEBUG_LEVELS_ON)
         return
     end
+    -- /hh debug duels <n|off>: testing override of the High Noon listing (MIN_DUELS)
+    if mode == "duels" then
+        local value = args[2] and args[2]:lower()
+        local n = tonumber(value)
+        if value == "off" then
+            ns.Database:SetSetting("testDuelMin", nil)
+        elseif n and n >= 1 and n <= ns.HighNoon.MIN_DUELS then
+            ns.Database:SetSetting("testDuelMin", math.floor(n))
+        else
+            ns:Print(L.DEBUG_DUELS_USAGE)
+            return
+        end
+        ns.HighNoon:Recompute()
+        ns:Print(string.format(L.DEBUG_DUELS, ns.HighNoon.MinDuels()))
+        return
+    end
     -- /hh debug wanted <n|off>: testing override of the WANTED kill threshold
     if mode == "wanted" then
         local value = args[2] and args[2]:lower()

@@ -51,13 +51,14 @@ Cowards are listed in the **Hall of Shame**.
 Type `/hh` or click the minimap button:
 - **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill.
 - **Hall of Shame**: every known coward.
+- **High Noon**: the best duelists, with a switch between the Alliance and Horde lists.
 - **My deaths**: who killed you, when and where.
 - **My marks**: your hunter points and rank.
 
 Hover a name for details, or click it to open the outlaw's **poster**: race and class, rank, badges, recent kills, posse and a **Join the posse** button.
 
 ### Enemy tooltips
-Mouse over an enemy player to see if they are WANTED, their rank, kills and badges.
+Mouse over an enemy player to see if they are WANTED, their rank, kills and badges. Any player with duels also shows their High Noon rank.
 
 ### Posse and hunter ranks
 - Join a posse to hunt an outlaw together. Posse members see each other.
@@ -67,6 +68,13 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 
 ### Catch-up
 When you log in, HeadHunter asks other HeadHunters what you missed while you were offline, so your WANTED list is up to date.
+
+### High Noon (duels)
+- Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon. WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.
+- Only duels between players at most 5 levels apart count. Beating lowbies does not help.
+- Duels are shared like death reports, and never make anyone WANTED.
+- A rating for every duelist (starts at 1000). You are listed after 5 duels.
+- Ranks: **Greenhorn** (under 5 duels), **Quickdraw**, **Sharpshooter**, **Deadeye** and **Legend**. The best duelist of each faction is the **Top Gun**.
 
 ## Commands
 
@@ -81,6 +89,7 @@ When you log in, HeadHunter asks other HeadHunters what you missed while you wer
 | `/hh posse` | Who is hunting which outlaw |
 | `/hh marks` | Your hunter rank and marks |
 | `/hh hotspots` | PvP activity per zone |
+| `/hh duels` | High Noon: the best duelists and your rank |
 | `/hh map on/off` | PvP areas and skulls on the world map |
 | `/hh tooltip on/off` | WANTED line on enemy tooltips |
 | `/hh minimap` | Show or hide the minimap button |
@@ -93,5 +102,5 @@ All settings are also on the options page: **Esc > Options > AddOns > HeadHunter
 - **Classic Era:** reports go to your guild and group automatically. To reach every HeadHunter on the realm, click **Report** after a death (or type `/hh report`). The same goes for **Announce** after you bring down an outlaw (`/hh justice`). The game only allows these realm-wide messages after a click.
 - **Classic Era** has no map waypoints, so HeadHunter tells you the coordinates in chat instead.
 - **WoW: Forever** shares everything automatically.
-- HeadHunter is off in dungeons, raids and battlegrounds. Duels never count.
+- HeadHunter is off in dungeons, raids and battlegrounds. Duels never count as PvP kills.
 - The more players use HeadHunter, the better it works. Tell your guild!

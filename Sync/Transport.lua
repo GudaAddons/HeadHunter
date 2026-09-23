@@ -447,8 +447,9 @@ function Transport:Receive(message, chatType, sender)
         self.diag.lastIgnored = "unparseable message from " .. tostring(sender)
         return
     end
-    -- Other-faction traffic can share a custom channel; it is never ours to trust
-    if faction ~= ns.Utils.UnitFaction("player") then
+    -- Other-faction traffic can share a custom channel; it is never ours to trust,
+    -- except duel records (High Noon lists both factions; they never touch WANTED)
+    if faction ~= ns.Utils.UnitFaction("player") and typeCode ~= ns.Protocol.TYPES.DUEL then
         self.diag.lastIgnored = "other faction (" .. faction .. ") from " .. tostring(sender)
         return
     end

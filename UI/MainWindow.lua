@@ -3,6 +3,7 @@
 -- Tabs:
 --   WANTED         who is WANTED now; sort by rank, kills or last kill
 --   Hall of Shame  every enemy with the Coward badge (killed lowbies), WANTED or not
+--   High Noon      the best duelists (HH-093), Alliance or Horde (the switch top left)
 --   My deaths      our own PvP deaths, newest first
 --   My marks       our HeadHunter rank and what earned or cost marks (HH-050)
 -- A row click opens the outlaw's poster (UI/Poster.lua).
@@ -24,7 +25,7 @@ MainWindow.ROW_HEIGHT = 18
 MainWindow.MAX_ROWS = 300
 MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 
-MainWindow.TABS = { "wanted", "shame", "deaths", "marks" }
+MainWindow.TABS = { "wanted", "shame", "duels", "deaths", "marks" }
 
 -- Columns per tab: key, header, width, sort key (WANTED only)
 MainWindow.COLUMNS = {
@@ -41,6 +42,14 @@ MainWindow.COLUMNS = {
         { key = "coward", header = "COL_COWARD_KILLS", width = 90 },
         { key = "kills", header = "COL_KILLS", width = 50 },
         { key = "status", header = "COL_STATUS", width = 170 },
+    },
+    duels = {
+        { key = "position", header = "COL_POSITION", width = 30 },
+        { key = "name", header = "COL_NAME", width = 170 },
+        { key = "rank", header = "COL_DUEL_RANK", width = 110 },
+        { key = "rating", header = "COL_RATING", width = 60 },
+        { key = "record", header = "COL_RECORD", width = 70 },
+        { key = "lastDuel", header = "COL_LAST_DUEL", width = 110 },
     },
     marks = {
         { key = "time", header = "COL_WHEN", width = 90 },
@@ -183,6 +192,27 @@ local function ShameRows(now)
     return rows
 end
 
+-- High Noon (HH-093): the listed duelists of one faction, best first
+local function DuelRows(faction, now)
+    local HighNoon = ns.HighNoon
+    local rows = {}
+    for _, p in ipairs(HighNoon:List(faction)) do
+        local name = Named(ns.Utils.DisplayName(p.key) or p.key, p)
+        local lastDuel = p.lastT and ns.Utils.Ago(math.max(0, now - p.lastT)) or "-"
+        rows[#rows + 1] = {
+            position = tostring(p.position),
+            name = name,
+            rank = p.topGun and L.DUEL_RANK_TOPGUN or HighNoon.RankName(p.rank),
+            rating = tostring(p.rating),
+            record = p.wins .. "-" .. p.losses,
+            lastDuel = lastDuel,
+            tooltip = { name, string.format(L.DUEL_TOOLTIP, HighNoon.Title(p)),
+                string.format(L.TIP_DUEL, p.wins, p.losses, lastDuel) },
+        }
+    end
+    return rows
+end
+
 -- Our marks history (HH-050), newest first
 local function MarksRows()
     local rows = {}
@@ -225,11 +255,13 @@ local function DeathRows(now)
     return rows
 end
 
--- tab: "wanted" | "shame" | "deaths"; sortKey (WANTED): "rank" | "kills" | "last"
-function MainWindow.Rows(tab, sortKey, now)
+-- tab: one of TABS; sortKey (WANTED): "rank" | "kills" | "last"; faction (High Noon): "Alliance" | "Horde"
+function MainWindow.Rows(tab, sortKey, now, faction)
     now = now or ns.Utils.ServerTime()
     local rows
-    if tab == "marks" then
+    if tab == "duels" then
+        rows = DuelRows(faction, now)
+    elseif tab == "marks" then
         rows = MarksRows()
     elseif tab == "shame" then
         rows = ShameRows(now)
@@ -247,7 +279,7 @@ end
 -------------------------------------------------
 
 local frame
-local current = { tab = "wanted", sort = "rank" }
+local current = { tab = "wanted", sort = "rank", faction = nil } -- faction: High Noon list
 local rowFrames = {}
 local sinceRefresh = 0
 
@@ -275,6 +307,13 @@ local function CreateMainFrame()
     f.options:SetPoint("TOPRIGHT", -30, -6)
     f.options:SetText(L.OPTIONS_BUTTON)
     f.options:SetScript("OnClick", function() ns.SettingsPanel:Open() end)
+
+    -- High Noon: switch between the Alliance and Horde lists
+    f.faction = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    f.faction:SetSize(110, 20)
+    f.faction:SetPoint("TOPLEFT", 14, -6)
+    f.faction:SetScript("OnClick", function() MainWindow:SwitchFaction() end)
+    f.faction:Hide()
 
     f.count = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     f.count:SetPoint("BOTTOMRIGHT", -16, 10)
@@ -374,7 +413,7 @@ function MainWindow:Refresh()
     local columns = self.COLUMNS[current.tab]
     frame.tabs:Select(current.tab)
     LayoutHeaders(columns)
-    local rows = self.Rows(current.tab, current.sort)
+    local rows = self.Rows(current.tab, current.sort, nil, self:DuelFaction())
     for i, data in ipairs(rows) do
         local row = RowFrame(i)
         row.data = data
@@ -402,6 +441,12 @@ function MainWindow:Refresh()
         frame.count:SetText(string.format(L.WINDOW_COUNT, #rows))
     end
     frame.empty:SetText(#rows == 0 and L["EMPTY_" .. current.tab:upper()] or "")
+    if current.tab == "duels" then
+        frame.faction:SetText(string.format(L.DUEL_FACTION_BUTTON, self:DuelFaction() or "?"))
+        frame.faction:Show()
+    else
+        frame.faction:Hide()
+    end
     self.shownRows = rows
 end
 
@@ -413,6 +458,16 @@ end
 
 function MainWindow:SetSort(sortKey)
     current.sort = sortKey
+    self:Refresh()
+end
+
+-- The High Noon list on show: the one picked with the switch, else our faction's
+function MainWindow:DuelFaction()
+    return current.faction or ns.Utils.UnitFaction("player")
+end
+
+function MainWindow:SwitchFaction()
+    current.faction = self:DuelFaction() == "Horde" and "Alliance" or "Horde"
     self:Refresh()
 end
 
@@ -456,7 +511,8 @@ end
 
 ns.Events:Register("HH_INITIALIZED", function()
     local request = function() MainWindow:RequestRefresh() end
-    for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_DEATH_RECORDED", "HH_REPORT_UPDATED", "HH_MARKS_CHANGED" }) do
+    for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_DEATH_RECORDED", "HH_REPORT_UPDATED", "HH_MARKS_CHANGED",
+            "HH_HIGHNOON_UPDATED" }) do
         ns.Events:Register(event, request, OWNER)
     end
 end, OWNER)
