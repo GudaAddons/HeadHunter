@@ -331,6 +331,26 @@ function Utils.ContinentOf(mapID)
     return nil
 end
 
+-------------------------------------------------
+-- Race icons (as in GudaBags Core/Utils.lua)
+-------------------------------------------------
+
+-- Race tokens whose atlas name differs
+local RACE_ATLAS = { scourge = "undead" }
+local GENDER_ATLAS = { [2] = "male", [3] = "female" }
+
+-- Inline race icon for text ("|A:raceicon-orc-male:14:14|a"), or "" when the race is
+-- unknown. race: token ("Orc", "Scourge", "NightElf"); sex: 2 male, 3 female.
+-- Forever has the larger retail art ("raceicon128-...").
+function Utils.RaceIcon(race, sex, size)
+    if type(race) ~= "string" or race == "" then return "" end
+    local name = race:lower()
+    name = RACE_ATLAS[name] or name
+    local prefix = ns.IsForever and "raceicon128" or "raceicon"
+    size = size or 14
+    return string.format("|A:%s-%s-%s:%d:%d|a", prefix, name, GENDER_ATLAS[sex] or "male", size, size)
+end
+
 -- Map pin + tracked waypoint at x, y (0..1) on mapID. False when the client or the
 -- map does not allow it.
 function Utils.SetWaypoint(mapID, x, y)

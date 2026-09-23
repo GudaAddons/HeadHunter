@@ -350,6 +350,12 @@ function H.Install(opts)
         end
     end
     _G.GameTooltip = nil
+    _G.RAID_CLASS_COLORS = {
+        ROGUE = { r = 1, g = 0.96, b = 0.41 }, MAGE = { r = 0.25, g = 0.78, b = 0.92 },
+        WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+    }
+    -- opts.minimap: a Minimap frame exists (the minimap button needs one)
+    _G.Minimap = opts.minimap and NewFrame("Minimap") or nil
     -- opts.worldMap: the world map exists at load (otherwise it never loads)
     _G.WorldMapFrame = opts.worldMap and NewWorldMap() or nil
     H.worldMap = _G.WorldMapFrame

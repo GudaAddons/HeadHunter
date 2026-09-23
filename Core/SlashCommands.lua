@@ -28,7 +28,8 @@ end
 function SlashCommands:Run(input)
     local args = ns.Utils.Tokenize(input)
     local command = table.remove(args, 1)
-    command = command and command:lower() or "help"
+    -- /hh alone opens the main window (UI/MainWindow.lua registers "show")
+    command = command and command:lower() or (handlers.show and "show" or "help")
     local entry = handlers[command]
     if not entry then
         ns:Print(string.format(L.UNKNOWN_COMMAND, command))

@@ -95,7 +95,7 @@ local function WantedPin(entry, mapID, now)
     if not x then return nil end
     local zoneName = ns.Utils.MapName(zone) or L.UNKNOWN_ZONE
     local lines = {
-        string.format(L.MAP_WANTED_TITLE, OutlawName(entry)),
+        ns.Utils.RaceIcon(entry.race, entry.sex) .. " " .. string.format(L.MAP_WANTED_TITLE, OutlawName(entry)),
         string.format(L.MAP_WANTED_STATUS, ns.Wanted.RankName(entry.rank), math.floor(entry.kills)),
     }
     local badges = ns.Wanted.BadgeNames(entry)

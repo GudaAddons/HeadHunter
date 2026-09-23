@@ -251,6 +251,7 @@ function Engine.Evaluate(kills, now, opts, catches)
         killCount = #kills,
         exactKills = exact,     -- weight 1 (exact, sim)
         guessedKills = partial, -- weight 0.5 (inferred)
+        cowardKills = coward,   -- Hall of Shame
         badges = {
             coward = coward > 0 or nil,
             serialkiller = Engine.IsSerialKiller(kills, opts.serialWindow) or nil,

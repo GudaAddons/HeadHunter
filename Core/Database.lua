@@ -37,6 +37,7 @@ local DEFAULTS = {
         },
         serialKillerWindowMin = 15, -- 5..15
         mapPins = true, -- HH-046: hotspot and WANTED pins on the world map
+        minimap = { angle = 200, hidden = false }, -- HH-060 minimap button
     },
     deaths = {},  -- array of death reports, oldest first (HH-013)
     reports = {}, -- report id -> report: own + peer deaths, grow-only (HH-022)
