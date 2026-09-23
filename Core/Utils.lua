@@ -1,0 +1,380 @@
+local addonName, ns = ...
+
+local Utils = ns:RegisterModule("Utils", {})
+
+-------------------------------------------------
+-- Safe access
+--
+-- Every unit API goes through these. On the 12.x engine (Forever) a call can raise,
+-- or return a "secret value" that may be held but not compared, indexed or matched.
+-- Both are treated as "unknown" (nil) so callers never error mid-combat.
+-- Globals are looked up at call time so tests can stub them.
+-------------------------------------------------
+
+function Utils.Accessible(value)
+    if value == nil then return nil end
+    local canaccess = _G.canaccessvalue
+    if canaccess and not canaccess(value) then return nil end
+    local issecret = _G.issecretvalue
+    if issecret and issecret(value) then return nil end
+    return value
+end
+local Accessible = Utils.Accessible
+
+local function PassIfOk(ok, ...)
+    if not ok then return nil end
+    return ...
+end
+
+function Utils.SafeCall(fn, ...)
+    if type(fn) ~= "function" then return nil end
+    return PassIfOk(pcall(fn, ...))
+end
+local SafeCall = Utils.SafeCall
+
+function Utils.AccessibleString(value)
+    value = Accessible(value)
+    if type(value) ~= "string" or value == "" then return nil end
+    return value
+end
+local AccessibleString = Utils.AccessibleString
+
+-------------------------------------------------
+-- Unit API wrappers
+-------------------------------------------------
+
+function Utils.UnitName(unit)
+    local name, realm = SafeCall(_G.UnitName, unit)
+    return AccessibleString(name), AccessibleString(realm)
+end
+
+-- -1 means skull (10+ levels above the player). nil means unknown.
+function Utils.UnitLevel(unit)
+    local level = tonumber(Accessible(SafeCall(_G.UnitLevel, unit)))
+    if not level then return nil end
+    level = math.floor(level)
+    if level == -1 or (level >= 1 and level <= 100) then
+        return level
+    end
+    return nil
+end
+
+-- Locale-independent class token, e.g. "ROGUE"
+function Utils.UnitClass(unit)
+    local _, classFile = SafeCall(_G.UnitClass, unit)
+    return AccessibleString(classFile)
+end
+
+-- Locale-independent race token, e.g. "Scourge", "NightElf"
+function Utils.UnitRace(unit)
+    local _, raceFile = SafeCall(_G.UnitRace, unit)
+    return AccessibleString(raceFile)
+end
+
+-- 1 = unknown, 2 = male, 3 = female
+function Utils.UnitSex(unit)
+    local sex = tonumber(Accessible(SafeCall(_G.UnitSex, unit)))
+    if sex == 2 or sex == 3 then return sex end
+    return 1
+end
+
+function Utils.UnitGUID(unit)
+    return AccessibleString(SafeCall(_G.UnitGUID, unit))
+end
+
+-- "Alliance" / "Horde"
+function Utils.UnitFaction(unit)
+    return AccessibleString((SafeCall(_G.UnitFactionGroup, unit)))
+end
+
+function Utils.UnitGuild(unit)
+    return AccessibleString((SafeCall(_G.GetGuildInfo, unit)))
+end
+
+function Utils.UnitIsPlayer(unit)
+    return Accessible(SafeCall(_G.UnitIsPlayer, unit)) == true
+end
+
+-- A player of the opposing faction. Same-faction hostility only exists in duels,
+-- which HeadHunter never counts.
+function Utils.UnitIsEnemyPlayer(unit)
+    if not Utils.UnitIsPlayer(unit) then return false end
+    local theirs = Utils.UnitFaction(unit)
+    local mine = Utils.UnitFaction("player")
+    return theirs ~= nil and mine ~= nil and theirs ~= mine
+end
+
+-- Races are faction-locked in Classic, so the race token tells the faction of a
+-- player known only by GUID. Needed because the combat log and Death Recap flag a
+-- DUEL opponent as hostile exactly like an enemy player.
+local RACE_FACTION = {
+    Human = "Alliance", Dwarf = "Alliance", NightElf = "Alliance", Gnome = "Alliance",
+    Draenei = "Alliance",
+    Orc = "Horde", Scourge = "Horde", Tauren = "Horde", Troll = "Horde", BloodElf = "Horde",
+}
+
+function Utils.RaceFaction(raceFile)
+    return raceFile and RACE_FACTION[raceFile]
+end
+
+-- True only when the GUID is known to be a player of our own faction.
+-- Unknown race or faction -> false (trust the hostility flags).
+function Utils.IsSameFactionGUID(guid)
+    if not guid then return false end
+    local _, _, _, raceFile = SafeCall(_G.GetPlayerInfoByGUID, guid)
+    local theirs = Utils.RaceFaction(AccessibleString(raceFile))
+    local mine = Utils.UnitFaction("player")
+    return theirs ~= nil and theirs == mine
+end
+
+-------------------------------------------------
+-- Player identity
+--
+-- A player key is the stable identity used everywhere (DB, sync, rules):
+--   Era:     "Name-Realm"      (realm normalised, no spaces)
+--   Forever: "Given Family"    (realmless; an API "-Realm" suffix is dropped,
+--                               since Forever names carry no realm)
+-------------------------------------------------
+
+-- Placeholder names the client returns before a unit resolves
+local UNKNOWN_NAMES = {
+    unknown = true, inconnu = true, unbekannt = true,
+    desconocido = true, desconhecido = true, sconosciuto = true,
+}
+
+local function Trim(s)
+    return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+Utils.Trim = Trim
+
+local function CleanName(name)
+    name = AccessibleString(name)
+    if not name then return nil end
+    -- Typographic quotes and dashes (UTF-8) folded to ASCII
+    name = name:gsub("\226\128\152", "'"):gsub("\226\128\153", "'")
+        :gsub("\226\128\147", "-"):gsub("\226\128\148", "-")
+    name = Trim(name):gsub("%s+", " ")
+    -- ; , ~ : | are wire separators (Sync/Protocol.lua) and never appear in real names
+    if name == "" or #name > 80 or name:find("[%c|:;,~]") then return nil end
+    return name
+end
+
+function Utils.PlayerRealm()
+    local realm = AccessibleString(SafeCall(_G.GetNormalizedRealmName))
+    if not realm then
+        realm = AccessibleString(SafeCall(_G.GetRealmName))
+        realm = realm and realm:gsub("%s", "")
+    end
+    return realm
+end
+
+local function ForeverKey(name)
+    local hyphen = name:find("-", 1, true)
+    local base = hyphen and Trim(name:sub(1, hyphen - 1)) or name
+    local given, family = base:match("^(%S+) (%S+)$")
+    if not given or UNKNOWN_NAMES[given:lower()] then return nil end
+    return given .. " " .. family
+end
+
+local function EraKey(name, realm)
+    local hyphen = name:find("-", 1, true)
+    if hyphen then
+        realm = name:sub(hyphen + 1)
+        name = name:sub(1, hyphen - 1)
+    end
+    if name == "" or name:find("%s") or UNKNOWN_NAMES[name:lower()] then return nil end
+    if not realm or realm == "" then
+        realm = Utils.PlayerRealm()
+    end
+    if not realm then return nil end
+    realm = realm:gsub("%s", "")
+    if realm == "" then return nil end
+    return name .. "-" .. realm
+end
+
+-- name may already carry "-Realm"; realm is optional (defaults to the player's)
+function Utils.PlayerKey(name, realm)
+    name = CleanName(name)
+    if not name then return nil end
+    if ns.Features.RealmlessNames then
+        return ForeverKey(name)
+    end
+    return EraKey(name, AccessibleString(realm))
+end
+
+-- The realm GetPlayerInfoByGUID reports for a unit (7th return)
+local function UnitRealmByGUID(unit)
+    local guid = Utils.UnitGUID(unit)
+    if not guid then return nil end
+    local _, _, _, _, _, _, realm = SafeCall(_G.GetPlayerInfoByGUID, guid)
+    return AccessibleString(realm)
+end
+
+-- Forever: for other players UnitName returns the given name and the family name as
+-- two values (probe 2026-09-23: "Joob", "Stabber"), so the second value is only a
+-- realm when it matches one. Order: GetUnitName(unit, true), a one-value full name,
+-- then given + family.
+local function ForeverUnitKey(unit)
+    local key = Utils.PlayerKey(AccessibleString(SafeCall(_G.GetUnitName, unit, true)))
+    if key then return key end
+    local name, second = Utils.UnitName(unit)
+    if not name then return nil end
+    key = Utils.PlayerKey(name)
+    if key or not second then return key end
+    if second == Utils.PlayerRealm() or second == UnitRealmByGUID(unit) then return nil end
+    return Utils.PlayerKey(name .. " " .. second)
+end
+
+function Utils.UnitKey(unit)
+    if ns.Features.RealmlessNames then
+        return ForeverUnitKey(unit)
+    end
+    return Utils.PlayerKey(Utils.UnitName(unit))
+end
+
+-- Comparison form of a character name or key. Addon-message senders may arrive in
+-- a different shape than unit names (on Forever: "Given Family", "GivenFamily"
+-- or with a "-Realm" suffix), so identity checks compare this instead of raw strings.
+--   Era:     lowercase "name-realm"
+--   Forever: lowercase given+family with no spaces and no realm
+function Utils.CompactName(name)
+    if ns.Features.RealmlessNames then
+        name = AccessibleString(name)
+        if not name then return nil end
+        local base = (name:match("^([^%-]+)") or name):gsub("%s", ""):lower()
+        return base ~= "" and base or nil
+    end
+    local key = Utils.PlayerKey(name)
+    return key and key:lower()
+end
+
+function Utils.SameCharacter(a, b)
+    local ca = Utils.CompactName(a)
+    return ca ~= nil and ca == Utils.CompactName(b)
+end
+
+-- Short form for display: drops the realm when it is the player's own
+function Utils.DisplayName(key)
+    if not key or ns.Features.RealmlessNames then return key end
+    local name, realm = key:match("^(.-)%-(.+)$")
+    if name and realm == Utils.PlayerRealm() then return name end
+    return key
+end
+
+-------------------------------------------------
+-- Time
+-------------------------------------------------
+
+-- Seconds since epoch, shared by all clients. Use for anything that is synced.
+function Utils.ServerTime()
+    return (GetServerTime and GetServerTime()) or time()
+end
+
+-- Local monotonic seconds. Use for windows and throttles on this client only.
+function Utils.Now()
+    return GetTime()
+end
+
+-------------------------------------------------
+-- Map
+-------------------------------------------------
+
+local function MapInfo(mapID)
+    if not mapID or not C_Map then return nil end
+    return SafeCall(C_Map.GetMapInfo, mapID)
+end
+
+function Utils.PlayerMapID()
+    if not C_Map then return nil end
+    return tonumber(Accessible(SafeCall(C_Map.GetBestMapForUnit, "player")))
+end
+
+-- x, y in 0..1 on mapID, or nil (instances, unmapped areas)
+function Utils.PlayerPosition(mapID)
+    mapID = mapID or Utils.PlayerMapID()
+    if not mapID or not C_Map then return nil end
+    local pos = SafeCall(C_Map.GetPlayerMapPosition, mapID, "player")
+    if not pos then return nil end
+    local x, y = SafeCall(pos.GetXY, pos)
+    x, y = tonumber(Accessible(x)), tonumber(Accessible(y))
+    if not x or not y then return nil end
+    return x, y
+end
+
+function Utils.MapName(mapID)
+    local info = MapInfo(mapID)
+    return info and AccessibleString(info.name)
+end
+
+-- Walk up the map tree to the continent map (Eastern Kingdoms, Kalimdor)
+function Utils.ContinentOf(mapID)
+    local continentType = (Enum and Enum.UIMapType and Enum.UIMapType.Continent) or 2
+    local id = mapID
+    for _ = 1, 10 do
+        local info = MapInfo(id)
+        if not info then return nil end
+        if info.mapType == continentType then return id end
+        id = info.parentMapID
+        if not id or id == 0 then return nil end
+    end
+    return nil
+end
+
+-------------------------------------------------
+-- Tables
+-------------------------------------------------
+
+function Utils.CopyTable(source)
+    local copy = {}
+    for k, v in pairs(source) do
+        copy[k] = type(v) == "table" and Utils.CopyTable(v) or v
+    end
+    return copy
+end
+
+-- Fill keys missing from target with (copies of) defaults. Existing values win.
+function Utils.ApplyDefaults(target, defaults)
+    for k, v in pairs(defaults) do
+        if target[k] == nil then
+            target[k] = type(v) == "table" and Utils.CopyTable(v) or v
+        elseif type(target[k]) == "table" and type(v) == "table" then
+            Utils.ApplyDefaults(target[k], v)
+        end
+    end
+    return target
+end
+
+function Utils.CountKeys(t)
+    local n = 0
+    for _ in pairs(t) do n = n + 1 end
+    return n
+end
+
+-------------------------------------------------
+-- Slash arguments: whitespace-separated, "double quotes" group words
+-- (needed for Forever names, which contain a space)
+-------------------------------------------------
+
+function Utils.Tokenize(input)
+    local tokens = {}
+    input = input or ""
+    local pos = 1
+    while pos <= #input do
+        local s = input:find("%S", pos)
+        if not s then break end
+        if input:sub(s, s) == '"' then
+            local e = input:find('"', s + 1, true)
+            if not e then
+                tokens[#tokens + 1] = input:sub(s + 1)
+                break
+            end
+            tokens[#tokens + 1] = input:sub(s + 1, e - 1)
+            pos = e + 1
+        else
+            local e = input:find("%s", s) or (#input + 1)
+            tokens[#tokens + 1] = input:sub(s, e - 1)
+            pos = e
+        end
+    end
+    return tokens
+end

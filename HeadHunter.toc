@@ -1,0 +1,53 @@
+## Interface: 11509, 16001
+## Title: HeadHunter
+## Notes: Track gankers, post WANTED bounties and hunt them down with your faction.
+## Author: Vati
+## Version: 0.1.0
+## SavedVariables: HeadHunter_DB
+## IconTexture: Interface\Icons\INV_Misc_Head_Human_01
+## X-Category: PvP
+
+# Localization (load first)
+Locales.lua
+
+# Core (load order matters)
+Core\Init.lua
+Core\Expansion.lua
+Core\Events.lua
+Core\Utils.lua
+Core\Log.lua
+Core\Database.lua
+Core\Guards.lua
+Core\SlashCommands.lua
+Core\Probe.lua
+Core\Simulator.lua
+
+# Detection (M1)
+Detection\EnemyCache.lua
+Detection\Layer.lua
+Detection\PetOwners.lua
+Detection\Classify.lua
+Detection\DeathReports.lua
+Detection\EraDeaths.lua
+Detection\ForeverDeaths.lua
+
+# Sync (M2)
+Sync\Protocol.lua
+Sync\Transport.lua
+Sync\Reports.lua
+Sync\ReportPrompt.lua
+
+# Rules (M3)
+Rules\Engine.lua
+Rules\Wanted.lua
+
+# Alerts (M4)
+Alerts\Alerts.lua
+Alerts\Zones.lua
+Alerts\Posse.lua
+Alerts\Sighting.lua
+Alerts\Activity.lua
+Alerts\Hotspots.lua
+
+# Bootstrap (load last)
+Core\Main.lua

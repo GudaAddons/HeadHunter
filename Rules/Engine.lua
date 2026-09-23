@@ -1,0 +1,270 @@
+-- M3 (HH-030/031/032): the WANTED rules. Pure functions over death reports, no WoW
+-- API, fully offline-tested. The website applies the same rules
+-- (docs/website/plan.md); keep both in sync.
+--
+-- Rules: docs/addon/features.md sections 1-3.
+--   Kill        every enemy in a report (killer and each assist) gets one kill,
+--               weighted by confidence: exact 1, inferred 0.5, sim 1
+--   WANTED      enters at WANTED_KILLS weighted kills within WANTED_WINDOW
+--               (4 in 20 min); each kill while WANTED adds to the count and
+--               restarts the timer; when the timer runs out the status ends and
+--               the count resets
+--   Timer       <=10 kills 3 h; 11-29: 3 h + 10 min per kill above 10;
+--               >=30: 24 h + 1 h per kill above 30; capped at 7 days
+--   Rank        Ganker 4-9, Outlaw 10-19, Desperado 20-29, Most Wanted 30-49,
+--               Dead or Alive 50+
+--   Badges      Coward: any coward kill (skull or grey victim)
+--               Serial Killer: 5+ distinct victims in separate engagements
+--                 (kills <= 60 s apart are one engagement) within the serial window
+--               Gunslinger: 3+ kills and more than half of them fair
+--               Giant Slayer: 2+ kills of higher-level victims
+--
+-- Everything is derived from the report set, so the result does not depend on the
+-- order in which reports arrived.
+
+local addonName, ns = ...
+
+local Engine = ns:RegisterModule("RulesEngine", {})
+
+local MINUTE, HOUR, DAY = 60, 3600, 86400
+
+Engine.WANTED_KILLS = 4
+Engine.WANTED_WINDOW = 20 * MINUTE
+Engine.ENGAGEMENT_GAP = 60
+Engine.SERIAL_VICTIMS = 5
+Engine.DEFAULT_SERIAL_WINDOW = 15 * MINUTE
+Engine.GUNSLINGER_MIN_KILLS = 3
+Engine.GIANT_SLAYER_KILLS = 2
+Engine.MAX_DURATION = 7 * DAY
+Engine.WEIGHT = { exact = 1, inferred = 0.5, sim = 1 }
+
+-- How often Compute calls `yield` (reports, then enemies)
+Engine.YIELD_REPORTS = 200
+Engine.YIELD_ENEMIES = 50
+
+-- Highest first
+Engine.RANKS = {
+    { min = 50, id = "deadoralive" },
+    { min = 30, id = "mostwanted" },
+    { min = 20, id = "desperado" },
+    { min = 10, id = "outlaw" },
+    { min = 4, id = "ganker" },
+}
+local RANK_ORDER = { ganker = 1, outlaw = 2, desperado = 3, mostwanted = 4, deadoralive = 5 }
+Engine.RANK_ORDER = RANK_ORDER
+
+-- Weighted sums compare with a small tolerance (0.5 steps)
+local EPSILON = 1e-6
+
+function Engine.Duration(kills)
+    local k = math.floor(kills + EPSILON)
+    local duration
+    if k <= 10 then
+        duration = 3 * HOUR
+    elseif k < 30 then
+        duration = 3 * HOUR + (k - 10) * 10 * MINUTE
+    else
+        duration = 24 * HOUR + (k - 30) * HOUR
+    end
+    return math.min(duration, Engine.MAX_DURATION)
+end
+
+function Engine.Rank(kills)
+    local k = math.floor(kills + EPSILON)
+    for _, rank in ipairs(Engine.RANKS) do
+        if k >= rank.min then return rank.id end
+    end
+    return nil
+end
+
+-- Identity of an enemy inside the rules: its player key, or its GUID while only
+-- the given name is known (Forever stealth kills)
+function Engine.EnemyId(enemy)
+    if type(enemy) ~= "table" then return nil end
+    if enemy.key then return enemy.key end
+    if enemy.guid then return "guid:" .. enemy.guid end
+    return nil
+end
+
+-------------------------------------------------
+-- Kill collection
+-------------------------------------------------
+
+-- Richer enemy info wins; newer wins between equals
+local function Better(current, candidate, t, currentT)
+    if not current then return true end
+    if candidate.key and not current.key then return true end
+    if candidate.level and not current.level then return true end
+    return t >= (currentT or 0)
+end
+
+-- reports: array of report tables. yield: optional function called now and then
+-- (the runtime passes coroutine.yield to spread the work over frames).
+-- Returns id -> { kills = {...}, info = enemy table, infoT = time }
+function Engine.CollectKills(reports, yield)
+    local classify = ns.Classify.Kill
+    local byEnemy = {}
+    for index, report in ipairs(reports) do
+        local weight = Engine.WEIGHT[report.confidence] or Engine.WEIGHT.inferred
+        local victimLevel = report.victim and report.victim.level
+        local enemies = { report.killer }
+        for _, assist in ipairs(report.assists or {}) do enemies[#enemies + 1] = assist end
+        for _, enemy in ipairs(enemies) do
+            local id = Engine.EnemyId(enemy)
+            if id then
+                local bucket = byEnemy[id]
+                if not bucket then
+                    bucket = { kills = {} }
+                    byEnemy[id] = bucket
+                end
+                bucket.kills[#bucket.kills + 1] = {
+                    t = report.t,
+                    weight = weight,
+                    victim = report.victim and report.victim.key,
+                    class = classify(enemy.level, victimLevel),
+                    mapID = report.mapID, x = report.x, y = report.y,
+                    reportId = report.id,
+                }
+                if Better(bucket.info, enemy, report.t, bucket.infoT) then
+                    bucket.info, bucket.infoT = enemy, report.t
+                end
+            end
+        end
+        if yield and index % Engine.YIELD_REPORTS == 0 then yield() end
+    end
+    return byEnemy
+end
+
+-------------------------------------------------
+-- Serial Killer
+-------------------------------------------------
+
+-- 5+ distinct victims, each from a separate engagement, within `window` seconds
+function Engine.IsSerialKiller(kills, window)
+    window = window or Engine.DEFAULT_SERIAL_WINDOW
+    local n = #kills
+    for i = 1, n do
+        local seen, count = {}, 0
+        local engagementUsed = false
+        local previousT
+        for j = i, n do
+            local kill = kills[j]
+            if kill.t - kills[i].t > window then break end
+            if previousT and kill.t - previousT > Engine.ENGAGEMENT_GAP then
+                engagementUsed = false -- a new engagement starts
+            end
+            previousT = kill.t
+            if not engagementUsed and kill.victim and not seen[kill.victim] then
+                seen[kill.victim] = true
+                count = count + 1
+                engagementUsed = true
+                if count >= Engine.SERIAL_VICTIMS then return true end
+            end
+        end
+    end
+    return false
+end
+
+-------------------------------------------------
+-- One enemy
+-------------------------------------------------
+
+-- opts.wantedKills overrides WANTED_KILLS (testing only: /hh debug wanted <n>)
+function Engine.Evaluate(kills, now, opts)
+    opts = opts or {}
+    local wantedKills = opts.wantedKills or Engine.WANTED_KILLS
+    table.sort(kills, function(a, b)
+        if a.t ~= b.t then return a.t < b.t end
+        return (a.reportId or "") < (b.reportId or "")
+    end)
+
+    local wanted, count, wantedUntil, wantedSince = false, 0, 0, nil
+    local timesWanted, peakRank = 0, nil
+    local windowStart, windowSum = 1, 0
+    local total, coward, fair, giant = 0, 0, 0, 0
+    local exact, partial = 0, 0
+
+    for i, kill in ipairs(kills) do
+        total = total + kill.weight
+        if kill.weight >= 1 then exact = exact + 1 else partial = partial + 1 end
+        if kill.class == "coward" then coward = coward + 1 end
+        if kill.class == "fair" then fair = fair + 1 end
+        if kill.class == "giant" then giant = giant + 1 end
+
+        windowSum = windowSum + kill.weight
+        while kills[windowStart].t < kill.t - Engine.WANTED_WINDOW do
+            windowSum = windowSum - kills[windowStart].weight
+            windowStart = windowStart + 1
+        end
+
+        if wanted and kill.t > wantedUntil then
+            wanted, count = false, 0 -- the timer ran out before this kill
+        end
+        if wanted then
+            count = count + kill.weight
+        elseif windowSum >= wantedKills - EPSILON then
+            wanted, count, wantedSince = true, windowSum, kill.t
+            timesWanted = timesWanted + 1
+        end
+        if wanted then
+            wantedUntil = kill.t + Engine.Duration(count)
+            local rank = Engine.Rank(count) or "ganker"
+            if rank and (not peakRank or RANK_ORDER[rank] > RANK_ORDER[peakRank]) then
+                peakRank = rank
+            end
+        end
+    end
+
+    local last = kills[#kills]
+    local active = wanted and now <= wantedUntil
+    return {
+        wanted = active,
+        expired = wanted and not active,
+        kills = active and count or 0,
+        -- Below the Ganker threshold only with a lowered test threshold: still a Ganker
+        rank = active and (Engine.Rank(count) or "ganker") or nil,
+        wantedUntil = wanted and wantedUntil or nil,
+        wantedSince = wantedSince,
+        timesWanted = timesWanted,
+        peakRank = peakRank,
+        totalKills = total,
+        killCount = #kills,
+        exactKills = exact,     -- weight 1 (exact, sim)
+        guessedKills = partial, -- weight 0.5 (inferred)
+        badges = {
+            coward = coward > 0 or nil,
+            serialkiller = Engine.IsSerialKiller(kills, opts.serialWindow) or nil,
+            gunslinger = (#kills >= Engine.GUNSLINGER_MIN_KILLS and fair * 2 > #kills) or nil,
+            giantslayer = giant >= Engine.GIANT_SLAYER_KILLS or nil,
+        },
+        firstKill = kills[1] and kills[1].t,
+        lastKill = last and {
+            t = last.t, victim = last.victim, mapID = last.mapID, x = last.x, y = last.y,
+        },
+    }
+end
+
+-- reports: array. Returns id -> entry (every enemy with at least one kill)
+function Engine.Compute(reports, now, opts, yield)
+    local byEnemy = Engine.CollectKills(reports, yield)
+    local entries = {}
+    local processed = 0
+    for id, bucket in pairs(byEnemy) do
+        local entry = Engine.Evaluate(bucket.kills, now, opts)
+        local info = bucket.info or {}
+        entry.id = id
+        entry.key = info.key
+        entry.guid = info.guid
+        entry.name = info.key or info.name or id
+        entry.nameIncomplete = info.key == nil or nil
+        entry.level = info.level
+        entry.levelMin = info.levelMin
+        entry.class = info.class
+        entry.race = info.race
+        entry.sex = info.sex
+        entries[id] = entry
+        processed = processed + 1
+        if yield and processed % Engine.YIELD_ENEMIES == 0 then yield() end
+    end
+    return entries
+end
