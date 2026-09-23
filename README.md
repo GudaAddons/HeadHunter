@@ -1,3 +1,7 @@
+[![Patreon](https://img.shields.io/badge/Patreon-F96854?logo=patreon&logoColor=white&style=for-the-badge)](https://www.patreon.com/cw/GudaAddons)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-29ABE0?logo=kofi&logoColor=orange&style=for-the-badge)](https://ko-fi.com/guda)
+[![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white&style=for-the-badge)](https://discord.gg/kcqV4dcrxJ)
+
 # HeadHunter - Wanted: Dead or Alive
 
 **Got ganked? HeadHunter records who killed you, shares it with your faction and marks WANTED outlaws on the map. Form a posse and bring them to justice.**
