@@ -135,7 +135,6 @@ return function(T, H)
         near(pins[1].x, 0.58, "continent x")
         near(pins[1].y, 0.42, "continent y")
         near(pins[1].size, 0.02, "area shrinks with the zone on the continent")
-        T.eq(pins[1].waypoint.mapID, 1417, "waypoint stays on the zone")
         T.eq(#ns.MapMarkers:PinsFor(1429), 0, "not on another zone")
         T.eq(#ns.MapMarkers:PinsFor(1414), 0, "not on the other continent")
     end)
@@ -176,12 +175,7 @@ return function(T, H)
         T.ok(Find("WANTED", pin.lines) and Find("Gank", pin.lines), "title")
         T.ok(Find("4 kills · until caught", pin.lines), "rank, kills, until caught")
         T.ok(Find("Last kill just now in Westfall", pin.lines), "last kill")
-
-        ns.MapMarkers:SetWaypoint(pin)
-        local wp = H.waypoints[#H.waypoints]
-        T.eq(wp.uiMapID, 1436, "waypoint map")
-        near(wp.x, 0.3, "waypoint x")
-        T.ok(H.Printed("Waypoint set in Westfall"), "confirmed in chat")
+        T.ok(not Find("Click", pin.lines), "no click action (author, 2026-09-23)")
         T.noErrors()
     end)
 
@@ -234,7 +228,7 @@ return function(T, H)
         T.ok(H.Printed("PvP Battle in Arathi Highlands: position unknown."), "said so")
     end)
 
-    T.case("Join the posse and clicking a skull give coordinates without game waypoints", function()
+    T.case("Join the posse gives coordinates without game waypoints", function()
         local ns = H.Boot({ client = "era" })
         H.noWaypoints = true
         for i = 1, 4 do Kill(ns, 1436, i * 30, nil, 0.3, 0.7) end
@@ -243,8 +237,6 @@ return function(T, H)
         ns.Posse:Join(entry, { mapID = 1436, x = 0.3, y = 0.7 })
         T.ok(H.Printed("You joined the posse against Gank%-Stonespine%. Last seen in Westfall at 30%.0, 70%.0%."),
             "join says where")
-        ns.MapMarkers:SetWaypoint(ns.MapMarkers:PinsFor(1436)[1])
-        T.ok(H.Printed("Gank%-Stonespine's last kill at 30%.0, 70%.0%."), "skull click says where")
         T.noErrors()
     end)
 

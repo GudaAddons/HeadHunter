@@ -1,7 +1,7 @@
 -- HH-046: map markers. PvP areas for hotspots (Alerts/Hotspots.lua: a translucent red
 -- zone with "PVP" in the middle, darker as the fight grows) and skull pins for WANTED
 -- outlaws (Rules/Wanted.lua) on the world map, in the zone, continent and world views.
--- Hover: details. Click: waypoint (Classic Era has none: chat gives the coordinates).
+-- Hover: details (no click action; author, 2026-09-23).
 --
 -- Drawn on our own layer over the map canvas, not through the map's data-provider
 -- system: on the 12.x engine (Forever) reading WorldMapFrame.mapID taints the addon
@@ -9,7 +9,7 @@
 -- is taken from a SetMapID hook instead, and the canvas is read inside securecall.
 --
 -- MapMarkers:PinsFor(mapID, now) is the pure part (tested offline): which pins, where
--- on that map, which tooltip lines and which waypoint. The rest only draws it.
+-- on that map and which tooltip lines. The rest only draws it.
 
 local addonName, ns = ...
 local L = ns.L
@@ -75,13 +75,10 @@ local function HotspotPin(spot, mapID, now)
         size = MapMarkers.AREA_WIDTH * zoneWidth, -- diameter as a share of the map's width
         alpha = MapMarkers.AREA_ALPHA[spot.level] or MapMarkers.AREA_ALPHA[1],
         level = spot.level,
-        waypoint = { mapID = spot.zone, x = spot.x, y = spot.y, zoneName = zoneName,
-            label = string.format(L.GUIDE_HOTSPOT, L["HOTSPOT_LEVEL_" .. spot.level], zoneName) },
         lines = {
             string.format(L.MAP_HOTSPOT_TITLE, L["HOTSPOT_LEVEL_" .. spot.level], zoneName),
             ns.Hotspots.Describe(spot.a, spot.e, spot.d),
             ns.Utils.Ago(math.max(0, now - spot.t)),
-            L.MAP_CLICK_WAYPOINT,
         },
     }
 end
@@ -103,14 +100,11 @@ local function WantedPin(entry, mapID, now)
     lines[#lines + 1] = string.format(L.MAP_WANTED_LAST_KILL, ns.Utils.Ago(math.max(0, now - kill.t)), zoneName)
     local posse = ns.Posse:Summary(entry.id)
     if posse then lines[#lines + 1] = posse end
-    lines[#lines + 1] = L.MAP_CLICK_WAYPOINT
     return {
         kind = "wanted",
         id = "wanted:" .. entry.id,
         x = x, y = y,
         hunted = ns.Posse:IsMember(entry.id),
-        waypoint = { mapID = zone, x = zx, y = zy, zoneName = zoneName,
-            label = string.format(L.GUIDE_WANTED, OutlawName(entry)) },
         lines = lines,
     }
 end
@@ -158,12 +152,6 @@ function MapMarkers:PinsFor(mapID, now)
         pins[#pins + 1] = WantedPin(entry, mapID, now)
     end
     return pins
-end
-
--- A click on a pin
-function MapMarkers:SetWaypoint(pin)
-    local w = pin.waypoint
-    return self.GuideAndTell(w.mapID, w.x, w.y, w.label, string.format(L.MAP_WAYPOINT, w.zoneName)) ~= nil
 end
 
 function MapMarkers:Enabled()
@@ -217,12 +205,12 @@ local function ShowTooltip(button)
     GameTooltip:Show()
 end
 
--- Hover = details, left click = waypoint
+-- Hover = details. No click action (the pin already shows the place), so clicks go
+-- through to the map where the client allows it.
 local function MakeInteractive(button)
-    button:RegisterForClicks("LeftButtonUp")
     button:SetScript("OnEnter", ShowTooltip)
     button:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-    button:SetScript("OnClick", function(self) MapMarkers:SetWaypoint(self.data) end)
+    if button.SetMouseClickEnabled then pcall(button.SetMouseClickEnabled, button, false) end
 end
 
 -- Skull: an icon with a fixed size on screen

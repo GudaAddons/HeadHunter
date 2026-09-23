@@ -7,7 +7,7 @@
 --   Kills known: 12 (exact 10, guessed 2) · WANTED 2x · caught 1x · peak rank Outlaw
 --   Recent kills: when · victim · zone · kill type (newest first)
 --   Posse: you, Hunterx
---   [Last kill: waypoint]  [Join the posse]
+--   [Join the posse]
 --
 -- Poster.Content(id, now) is the pure part (tested offline).
 
@@ -74,9 +74,6 @@ function Poster.Content(id, now)
     local kill = entry.lastKill
     if kill then
         c.lastKill = string.format(L.TIP_LAST_KILL, U.Ago(math.max(0, now - kill.t)), U.MapName(kill.mapID) or L.UNKNOWN_ZONE)
-        if kill.mapID and kill.x and kill.y then
-            c.where = { mapID = kill.mapID, x = kill.x, y = kill.y, zoneName = U.MapName(kill.mapID) or L.UNKNOWN_ZONE }
-        end
     end
     local kills = KillsOf(entry.id, Poster.RECENT)
     for _, item in ipairs(kills) do
@@ -97,14 +94,6 @@ end
 -------------------------------------------------
 
 local shownId
-
-function Poster:GoToLastKill()
-    local c = Poster.Content(shownId)
-    if not (c and c.where) then return nil end
-    local w = c.where
-    return ns.MapMarkers.GuideAndTell(w.mapID, w.x, w.y, string.format(L.GUIDE_WANTED, c.name),
-        string.format(L.MAP_WAYPOINT, w.zoneName))
-end
 
 function Poster:Join()
     local c = Poster.Content(shownId)
@@ -165,15 +154,9 @@ local function CreatePosterFrame()
     end
     f.posse = Text(f, "GameFontHighlightSmall", "BOTTOMLEFT", previous, 0, -10, width)
 
-    f.whereButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    f.whereButton:SetSize(170, 22)
-    f.whereButton:SetPoint("BOTTOMLEFT", 14, 14)
-    f.whereButton:SetText(L.POSTER_WHERE)
-    f.whereButton:SetScript("OnClick", function() Poster:GoToLastKill() end)
-
     f.joinButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     f.joinButton:SetSize(170, 22)
-    f.joinButton:SetPoint("BOTTOMRIGHT", -14, 14)
+    f.joinButton:SetPoint("BOTTOM", 0, 14)
     f.joinButton:SetText(L.POSSE_JOIN)
     f.joinButton:SetScript("OnClick", function() Poster:Join() end)
 
@@ -197,7 +180,6 @@ function Poster:Refresh()
     for i, line in ipairs(frame.recent) do line:SetText(c.recent[i] or "") end
     if #c.recent == 0 then frame.recent[1]:SetText(L.POSTER_NO_KILLS) end
     frame.posse:SetText(c.posse or "")
-    if c.where then frame.whereButton:Enable() else frame.whereButton:Disable() end
     if c.canJoin then frame.joinButton:Show() else frame.joinButton:Hide() end
     self.shown = c
 end
