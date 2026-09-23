@@ -1,4 +1,5 @@
--- M9 Gurubashi Tournament: HH-100 spike tools, HH-102 arena presence, HH-105 brackets.
+-- M9 Gurubashi Tournament: HH-100 spike tools, HH-101 model and protocol, HH-102 arena,
+-- HH-103 tab and dialog, HH-104 reminders and check-in, HH-105 brackets.
 
 return function(T, H)
     local function Ids(list, field)
@@ -131,6 +132,30 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("no tournament starts near the arena chest (every 3 h from midnight, realm time)", function()
+        local ns = H.Boot({ client = "forever" })
+        local A = ns.Arena
+        local now = H.serverTime
+        -- Realm 13:00: chests at 12:00 and 15:00
+        T.ok(A.StartClearOfChest(now + 15 * 60, now, 13 * 60), "13:15 is free")
+        T.ok(A.StartClearOfChest(now + 60 * 60, now, 13 * 60), "14:00 is the last free start")
+        T.ok(not A.StartClearOfChest(now + 90 * 60, now, 13 * 60), "14:30: under an hour to the 15:00 chest")
+        T.ok(not A.StartClearOfChest(now + 125 * 60, now, 13 * 60), "15:05: the chest brawl")
+        T.ok(A.StartClearOfChest(now + 135 * 60, now, 13 * 60), "15:15: over")
+        T.ok(not A.StartClearOfChest(now + 11 * 3600 + 5 * 60, now, 13 * 60), "00:05 next day: the midnight chest")
+        local clock = _G.GetGameTime
+        _G.GetGameTime = nil
+        T.ok(A.StartClearOfChest(now + 125 * 60, now), "no realm clock: not blocked")
+        _G.GetGameTime = clock
+        T.eq(A.MinutesToChest(13 * 60 + 20), 100, "next chest in 100 min")
+        T.eq(A.MinutesToChest(15 * 60), 0, "chest now")
+
+        T.eq(select(2, Create(ns, { start = now + 90 * 60 })), "CHEST", "create refuses it")
+        H.Slash("tour")
+        T.ok(H.Printed("Next arena chest in 120 min %(realm time 15:00%)"), "/hh tour shows the next chest")
+        T.noErrors()
+    end)
+
     T.case("organizer: join requests are checked, answered by whisper, and broadcast", function()
         local ns = H.Boot({ client = "forever" })
         local t = Create(ns)
@@ -250,6 +275,307 @@ return function(T, H)
         H.Deliver(ns.Protocol.Pack("A", "V", { "H" .. t.id }), "Dampa Lee")
         Run(5)
         T.eq(#Sent("^1AV:A", "WHISPER"), 1, "one answer")
+        T.noErrors()
+    end)
+
+    -------------------------------------------------
+    -- HH-104 reminders and check-in
+    -------------------------------------------------
+
+    local function Centers(text)
+        for _, line in ipairs(H.centerTexts) do
+            if line:find(text, 1, true) then return true end
+        end
+        return false
+    end
+
+    local function InPit()
+        H.playerMap, H.playerX, H.playerY = 1434, 0.306, 0.479
+    end
+
+    T.case("entrants carry who checked in", function()
+        local TN = H.Boot({ client = "forever" }).Tournaments
+        local line = TN.EncodeEntrant({ id = "x#1", version = 4 },
+            { id = "A B", members = { "A B", "C D" }, here = { ["C D"] = true } })
+        T.eq(line, "Ex#1;4;A B;A B,+C D", "the + marks a check-in")
+        local _, _, team = TN.DecodeEntrant(line:sub(2))
+        T.eq(team.members[2], "C D", "name without the mark")
+        T.ok(team.here["C D"] and not team.here["A B"], "who is here")
+        T.ok(not TN.TeamIsIn(team), "a team is in only when everyone is")
+        team.here["A B"] = true
+        T.ok(TN.TeamIsIn(team), "all in")
+    end)
+
+    T.case("reminders: 30 and 5 min before, once each; a late login gets only the latest", function()
+        local ns = H.Boot({ client = "forever" })
+        local t = Announce(ns, { start = H.serverTime + 30 * 60 }, { { id = "Vati Guda", members = { "Vati Guda" } } })
+        Run(5)
+        T.ok(Centers("Blood Sands in 30 min"), "30 min: center text")
+        T.ok(H.Printed("starts in 30 min in Gurubashi Arena"), "and chat")
+        T.ok(#H.sounds >= 1, "and a sound")
+        H.centerTexts = {}
+        Run(10)
+        T.eq(#H.centerTexts, 0, "not again")
+        H.serverTime = t.start - 5 * 60
+        Run(5)
+        T.ok(Centers("Blood Sands in 5 min"), "5 min")
+
+        ns = H.Boot({ client = "forever" })
+        Announce(ns, { start = H.serverTime + 3 * 60 }, { { id = "Vati Guda", members = { "Vati Guda" } } })
+        Run(5)
+        T.ok(Centers("in 3 min"), "late: the latest one")
+        T.eq(#H.centerTexts, 1, "only one")
+
+        ns = H.Boot({ client = "forever" })
+        Announce(ns, { start = H.serverTime + 20 * 60 })
+        Run(5)
+        T.ok(H.Printed("starts in 20 min and you can still join"), "could join: one chat line")
+        T.eq(#H.centerTexts, 0, "no center text for them")
+        T.noErrors()
+    end)
+
+    T.case("player: check-in popup, I'm here only inside the arena", function()
+        local ns = H.Boot({ client = "forever" })
+        local t = Announce(ns, { state = "checkin", start = H.serverTime - 30 },
+            { { id = "Vati Guda", members = { "Vati Guda" } } })
+        Run(5)
+        T.ok(Centers("check-in!"), "center text")
+        local popup
+        for _, p in ipairs(H.popups) do if p.which == ns.Alerts.TOUR_POPUP then popup = p end end
+        T.ok(popup ~= nil, "popup")
+        T.eq(ns.Tournaments:JoinStatus(t), "checkin_me", "we must check in")
+
+        T.eq(select(2, ns.Tournaments:CheckIn(t.id)), "NOT_IN_ARENA", "not in the arena yet")
+        InPit()
+        T.eq(ns.Tournaments:CheckIn(t.id), "sent", "sent")
+        Run(5)
+        T.eq(#Sent("^1AV:COrg Man#1$", "WHISPER"), 1, "check-in whisper to the organizer")
+        H.Deliver(ns.Protocol.Pack("A", "V", { "X" .. t.id .. ";here" }), "Org Man")
+        T.ok(H.Printed("Checked in for Blood Sands"), "confirmed")
+
+        Announce(ns, { state = "checkin", start = H.serverTime - 30, version = 2 },
+            { { id = "Vati Guda", members = { "+Vati Guda" } } })
+        T.eq(ns.Tournaments:JoinStatus(t), "here", "checked in, from the organizer")
+        T.noErrors()
+    end)
+
+    T.case("organizer: check-in marks players; after 10 min the no-shows drop out and it runs", function()
+        local ns = H.Boot({ client = "forever" })
+        local TN = ns.Tournaments
+        local t = Create(ns, { start = H.serverTime + 120, maxTeams = 8 })
+        Request(ns, t, "Dampa Lee", 40)
+        Request(ns, t, "Kiko Ra", 40)
+        Request(ns, t, "No Show", 40)
+        H.serverTime = t.start
+        Run(5)
+        T.eq(t.state, "checkin", "check-in")
+        H.Deliver(ns.Protocol.Pack("A", "V", { "C" .. t.id }), "Dampa Lee")
+        H.Deliver(ns.Protocol.Pack("A", "V", { "C" .. t.id }), "Kiko Ra")
+        H.Deliver(ns.Protocol.Pack("A", "V", { "C" .. t.id }), "Stranger Guy")
+        T.ok(TN:IsHere(t, "Dampa Lee") and TN:IsHere(t, "Kiko Ra"), "marked")
+        H.sent = {}
+        Run(5)
+        T.eq(#Sent(";here$", "WHISPER"), 2, "both answered")
+        T.eq(#Sent(";notin$", "WHISPER"), 1, "not registered")
+        T.eq(#Sent("~E" .. t.id:gsub("%p", "%%%0") .. ";%d+;Dampa Lee;%+Dampa Lee", "CHANNEL"), 1,
+            "check-ins broadcast")
+        T.eq(t.state, "checkin", "still waiting for No Show")
+
+        H.serverTime = t.start + TN.CHECKIN_WINDOW
+        Run(5)
+        T.eq(t.state, "running", "running")
+        T.eq(TN:TeamCount(t), 2, "No Show dropped")
+        T.ok(H.Printed("2 teams are in"), "organizer told")
+        local bracket = TN:Bracket(t)
+        T.eq(#bracket.rounds, 1, "two teams: one final")
+        local final = bracket.rounds[1][1]
+        T.eq(final.a .. " v " .. final.b, table.concat(ns.Brackets.Seed(t.order, nil, t.start), " v "),
+            "seeded from the teams that are in")
+        T.eq(t.bracket, "single", "the kind is kept")
+        T.noErrors()
+    end)
+
+    T.case("organizer: everyone in = no waiting; one team in = cancelled", function()
+        local ns = H.Boot({ client = "forever" })
+        local t = Create(ns, { start = H.serverTime + 120 })
+        Request(ns, t, "Dampa Lee", 40)
+        Request(ns, t, "Kiko Ra", 40)
+        H.serverTime = t.start
+        Run(5)
+        H.Deliver(ns.Protocol.Pack("A", "V", { "C" .. t.id }), "Dampa Lee")
+        H.Deliver(ns.Protocol.Pack("A", "V", { "C" .. t.id }), "Kiko Ra")
+        Run(5)
+        T.eq(t.state, "running", "all in: starts at once")
+
+        ns = H.Boot({ client = "forever" })
+        t = Create(ns, { start = H.serverTime + 120 })
+        Request(ns, t, "Dampa Lee", 40)
+        Request(ns, t, "Kiko Ra", 40)
+        H.serverTime = t.start
+        Run(5)
+        H.Deliver(ns.Protocol.Pack("A", "V", { "C" .. t.id }), "Dampa Lee")
+        H.serverTime = t.start + ns.Tournaments.CHECKIN_WINDOW
+        Run(5)
+        T.eq(t.state, "cancelled", "one team: cancelled")
+        T.ok(H.Printed("fewer than 2 teams"), "told")
+        T.noErrors()
+    end)
+
+    T.case("player: told when the matches begin; the same bracket as the organizer", function()
+        local ns = H.Boot({ client = "forever" })
+        local teams = { { id = "Vati Guda", members = { "+Vati Guda" } }, { id = "Kiko Ra", members = { "+Kiko Ra" } },
+            { id = "Dampa Lee", members = { "+Dampa Lee" } } }
+        local t = Announce(ns, { state = "checkin", start = H.serverTime - 60 }, teams)
+        T.eq(ns.Tournaments:Bracket(t), nil, "no bracket during check-in")
+        Announce(ns, { state = "running", start = H.serverTime - 60, version = 2 }, teams)
+        T.ok(H.Printed("the matches begin"), "told")
+        local bracket = ns.Tournaments:Bracket(t)
+        T.eq(#bracket.rounds, 2, "3 teams: 4 slots, 2 rounds")
+        local expected = ns.Brackets.SingleElimination(ns.Brackets.Seed({ "Vati Guda", "Kiko Ra", "Dampa Lee" }, nil,
+            t.start), 1)
+        T.eq(bracket.rounds[1][2].a .. bracket.rounds[1][2].b, expected.rounds[1][2].a .. expected.rounds[1][2].b,
+            "same as the organizer builds")
+        T.noErrors()
+    end)
+
+    T.case("tab: I'm here button during check-in", function()
+        local ns = H.Boot({ client = "forever" })
+        local MW = ns.MainWindow
+        local t = Announce(ns, { state = "checkin", start = H.serverTime - 30 },
+            { { id = "Vati Guda", members = { "Vati Guda" } } })
+        T.eq(MW.TourActions(t).action, "here", "I'm here")
+        T.ok(MW.Rows("tours")[1].status:find("Check in now", 1, true) ~= nil, "status")
+        MW:Toggle()
+        MW:SelectTab("tours")
+        MW:OnRowClick(MW.shownRows[1])
+        MW:TourAction()
+        T.ok(H.Printed("You must be in Gurubashi Arena"), "outside the arena")
+        InPit()
+        MW:TourAction()
+        T.ok(H.Printed("Check%-in sent for Blood Sands"), "sent")
+        H.Slash("tour here")
+        T.noErrors()
+    end)
+
+    -------------------------------------------------
+    -- HH-103 Tournaments tab and Create dialog
+    -------------------------------------------------
+
+    T.case("tab rows: details, our status, tooltip with the teams", function()
+        local ns = H.Boot({ client = "forever" })
+        Announce(ns, { minLevel = 50 }, { { id = "Kiko Ra", members = { "Kiko Ra" } } })
+        Announce(ns, { id = "Org Man#2", name = "Pit Kings", format = 2, bracket = "robin", bestOf = 3,
+            start = H.serverTime + 3 * 3600 + 20 * 60 })
+        local rows = ns.MainWindow.Rows("tours")
+        T.eq(#rows, 2, "two tournaments")
+        local r = rows[1]
+        T.eq(r.name, "Blood Sands", "soonest first")
+        T.eq(r.format .. "|" .. r.series .. "|" .. r.start .. "|" .. r.level .. "|" .. r.teams,
+            "1v1|Best of 1|in 30 min|50+|1/8", "columns")
+        T.ok(r.status:find("Level too low", 1, true) ~= nil, "we are level 30")
+        T.ok(table.concat(r.tooltip, "\n"):find("Kiko Ra", 1, true) ~= nil, "teams in the tooltip")
+        T.ok(table.concat(r.tooltip, "\n"):find("realm time 13:30", 1, true) ~= nil, "realm start time")
+        T.eq(rows[2].series, "Best of 3, robin", "round robin")
+        T.eq(rows[2].start, "in 3 h 20 min", "hours")
+        T.ok(rows[2].status:find("Needs a party", 1, true) ~= nil, "2v2 without a party")
+        T.noErrors()
+    end)
+
+    T.case("tab: a click selects; Join, Leave and Cancel follow the selection", function()
+        local ns = H.Boot({ client = "forever" })
+        local MW = ns.MainWindow
+        local other = Announce(ns)
+        local mine = Create(ns, { name = "My Cup" })
+        MW:Toggle()
+        MW:SelectTab("tours")
+        T.eq(MW.tourButtons.create, true, "Create shown")
+        T.eq(MW.tourButtons.action, nil, "nothing selected")
+
+        local function RowOf(id)
+            for _, row in ipairs(MW.shownRows) do if row.id == id then return row end end
+        end
+        MW:OnRowClick(RowOf(other.id))
+        T.eq(MW:SelectedTour(), other.id, "selected, no poster")
+        T.eq(MW.tourButtons.action, "join", "Join")
+        T.eq(MW.tourButtons.cancel, false, "not ours")
+        MW:TourAction()
+        Run(5)
+        T.eq(#Sent("^1AV:R", "WHISPER"), 1, "Join sent the request")
+
+        MW:OnRowClick(RowOf(mine.id))
+        T.eq(MW.tourButtons.cancel, true, "Cancel on our own")
+        MW:TourAction()
+        T.ok(ns.Tournaments:IsRegistered(mine), "we joined our own cup directly")
+        T.eq(MW.tourButtons.action, "leave", "then Leave")
+        T.ok(H.Printed("You are in: My Cup"), "told")
+
+        MW:SelectTab("wanted")
+        T.eq(MW.tourButtons.create, false, "buttons only on the Tournaments tab")
+        T.noErrors()
+    end)
+
+    T.case("create dialog: free start by default, live chest check, errors, create", function()
+        local ns = H.Boot({ client = "forever" })
+        local D = ns.TournamentDialog
+        D:Open()
+        T.ok(D:IsShown(), "open")
+        T.eq(D.values.minutes, 30, "30 min: 13:30 is free")
+        T.eq(D.values.minLevel, 30, "our level by default")
+        T.ok(D.Preview(D.values):find("Starts at 13:30", 1, true) ~= nil, "preview")
+        D.values.minutes = 90
+        T.ok(D.Preview(D.values):find("clashes with the arena chest", 1, true) ~= nil, "chest warning")
+        T.eq(select(2, D:Submit()), "NAME", "needs a name")
+        D.values.name = "Sunday Brawl"
+        T.eq(select(2, D:Submit()), "CHEST", "refused")
+        D.values.minutes = 45
+
+        -- Format, bracket and series are dropdowns (the GudaBags select)
+        local dropdowns = D:Dropdowns()
+        T.eq(dropdowns.format.dropdown.menuText, "1v1", "format shown")
+        T.eq(dropdowns.series.dropdown.menuText, "Best of 3", "series shown")
+        local entries = H.OpenDropdown(dropdowns.format.dropdown)
+        T.eq(#entries, 4, "1v1, 2v2, 3v3, 5v5")
+        T.eq(entries[1].checked, true, "current one checked")
+        entries[2].func()
+        T.eq(D.values.format, 2, "picked 2v2")
+        T.eq(dropdowns.format.dropdown.menuText, "2v2", "shown")
+        H.OpenDropdown(dropdowns.bracket.dropdown)[2].func()
+        T.eq(D.values.bracket, "robin", "round robin")
+        T.eq(dropdowns.bracket.dropdown.menuText, "round robin", "shown")
+        dropdowns.bracket:Choose("single")
+
+        local t = D:Submit()
+        T.ok(t ~= nil, "created")
+        T.eq(t.format, 2, "2v2")
+        T.eq(t.start, H.serverTime + 45 * 60, "start")
+        T.ok(not D:IsShown(), "closed")
+        T.ok(H.Printed("Tournament |cffffd100Sunday Brawl|r created"), "told")
+
+        H.gameTime = { 14, 40 } -- 20 min to the 15:00 chest: the default skips past it
+        D:Open()
+        T.eq(D.values.minutes, 35, "first free start: 15:15")
+        T.eq(D:Dropdowns().format.dropdown.menuText, "1v1", "reopened with the defaults")
+        T.noErrors()
+    end)
+
+    T.case("select: the modern dropdown where the client has it", function()
+        local ns = H.Boot({ client = "forever" })
+        local radio
+        _G.DoesTemplateExist = function(name) return name == "WowStyle1DropdownTemplate" end
+        _G.MenuUtil = { CreateRadioMenu = function(_, isSelected, onSelect, ...)
+            radio = { isSelected = isSelected, onSelect = onSelect, entries = { ... } }
+        end }
+        local value = "b"
+        local select = ns.Select.Create(UIParent, { options = { { value = "a", label = "A" }, { value = "b", label = "B" } },
+            get = function() return value end, set = function(v) value = v end })
+        T.eq(#radio.entries, 2, "radio menu entries")
+        T.eq(radio.entries[1][1] .. radio.entries[1][2], "Aa", "label, value")
+        T.ok(radio.isSelected("b") and not radio.isSelected("a"), "current value selected")
+        radio.onSelect("a")
+        T.eq(value, "a", "picked")
+        select:Choose("b")
+        T.eq(value, "b", "Choose")
+        _G.DoesTemplateExist, _G.MenuUtil = nil, nil
         T.noErrors()
     end)
 

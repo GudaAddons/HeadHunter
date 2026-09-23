@@ -138,6 +138,8 @@ function H.Install(opts)
     _G.C_SuperTrack = { SetSuperTrackedUserWaypoint = function() end }
     H.playerMap = 1429
     H.playerX, H.playerY = 0.42, 0.65
+    H.gameTime = { 13, 0 }           -- realm clock (GetGameTime): hours, minutes
+    _G.GetGameTime = function() return H.gameTime[1], H.gameTime[2] end
 
     _G.HeadHunter_DB = opts.savedDB
     _G.SLASH_HEADHUNTER1, _G.SLASH_HEADHUNTER2 = nil, nil
@@ -393,6 +395,22 @@ function H.Install(opts)
                 for _, fn in ipairs(postCalls) do fn(tip, {}) end
             end
         end
+    end
+
+    -- Classic dropdowns (UIDropDownMenuTemplate): H.OpenDropdown(frame) runs its
+    -- initializer and returns the entries (info tables; info.func() picks one)
+    _G.DoesTemplateExist, _G.MenuUtil = nil, nil
+    H.menuButtons = {}
+    _G.UIDropDownMenu_SetWidth = function() end
+    _G.UIDropDownMenu_Initialize = function(frame, fn) frame.initialize = fn end
+    _G.UIDropDownMenu_CreateInfo = function() return {} end
+    _G.UIDropDownMenu_AddButton = function(info) H.menuButtons[#H.menuButtons + 1] = info end
+    _G.UIDropDownMenu_SetText = function(frame, text) frame.menuText = text end
+    _G.CloseDropDownMenus = function() end
+    function H.OpenDropdown(frame)
+        H.menuButtons = {}
+        frame.initialize(frame, 1)
+        return H.menuButtons
     end
     _G.CLASS_ICON_TCOORDS = { ROGUE = { 0.49609375, 0.7421875, 0, 0.25 } }
 

@@ -8,8 +8,10 @@
 --
 -- Messages (protocol type V; records start with a kind letter):
 --   A  announce   id;organizer;name;format;bracket;bestOf;start;minLevel;maxTeams;state;version
---   E  entrant    id;version;teamId;member,member...     (one per team, same version as A)
+--   E  entrant    id;version;teamId;member,+member...    (one per team, same version as A;
+--                                                          "+" = checked in)
 --   R  request    id;action(j|l);teamId;member:level,...  (addon whisper to the organizer)
+--   C  check-in   id                                      (addon whisper: "I'm here", HH-104)
 --   X  reply      id;code                                 (addon whisper back)
 --   H  heartbeat  id                                      (registered players, every minute)
 -- The organizer broadcasts A + E on the automatic routes (Forever: hidden channel; Era:
@@ -20,6 +22,14 @@
 --
 -- Teams: 1v1 is a player; 2v2+ is a premade party, registered by its leader (team id =
 -- the leader). Fires HH_TOURNAMENT_UPDATED(id).
+--
+-- HH-104: reminders 30 and 5 min before the start (registered players: center text,
+-- chat, sound; players who could join: one chat line). Check-in: at the start the
+-- organizer's client moves to checkin; registered players click "I'm here" inside
+-- Gurubashi Arena within CHECKIN_WINDOW. A team counts only when all its members are
+-- in. Then (or as soon as everyone is in) the teams that are in go on and the state is
+-- running; fewer than 2 teams = cancelled. Every client builds the same bracket from
+-- the teams that are in (Tournaments:Bracket, seeded with the start time).
 
 local addonName, ns = ...
 local L = ns.L
@@ -41,6 +51,8 @@ Tournaments.HEARTBEAT_BEFORE = 600     -- players start pinging 10 min before th
 Tournaments.REPLY_LIMIT = 20           -- the organizer answers a heartbeat at most every 20 s per player
 Tournaments.TICK = 5
 Tournaments.KEEP = 7 * 86400           -- finished or cancelled ones stay listed a week
+Tournaments.REMINDERS = { 5, 30 }      -- minutes before the start, smallest first
+Tournaments.CHECKIN_WINDOW = 600       -- 10 minutes to click "I'm here"
 
 local ORDER = { scheduled = 1, checkin = 2, running = 3, finished = 4, cancelled = 5 }
 local STATE_CODE = { scheduled = "s", checkin = "c", running = "r", finished = "f", cancelled = "x" }
@@ -99,13 +111,23 @@ function Tournaments.DecodeAnnounce(body)
 end
 
 function Tournaments.EncodeEntrant(t, team)
-    return "E" .. table.concat({ t.id, t.version, team.id, table.concat(team.members, ",") }, ";")
+    local members = {}
+    for i, member in ipairs(team.members) do
+        members[i] = (team.here and team.here[member] and "+" or "") .. member
+    end
+    return "E" .. table.concat({ t.id, t.version, team.id, table.concat(members, ",") }, ";")
 end
 
 function Tournaments.DecodeEntrant(body)
     local f = P.Split(body, ";")
     if #f ~= 4 or f[3] == "" or f[4] == "" then return nil end
-    return f[1], tonumber(f[2]), { id = f[3], members = P.Split(f[4], ",") }
+    local team = { id = f[3], members = {}, here = {} }
+    for _, item in ipairs(P.Split(f[4], ",")) do
+        local member = item:gsub("^%+", "")
+        team.members[#team.members + 1] = member
+        if member ~= item then team.here[member] = true end
+    end
+    return f[1], tonumber(f[2]), team
 end
 
 -- members: array of { key, level }
@@ -212,6 +234,7 @@ function Tournaments:Create(opts, click)
     local now = U.ServerTime()
     local start = tonumber(opts.start)
     if not start or start < now + self.MIN_LEAD or start > now + self.MAX_LEAD then return nil, "START" end
+    if not ns.Arena.StartClearOfChest(start, now) then return nil, "CHEST" end
     local minLevel = math.floor(tonumber(opts.minLevel) or 1)
     if minLevel < 1 or minLevel > 60 then return nil, "LEVEL" end
     local cap = bracket == "robin" and self.ROBIN_MAX_TEAMS or self.MAX_TEAMS
@@ -280,6 +303,69 @@ function Tournaments:HandleRequest(t, action, teamId, members, sender)
     return "ok"
 end
 
+-- "I'm here" from a registered player, on the organizer's client. Returns the reply code.
+function Tournaments:HandleCheckIn(t, sender)
+    if t.state ~= "checkin" then return "closed" end
+    local team = TeamOf(t, sender)
+    if not team then return "notin" end
+    team.here = team.here or {}
+    for _, member in ipairs(team.members) do
+        if ns.Utils.SameCharacter(member, sender) then team.here[member] = true end
+    end
+    t.version = t.version + 1
+    self:Broadcast(t)
+    Changed(t)
+    return "here"
+end
+
+-- A team is in when every member checked in
+function Tournaments.TeamIsIn(team)
+    for _, member in ipairs(team.members) do
+        if not (team.here and team.here[member]) then return false end
+    end
+    return true
+end
+
+-- End of check-in (organizer): the teams that are in go on; fewer than 2 = cancelled
+function Tournaments:FinishCheckIn(t)
+    local kept = {}
+    for _, teamId in ipairs(t.order) do
+        if Tournaments.TeamIsIn(t.entrants[teamId]) then
+            kept[#kept + 1] = teamId
+        else
+            t.entrants[teamId] = nil
+        end
+    end
+    t.order = kept
+    if #kept < 2 then
+        t.cancelReason = "players"
+        ns:Print(string.format(L.TOUR_CHECKIN_TOO_FEW, t.name))
+        return self:SetState(t.id, "cancelled")
+    end
+    t.tree = nil
+    ns:Print(string.format(L.TOUR_CHECKIN_DONE, t.name, #kept))
+    return self:SetState(t.id, "running")
+end
+
+-- The bracket of a running tournament: the same on every client, built from the teams
+-- that checked in (in the order the organizer sent them) and seeded with the start time.
+-- Ranking points for the seeding come with HH-107. Kept in t.tree (t.bracket is the
+-- kind: "single" or "robin"); rebuilt when a new version arrives.
+function Tournaments:Bracket(t)
+    if not t or (t.state ~= "running" and t.state ~= "finished") then return nil end
+    if not t.tree or t.treeVersion ~= t.version or t.treeTeams ~= #t.order then
+        local B = ns.Brackets
+        local seeds = B.Seed(t.order, nil, t.start)
+        if t.bracket == "robin" then
+            t.tree = B.RoundRobin(seeds, t.bestOf)
+        else
+            t.tree = B.SingleElimination(seeds, t.bestOf)
+        end
+        t.treeVersion, t.treeTeams = t.version, #t.order
+    end
+    return t.tree
+end
+
 -------------------------------------------------
 -- Players
 -------------------------------------------------
@@ -331,6 +417,81 @@ function Tournaments:Leave(id)
     return Ask(t, "l", {})
 end
 
+-- Did `key` (default: us) click "I'm here"?
+function Tournaments:IsHere(t, key)
+    key = key or Me()
+    local team = TeamOf(t, key)
+    if not (team and team.here) then return false end
+    for member in pairs(team.here) do
+        if ns.Utils.SameCharacter(member, key) then return true end
+    end
+    return false
+end
+
+-- "I'm here": only inside Gurubashi Arena, during check-in, when registered.
+-- Returns "sent", "here" (our own tournament) or nil and a reason key.
+function Tournaments:CheckIn(id)
+    local t = self:Get(id)
+    if not t then return nil, "UNKNOWN" end
+    if t.state ~= "checkin" then return nil, "NOT_CHECKIN" end
+    if not self:IsRegistered(t) then return nil, "NOT_REGISTERED" end
+    if not ns.Arena:InArena() then return nil, "NOT_IN_ARENA" end
+    if IsMine(t) then return self:OnReply(t.id, self:HandleCheckIn(t, Me())) end
+    pending[t.id] = true
+    ns.Transport:SendDirect(P.TYPES.TOURNAMENT, { "C" .. t.id }, t.organizer)
+    return "sent"
+end
+
+-- What we can do with a tournament: "joined", "open", or why not: "full", "level",
+-- "party", "leader". During check-in: "checkin_me" (we must click I'm here), "here",
+-- or "checkin" (not ours). Later: the state.
+function Tournaments:JoinStatus(t)
+    if t.state == "checkin" and self:IsRegistered(t) then
+        return self:IsHere(t) and "here" or "checkin_me"
+    end
+    if t.state ~= "scheduled" then return t.state end
+    if self:IsRegistered(t) then return "joined" end
+    if #t.order >= t.maxTeams then return "full" end
+    local members, reason = self:OurTeam(t)
+    if not members then
+        return ({ LEVEL_LOW = "level", PARTY_SIZE = "party", NOT_LEADER = "leader" })[reason] or "open"
+    end
+    return "open"
+end
+
+function Tournaments:IsOrganizer(t)
+    return IsMine(t)
+end
+
+-- Player actions with their chat feedback (the Tournaments tab and /hh tour)
+local function Fail(reason)
+    ns:Print(L["TOUR_ERR_" .. tostring(reason)] or tostring(reason))
+end
+
+function Tournaments:DoJoin(id, leave)
+    local t = self:Get(id)
+    local result, reason
+    if leave then result, reason = self:Leave(id) else result, reason = self:Join(id) end
+    if not result then return Fail(reason) end
+    if result == "sent" and t then ns:Print(string.format(L.TOUR_REQUEST_SENT, t.name)) end
+    return result
+end
+
+function Tournaments:DoCheckIn(id)
+    local t = self:Get(id)
+    local result, reason = self:CheckIn(id)
+    if not result then return Fail(reason) end
+    if result == "sent" and t then ns:Print(string.format(L.TOUR_CHECKIN_SENT, t.name)) end
+    return result
+end
+
+function Tournaments:DoCancel(id)
+    local t = self:Get(id)
+    if not (t and self:SetState(id, "cancelled", true)) then return ns:Print(L.TOUR_NONE_OWN) end
+    ns:Print(string.format(L.TOUR_CANCELLED, t.name))
+    return true
+end
+
 function Tournaments:OnReply(id, code)
     pending[id] = nil
     local t = self:Get(id)
@@ -352,6 +513,11 @@ function Tournaments:OnAnnounce(a, sender, faction)
     local store = Store()
     if not store then return nil end
     if not t or a.version > t.version then
+        -- Tell our players when check-in ends: the matches begin, or it is off
+        local wasRegistered = t and self:IsRegistered(t)
+        if wasRegistered and a.state ~= t.state and (a.state == "running" or a.state == "cancelled") then
+            ns:Print(string.format(a.state == "running" and L.TOUR_RUNNING_NOTICE or L.TOUR_CANCELLED_NOTICE, t.name))
+        end
         -- A new version: its entrants follow as E records
         t = t or {}
         for k, v in pairs(a) do t[k] = v end
@@ -388,6 +554,12 @@ function Tournaments:OnRecord(record, sender, faction)
         local code = self:HandleRequest(t, action, teamId, members, sender)
         ns.Transport:SendDirect(P.TYPES.TOURNAMENT, { "X" .. t.id .. ";" .. code }, sender)
         return code
+    elseif kind == "C" then
+        local t = self:Get(body)
+        if not IsMine(t) then return nil end
+        local code = self:HandleCheckIn(t, sender)
+        ns.Transport:SendDirect(P.TYPES.TOURNAMENT, { "X" .. t.id .. ";" .. code }, sender)
+        return code
     elseif kind == "X" then
         local f = P.Split(body, ";")
         if #f == 2 and pending[f[1]] then return self:OnReply(f[1], f[2]) end
@@ -404,7 +576,57 @@ function Tournaments:OnRecord(record, sender, faction)
 end
 
 -------------------------------------------------
--- Clock: start, heartbeats, organizer gone, pruning
+-- Reminders and the check-in call (HH-104), on every client
+-------------------------------------------------
+
+function Tournaments:Remind(t, now)
+    if t.state ~= "scheduled" or now >= t.start then return end
+    t.reminded = t.reminded or {}
+    local left = t.start - now
+    for _, minutes in ipairs(self.REMINDERS) do
+        if left <= minutes * 60 then
+            if t.reminded[minutes] then return end
+            -- Only the latest one when we are late (logged in 3 min before: just the 5)
+            for _, m in ipairs(self.REMINDERS) do
+                if m >= minutes then t.reminded[m] = true end
+            end
+            local minutesLeft = math.ceil(left / 60)
+            if self:IsRegistered(t) then
+                ns.Alerts:Show({ key = "tour:" .. t.id .. ":" .. minutes, sound = true,
+                    text = string.format(L.TOUR_REMIND_CENTER, t.name, minutesLeft),
+                    chat = string.format(L.TOUR_REMIND_CHAT, t.name, minutesLeft) })
+            elseif minutes == self.REMINDERS[#self.REMINDERS] and self:JoinStatus(t) == "open" then
+                ns:Print(string.format(L.TOUR_REMIND_OPEN, t.name, minutesLeft))
+            end
+            return
+        end
+    end
+end
+
+-- Check-in has started and we still have to click "I'm here"
+function Tournaments:CallCheckIn(t)
+    if t.state ~= "checkin" or t.checkinCalled or not self:IsRegistered(t) or self:IsHere(t) then return end
+    t.checkinCalled = true
+    local id = t.id
+    ns.Alerts:Show({ key = "tour:" .. id .. ":checkin", sound = true,
+        text = string.format(L.TOUR_CHECKIN_CENTER, t.name),
+        chat = string.format(L.TOUR_CHECKIN_CHAT, t.name, self.CHECKIN_WINDOW / 60),
+        popup = { dialog = ns.Alerts.TOUR_POPUP, text = string.format(L.TOUR_CHECKIN_POPUP, t.name),
+            accept = L.TOUR_BUTTON_HERE, decline = L.TOUR_BUTTON_LATER,
+            onAccept = function() Tournaments:DoCheckIn(id) end } })
+end
+
+-- All teams fully checked in: no need to wait for the end of the window
+local function EveryoneIn(t)
+    if #t.order == 0 then return false end
+    for _, teamId in ipairs(t.order) do
+        if not Tournaments.TeamIsIn(t.entrants[teamId]) then return false end
+    end
+    return true
+end
+
+-------------------------------------------------
+-- Clock: start, check-in, heartbeats, organizer gone, pruning
 -------------------------------------------------
 
 function Tournaments:Tick()
@@ -413,11 +635,18 @@ function Tournaments:Tick()
     if not store then return end
     local now, clock = U.ServerTime(), U.Now()
     for id, t in pairs(store) do
+        if not Final(t.state) then
+            self:Remind(t, now)
+            self:CallCheckIn(t)
+        end
         if Final(t.state) then
             if now - t.start > self.KEEP then store[id] = nil end
         elseif IsMine(t) then
             if t.state == "scheduled" and now >= t.start then
                 self:SetState(id, "checkin")
+                self:CallCheckIn(t)
+            elseif t.state == "checkin" and (now >= t.start + self.CHECKIN_WINDOW or EveryoneIn(t)) then
+                self:FinishCheckIn(t)
             elseif t.state ~= "scheduled" and clock - (lastBeat[id] or 0) >= self.HEARTBEAT then
                 self:Broadcast(t)
             end
@@ -475,10 +704,6 @@ local function ByIndex(arg)
     return list[tonumber(arg or "")]
 end
 
-local function Fail(reason)
-    ns:Print(L["TOUR_ERR_" .. tostring(reason)] or tostring(reason))
-end
-
 ns.SlashCommands:Register("tour", function(args)
     local sub = args[1] and args[1]:lower() or "list"
     if sub == "create" then
@@ -493,29 +718,31 @@ ns.SlashCommands:Register("tour", function(args)
         local t, reason = Tournaments:Create({ name = args[2], format = format, bracket = (args[4] or ""):lower(),
             bestOf = bestOf, start = ns.Utils.ServerTime() + math.floor(minutes * 60),
             minLevel = tonumber(args[7] or "1"), maxTeams = tonumber(args[8] or "") }, true)
-        if not t then return Fail(reason) end
+        if not t then return ns:Print(L["TOUR_ERR_" .. tostring(reason)] or tostring(reason)) end
         ns:Print(string.format(L.TOUR_CREATED, t.name))
         return
     end
     if sub == "join" or sub == "leave" then
         local t = ByIndex(args[2])
         if not t then return ns:Print(L.TOUR_PICK) end
-        local result, reason = Tournaments[sub == "join" and "Join" or "Leave"](Tournaments, t.id)
-        if not result then return Fail(reason) end
-        if result == "sent" then ns:Print(string.format(L.TOUR_REQUEST_SENT, t.name)) end
+        Tournaments:DoJoin(t.id, sub == "leave")
         return
+    end
+    if sub == "here" then
+        for _, t in ipairs(Tournaments:List()) do
+            if Tournaments:JoinStatus(t) == "checkin_me" then return Tournaments:DoCheckIn(t.id) end
+        end
+        return ns:Print(L.TOUR_ERR_NOT_CHECKIN)
     end
     if sub == "cancel" then
         for _, t in ipairs(Tournaments:List()) do
-            if IsMine(t) and not Final(t.state) then
-                Tournaments:SetState(t.id, "cancelled", true)
-                ns:Print(string.format(L.TOUR_CANCELLED, t.name))
-                return
-            end
+            if IsMine(t) and not Final(t.state) then return Tournaments:DoCancel(t.id) end
         end
         return ns:Print(L.TOUR_NONE_OWN)
     end
     local list = Tournaments:List()
     ns:Print(string.format(L.TOUR_HEADER, #list))
     for i, t in ipairs(list) do print(Describe(t, i)) end
+    local toChest = ns.Arena.MinutesToChest()
+    if toChest then print(string.format(L.TOUR_NEXT_CHEST, toChest, ns.Arena.RealmClock(toChest))) end
 end, L.HELP_TOUR)

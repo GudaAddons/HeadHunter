@@ -31,8 +31,9 @@ Alerts.POPUP = "HEADHUNTER_ALERT"            -- WANTED activity (Join the posse)
 Alerts.HOTSPOT_POPUP = "HEADHUNTER_HOTSPOT"  -- PvP hotspots (Help / Ignore)
 Alerts.JUSTICE_POPUP = "HEADHUNTER_JUSTICE"  -- our catch, Era: Announce / Close (HH-048)
 Alerts.CATCHUP_POPUP = "HEADHUNTER_CATCHUP"  -- Era, at login: Catch up / Skip (HH-023)
+Alerts.TOUR_POPUP = "HEADHUNTER_TOUR"        -- Gurubashi check-in: I'm here / Later (HH-104)
 -- One StaticPopup per kind, so a hotspot never replaces a WANTED popup on screen
-local DIALOGS = { Alerts.POPUP, Alerts.HOTSPOT_POPUP, Alerts.JUSTICE_POPUP, Alerts.CATCHUP_POPUP }
+local DIALOGS = { Alerts.POPUP, Alerts.HOTSPOT_POPUP, Alerts.JUSTICE_POPUP, Alerts.CATCHUP_POPUP, Alerts.TOUR_POPUP }
 
 local lastShown = {}          -- key -> GetTime()
 local queue = {}              -- key -> { alert, queuedAt }, while in combat

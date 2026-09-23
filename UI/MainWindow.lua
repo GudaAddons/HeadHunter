@@ -6,6 +6,8 @@
 --   High Noon      the best duelists (HH-093), Alliance or Horde (the switch top left)
 --   My deaths      our own PvP deaths, newest first
 --   My marks       our HeadHunter rank and what earned or cost marks (HH-050)
+--   Tournaments    Gurubashi Tournaments (HH-103): a click selects one; Create, Join /
+--                  Leave and Cancel (own) top left; UI/TournamentDialog.lua creates
 -- A row click opens the outlaw's poster (UI/Poster.lua).
 --
 -- MainWindow.Rows(tab, sortKey, now) is the pure part (tested offline): one table per
@@ -25,7 +27,7 @@ MainWindow.ROW_HEIGHT = 18
 MainWindow.MAX_ROWS = 300
 MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 
-MainWindow.TABS = { "wanted", "shame", "duels", "deaths", "marks" }
+MainWindow.TABS = { "wanted", "shame", "duels", "deaths", "marks", "tours" }
 
 -- Columns per tab: key, header, width, sort key (WANTED only)
 MainWindow.COLUMNS = {
@@ -50,6 +52,16 @@ MainWindow.COLUMNS = {
         { key = "rating", header = "COL_RATING", width = 60 },
         { key = "record", header = "COL_RECORD", width = 70 },
         { key = "lastDuel", header = "COL_LAST_DUEL", width = 110 },
+    },
+    tours = {
+        { key = "name", header = "COL_TOUR", width = 125 },
+        { key = "format", header = "COL_FORMAT", width = 35 },
+        { key = "series", header = "COL_SERIES", width = 70 },
+        { key = "start", header = "COL_START", width = 90 },
+        { key = "level", header = "COL_LEVEL", width = 40 },
+        { key = "teams", header = "COL_TEAMS", width = 45 },
+        { key = "organizer", header = "COL_ORGANIZER", width = 80 },
+        { key = "status", header = "COL_STATUS", width = 85 },
     },
     marks = {
         { key = "time", header = "COL_WHEN", width = 90 },
@@ -255,11 +267,72 @@ local function DeathRows(now)
     return rows
 end
 
+-- "in 25 min", "in 3 h 20 min", "in 2 d 4 h"
+local function StartsIn(seconds)
+    local minutes = math.ceil(seconds / 60)
+    if minutes < 60 then return string.format(L.TOUR_IN_MIN, minutes) end
+    if minutes < 1440 then return string.format(L.TOUR_IN_HOURS, math.floor(minutes / 60), minutes % 60) end
+    return string.format(L.TOUR_IN_DAYS, math.floor(minutes / 1440), math.floor(minutes % 1440 / 60))
+end
+
+-- Gurubashi Tournaments (HH-103), soonest first
+local function TourRows(now)
+    local TN = ns.Tournaments
+    local rows = {}
+    for _, t in ipairs(TN:List()) do
+        local status = TN:JoinStatus(t)
+        local organizer = ns.Utils.DisplayName(t.organizer) or t.organizer
+        local bracket = L["TOUR_BRACKET_" .. t.bracket:upper()]
+        local start = t.start > now and StartsIn(t.start - now) or ns.Utils.Ago(now - t.start)
+        local statusText = L["TOUR_STATUS_" .. status:upper()] or status
+        local tooltip = {
+            "|cffffd100" .. t.name .. "|r",
+            string.format(L.TIP_TOUR_FORMAT, t.format, t.format, bracket, t.bestOf),
+            string.format(L.TIP_TOUR_START, start, ns.Arena.RealmClock((t.start - now) / 60) or "?"),
+            string.format(L.TIP_TOUR_TEAMS, #t.order, t.maxTeams, t.minLevel),
+            string.format(L.TIP_TOUR_ORGANIZER, organizer),
+            statusText,
+        }
+        for _, teamId in ipairs(t.order) do
+            local team = t.entrants[teamId]
+            local names = {}
+            for i, member in ipairs(team.members) do
+                names[i] = (ns.Utils.DisplayName(member) or member)
+                    .. (team.here and team.here[member] and L.TIP_TOUR_HERE or "")
+            end
+            tooltip[#tooltip + 1] = "|cffaaaaaa  " .. table.concat(names, ", ") .. "|r"
+        end
+        rows[#rows + 1] = {
+            id = t.id, tour = true, name = t.name, format = t.format .. "v" .. t.format,
+            series = string.format(L.TOUR_SERIES, t.bestOf, t.bracket == "robin" and L.TOUR_ROBIN_SHORT or ""),
+            start = start, level = t.minLevel .. "+", teams = #t.order .. "/" .. t.maxTeams,
+            organizer = organizer, status = statusText, tooltip = tooltip,
+        }
+    end
+    return rows
+end
+
+-- Buttons for the selected tournament: { action = "join" | "leave" | "here" | nil, cancel = bool }
+local ACTION = { open = "join", joined = "leave", checkin_me = "here" }
+
+function MainWindow.TourActions(t)
+    local TN = ns.Tournaments
+    if not t then return {} end
+    local status = TN:JoinStatus(t)
+    local open = t.state ~= "finished" and t.state ~= "cancelled"
+    return {
+        action = ACTION[status],
+        cancel = open and TN:IsOrganizer(t) or false,
+    }
+end
+
 -- tab: one of TABS; sortKey (WANTED): "rank" | "kills" | "last"; faction (High Noon): "Alliance" | "Horde"
 function MainWindow.Rows(tab, sortKey, now, faction)
     now = now or ns.Utils.ServerTime()
     local rows
-    if tab == "duels" then
+    if tab == "tours" then
+        rows = TourRows(now)
+    elseif tab == "duels" then
         rows = DuelRows(faction, now)
     elseif tab == "marks" then
         rows = MarksRows()
@@ -315,6 +388,23 @@ local function CreateMainFrame()
     f.faction:SetScript("OnClick", function() MainWindow:SwitchFaction() end)
     f.faction:Hide()
 
+    -- Tournaments: Create, Join / Leave and Cancel for the selected one
+    local function TourButton(width, x, onClick)
+        local button = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        button:SetSize(width, 20)
+        button:SetPoint("TOPLEFT", x, -6)
+        button:SetScript("OnClick", onClick)
+        button:Hide()
+        return button
+    end
+    f.tourCreate = TourButton(80, 14, function() ns.TournamentDialog:Open() end)
+    f.tourCreate:SetText(L.TOUR_BUTTON_CREATE)
+    f.tourAction = TourButton(80, 98, function() MainWindow:TourAction() end)
+    f.tourCancel = TourButton(80, 182, function()
+        if current.selected then ns.Tournaments:DoCancel(current.selected) end
+    end)
+    f.tourCancel:SetText(L.TOUR_BUTTON_CANCEL)
+
     f.count = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     f.count:SetPoint("BOTTOMRIGHT", -16, 10)
 
@@ -357,6 +447,10 @@ local function RowFrame(i)
     row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
     row.highlight:SetAllPoints(row)
     row.highlight:SetColorTexture(1, 1, 1, 0.08)
+    row.selectedMark = row:CreateTexture(nil, "BACKGROUND")
+    row.selectedMark:SetAllPoints(row)
+    row.selectedMark:SetColorTexture(1, 0.82, 0, 0.15)
+    row.selectedMark:Hide()
     row.cells = {}
     row:SetScript("OnEnter", ShowRowTooltip)
     row:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
@@ -428,6 +522,7 @@ function MainWindow:Refresh()
             x = x + column.width
         end
         for c = #columns + 1, #row.cells do row.cells[c]:Hide() end
+        if data.tour and data.id == current.selected then row.selectedMark:Show() else row.selectedMark:Hide() end
         row:Show()
     end
     for i = #rows + 1, #rowFrames do
@@ -447,7 +542,41 @@ function MainWindow:Refresh()
     else
         frame.faction:Hide()
     end
+    self:UpdateTourButtons()
     self.shownRows = rows
+end
+
+-- The Tournaments tab's buttons follow the selected tournament
+function MainWindow:UpdateTourButtons()
+    local onTab = current.tab == "tours"
+    local t = current.selected and ns.Tournaments:Get(current.selected)
+    if not t then current.selected = nil end
+    local actions = self.TourActions(t)
+    self.tourButtons = { create = onTab, action = onTab and actions.action or nil, cancel = onTab and actions.cancel }
+    if not frame then return end
+    if onTab then frame.tourCreate:Show() else frame.tourCreate:Hide() end
+    if onTab and actions.action then
+        frame.tourAction:SetText(L["TOUR_BUTTON_" .. actions.action:upper()])
+        frame.tourAction:Show()
+    else
+        frame.tourAction:Hide()
+    end
+    if onTab and actions.cancel then frame.tourCancel:Show() else frame.tourCancel:Hide() end
+end
+
+function MainWindow:TourAction()
+    local t = current.selected and ns.Tournaments:Get(current.selected)
+    local action = self.TourActions(t).action
+    if action == "here" then
+        ns.Tournaments:DoCheckIn(t.id)
+    elseif action then
+        ns.Tournaments:DoJoin(t.id, action == "leave")
+    end
+    self:Refresh()
+end
+
+function MainWindow:SelectedTour()
+    return current.selected
 end
 
 function MainWindow:SelectTab(tab)
@@ -475,9 +604,14 @@ function MainWindow:Current()
     return current.tab, current.sort
 end
 
--- A row opens the outlaw's poster (HH-061)
+-- A row opens the outlaw's poster (HH-061); on the Tournaments tab it selects
 function MainWindow:OnRowClick(data)
-    if data and data.id then ns.Poster:Show(data.id) end
+    if data and data.tour then
+        current.selected = data.id
+        self:Refresh()
+    elseif data and data.id then
+        ns.Poster:Show(data.id)
+    end
 end
 
 function MainWindow:IsShown()
@@ -512,7 +646,7 @@ end
 ns.Events:Register("HH_INITIALIZED", function()
     local request = function() MainWindow:RequestRefresh() end
     for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_DEATH_RECORDED", "HH_REPORT_UPDATED", "HH_MARKS_CHANGED",
-            "HH_HIGHNOON_UPDATED" }) do
+            "HH_HIGHNOON_UPDATED", "HH_TOURNAMENT_UPDATED" }) do
         ns.Events:Register(event, request, OWNER)
     end
 end, OWNER)
