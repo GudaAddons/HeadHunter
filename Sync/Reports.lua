@@ -78,7 +78,7 @@ function Reports:Add(report, origin, sender)
     if not store or not report.id or store[report.id] then return nil end
     report.origin = origin
     report.sender = sender
-    report.classification = report.classification or ns.Classify.Kill(report.killer.level, report.victim.level)
+    report.classification = report.classification or ns.Classify.Report(report)
     store[report.id] = report
     ns:Debug("Report added", report.id, "origin", origin)
     ns.Events:Fire("HH_REPORT_ADDED", report)
@@ -242,7 +242,7 @@ function Reports:Complete(report, identity)
     -- Own reports may have been completed by DeathReports first (shared table):
     -- "involves the GUID" decides, not "changed here"
     if changed or (identity.guid and ns.DeathReports.Involves(report, identity.guid)) then
-        report.classification = ns.Classify.Kill(report.killer.level, report.victim.level)
+        report.classification = ns.Classify.Report(report)
         ns.Events:Fire("HH_REPORT_UPDATED", report)
     end
     return changed

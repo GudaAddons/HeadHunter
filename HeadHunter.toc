@@ -42,6 +42,7 @@ Sync\CatchUp.lua
 # Rules (M3)
 Rules\Engine.lua
 Rules\Wanted.lua
+Rules\Marks.lua
 
 # Alerts (M4)
 Alerts\Alerts.lua

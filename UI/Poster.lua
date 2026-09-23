@@ -78,10 +78,11 @@ function Poster.Content(id, now)
     local kills = KillsOf(entry.id, Poster.RECENT)
     for _, item in ipairs(kills) do
         local report = item.report
-        local kind = ns.Classify.Kill(item.enemy.level, report.victim and report.victim.level)
+        local attackers = ns.Classify.Attackers(report)
+        local kind = ns.Classify.Enemy(item.enemy.level, report.victim and report.victim.level, attackers)
         c.recent[#c.recent + 1] = string.format(L.POSTER_KILL, U.Ago(math.max(0, now - report.t)),
             U.DisplayName(report.victim and report.victim.key) or "?", U.MapName(report.mapID) or L.UNKNOWN_ZONE,
-            L["KILL_" .. kind:upper()])
+            ns.Classify.Label(kind, attackers))
     end
     -- Join needs a kill to go to (and WANTED status); not twice
     c.newestReport = kills[1] and kills[1].report

@@ -5,10 +5,10 @@
 --   Forever: queued on the hidden channel (posse priority)
 --   Era:     sent realm-wide as channel text right away (the click is the hardware
 --            event), plus queued for guild / party
--- Received joins (protocol type J, "outlawId;mapID;time", the sender is the member)
--- keep a member list per outlaw for TTL seconds. Shown in the activity popup
--- ("Posse: A, B") and by /hh posse.
--- Decline: HH_POSSE_DECLINED(entry, report), counted by marks (M5).
+-- Received joins (protocol type J, "outlawId;mapID;time;layer;hunterRank", the sender
+-- is the member) keep a member list per outlaw for TTL seconds. Shown in the activity
+-- popup ("Posse: A, B") and by /hh posse (with each member's hunter rank, HH-050).
+-- Decline: HH_POSSE_DECLINED(entry, report), counted by marks (Rules/Marks.lua).
 -- Events: HH_POSSE_JOINED(entry, report), HH_POSSE_CHANGED(outlawId).
 
 local addonName, ns = ...
@@ -33,12 +33,13 @@ local function Prune(outlawId, now)
     if next(members) == nil then posses[outlawId] = nil end
 end
 
-local function AddMember(outlawId, name, t, mapID, isSelf, layer)
+-- hunterRank: the member's HeadHunter rank index (Rules/Marks.lua), when known
+local function AddMember(outlawId, name, t, mapID, isSelf, layer, hunterRank)
     local id = ns.Utils.CompactName(name)
     if not id then return false end
     posses[outlawId] = posses[outlawId] or {}
     local known = posses[outlawId][id]
-    posses[outlawId][id] = { name = name, t = t, mapID = mapID, layer = layer,
+    posses[outlawId][id] = { name = name, t = t, mapID = mapID, layer = layer, hunterRank = hunterRank,
         self = isSelf or (known and known.self) or nil }
     ns.Events:Fire("HH_POSSE_CHANGED", outlawId)
     return not known
@@ -87,9 +88,9 @@ local function Guide(report)
 end
 
 -- Runs inside the popup click (a hardware event): Era may send channel text here
-local function Broadcast(outlawId, mapID, t, layer)
+local function Broadcast(outlawId, mapID, t, layer, hunterRank)
     local Protocol, Transport = ns.Protocol, ns.Transport
-    local record = Protocol.EncodePosse(outlawId, mapID, t, layer)
+    local record = Protocol.EncodePosse(outlawId, mapID, t, layer, hunterRank)
     Transport:Queue(Protocol.TYPES.POSSE, record, Transport.PRIORITY.posse, "J:" .. outlawId)
     if Transport:RealmWideNeedsClick() then
         Transport:SendRealmWide(Protocol.TYPES.POSSE, { record })
@@ -110,8 +111,9 @@ function Posse:Join(entry, report)
     end
     local now = U.ServerTime()
     local myLayer = ns.Layer:Current()
-    AddMember(entry.id, U.UnitKey("player") or "me", now, U.PlayerMapID(), true, myLayer)
-    Broadcast(entry.id, U.PlayerMapID(), now, myLayer)
+    local myRank = ns.Marks:RankIndex()
+    AddMember(entry.id, U.UnitKey("player") or "me", now, U.PlayerMapID(), true, myLayer, myRank)
+    Broadcast(entry.id, U.PlayerMapID(), now, myLayer, myRank)
 
     -- Another layer: ask the victim for a group invite (moves us to their layer).
     -- report.sender is the name the game gave us, so it is always a valid target.
@@ -146,9 +148,10 @@ function Posse:Refresh(entry, report)
     Guide(report)
     local now = U.ServerTime()
     local myLayer = ns.Layer:Current()
-    AddMember(entry.id, U.UnitKey("player") or "me", now, U.PlayerMapID(), true, myLayer)
+    local myRank = ns.Marks:RankIndex()
+    AddMember(entry.id, U.UnitKey("player") or "me", now, U.PlayerMapID(), true, myLayer, myRank)
     local Protocol, Transport = ns.Protocol, ns.Transport
-    Transport:Queue(Protocol.TYPES.POSSE, Protocol.EncodePosse(entry.id, U.PlayerMapID(), now, myLayer),
+    Transport:Queue(Protocol.TYPES.POSSE, Protocol.EncodePosse(entry.id, U.PlayerMapID(), now, myLayer, myRank),
         Transport.PRIORITY.posse, "J:" .. entry.id)
 end
 
@@ -157,11 +160,11 @@ end
 -------------------------------------------------
 
 function Posse:OnPeerJoin(record, sender)
-    local outlawId, mapID, t, layer = ns.Protocol.DecodePosse(record)
+    local outlawId, mapID, t, layer, hunterRank = ns.Protocol.DecodePosse(record)
     if not outlawId then return end
     local now = ns.Utils.ServerTime()
     if t > now + self.MAX_SKEW or now - t > self.TTL then return end
-    local isNew = AddMember(outlawId, sender, t, mapID, false, layer)
+    local isNew = AddMember(outlawId, sender, t, mapID, false, layer, hunterRank)
     -- Only hunters in the same posse hear about new members
     if isNew and self:IsMember(outlawId) then
         local entry = ns.Wanted:Get(outlawId)
@@ -186,8 +189,11 @@ ns.SlashCommands:Register("posse", function()
         local outlaw = entry and (entry.key and ns.Utils.DisplayName(entry.key) or entry.name) or outlawId
         ns:Print(string.format("|cffff4040%s|r · %s", outlaw, Posse:Summary(outlawId) or ""))
         for _, member in ipairs(Posse:Members(outlawId)) do
-            print(string.format("  %s  %s  %s", member.self and L.POSSE_YOU or ns.Utils.DisplayName(member.name) or member.name,
-                ns.Utils.MapName(member.mapID) or "?",
+            local name = member.self and L.POSSE_YOU or ns.Utils.DisplayName(member.name) or member.name
+            -- Hunter rank (HH-050) when the member's join carried it
+            local rank = member.hunterRank and ns.Marks.RankNameByIndex(member.hunterRank) or ""
+            if rank ~= "" then name = name .. " (" .. rank .. ")" end
+            print(string.format("  %s  %s  %s", name, ns.Utils.MapName(member.mapID) or "?",
                 member.layer and string.format(L.LAYER_TAG, member.layer) or ""))
         end
     end

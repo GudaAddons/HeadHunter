@@ -193,7 +193,7 @@ end, OWNER)
 -- Display helpers and commands
 -------------------------------------------------
 
-local BADGE_ORDER = { "coward", "serialkiller", "gunslinger", "giantslayer" }
+local BADGE_ORDER = { "coward", "gang", "serialkiller", "gunslinger", "giantslayer" }
 
 function Wanted.RankName(rank)
     return rank and L["RANK_" .. rank:upper()] or L.RANK_NONE

@@ -51,7 +51,7 @@ function ReportPrompt:Show()
     if not report then return end
     local DR = ns.DeathReports
     local text = string.format(L.REPORT_PROMPT, DR.DisplayName(report.killer),
-        L["KILL_" .. (report.classification or "unknown"):upper()])
+        ns.Classify.ReportLabel(report))
     if #pending > 1 then
         text = text .. "\n" .. string.format(L.REPORT_MORE, #pending - 1)
     end

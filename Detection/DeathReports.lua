@@ -108,13 +108,13 @@ function DeathReports:Record(report, source)
     end
     report.layer = report.layer or ns.Layer:Current()
     report.confidence = report.confidence or source or "inferred"
-    report.classification = ns.Classify.Kill(report.killer.level, report.victim.level)
+    report.classification = ns.Classify.Report(report)
 
     table.insert(ns.db.deaths, report)
     ns.Database:Prune()
 
     ns:Debug("Death recorded", report.id, "killer", DisplayName(report.killer), report.confidence, report.classification)
-    local tag = L["KILL_" .. report.classification:upper()]
+    local tag = ns.Classify.ReportLabel(report)
     ns:Print(string.format(L.DEATH_RECORDED, DisplayName(report.killer), Describe(report.killer), tag))
     ns.Events:Fire("HH_DEATH_RECORDED", report)
     return report
@@ -154,7 +154,7 @@ function DeathReports:OnEnemyResolved(guid, record)
             Complete(assist, record)
         end
         if Involves(report, guid) then
-            report.classification = ns.Classify.Kill(report.killer.level, report.victim.level)
+            report.classification = ns.Classify.Report(report)
             ns:Debug("Death report completed", report.id, "->", record.key)
             ns.Events:Fire("HH_DEATH_UPDATED", report)
         end
@@ -177,7 +177,7 @@ ns.SlashCommands:Register("deaths", function(args)
     for i = #deaths, #deaths - count + 1, -1 do
         local r = deaths[i]
         print(string.format("  %s  %s (%s)  %s  %s%s", date("%m-%d %H:%M", r.t), DisplayName(r.killer),
-            Describe(r.killer), L["KILL_" .. (r.classification or "unknown"):upper()],
+            Describe(r.killer), ns.Classify.ReportLabel(r),
             ns.Utils.MapName(r.mapID) or "?", #r.assists > 0 and ("  +" .. #r.assists) or ""))
     end
 end, L.HELP_DEATHS)

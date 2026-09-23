@@ -13,7 +13,7 @@
 -- Sync: the automatic routes. On Era the realm-wide channel needs a click, so the
 -- hunter gets [Announce] (a typed /hh justice works too).
 -- Peer catches are accepted with a plausible time, under a per-sender rate limit.
--- Fires HH_JUSTICE_ADDED(record).
+-- Fires HH_JUSTICE_ADDED(record), and HH_CATCH_WITNESSED(entry, how) when we saw the kill.
 
 local addonName, ns = ...
 local L = ns.L
@@ -122,6 +122,9 @@ function Justice:OnEnemyKilled(key, guid, how, killer)
     local Wanted = ns.Wanted
     local entry = (key and Wanted:ByKey(key)) or (guid and Wanted:Get("guid:" .. guid))
     if not (entry and entry.wanted) then return nil end
+    -- Every HeadHunter who saw it earns marks (Rules/Marks.lua), even when a
+    -- groupmate's catch record got stored first
+    ns.Events:Fire("HH_CATCH_WITNESSED", entry, how)
     return self:Record(entry, how, killer)
 end
 

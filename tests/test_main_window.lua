@@ -76,6 +76,17 @@ return function(T, H)
         T.eq(rows[1].zone, "Elwynn Forest", "zone")
     end)
 
+    T.case("My deaths: a 3 vs 1 shows as Outnumbered, even if saved as fair before", function()
+        local ns = H.Boot({ client = "era" })
+        table.insert(ns.db.deaths, { id = "Vati-Firemaw:1", t = H.serverTime - 60, classification = "fair",
+            victim = { key = "Vati-Firemaw", level = 30 },
+            killer = { key = "Gank-Stonespine", level = 30, class = "ROGUE", race = "Orc" },
+            assists = { { key = "Pal-Stonespine", level = 30 }, { key = "Buddy-Stonespine", level = 31 } },
+            mapID = 1429 })
+        local row = ns.MainWindow.Rows("deaths")[1]
+        T.eq(row.kind, "|cffff8000Outnumbered|r (3 vs 1)", "kind")
+    end)
+
     T.case("the window: /hh opens it, tabs, sorting, live refresh, row click", function()
         local ns = H.Boot({ client = "era" })
         local M = ns.MainWindow

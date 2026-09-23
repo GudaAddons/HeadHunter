@@ -253,22 +253,24 @@ function Protocol.DecodeIdentity(s)
 end
 
 -------------------------------------------------
--- Posse join: outlawId ; mapID ; time ; layer   (the sender is the member)
+-- Posse join: outlawId ; mapID ; time ; layer ; hunterRank   (the sender is the member)
+-- hunterRank: the member's HeadHunter rank (1 Tracker … 5 Reaper, HH-050); records
+-- without it (4 fields) are still read.
 -------------------------------------------------
 
-function Protocol.EncodePosse(outlawId, mapID, t, layer)
+function Protocol.EncodePosse(outlawId, mapID, t, layer, hunterRank)
     return table.concat({ outlawId, mapID and Protocol.ToB36(mapID) or "", Protocol.ToB36(t),
-        layer and Protocol.ToB36(layer) or "" }, ";")
+        layer and Protocol.ToB36(layer) or "", hunterRank and Protocol.ToB36(hunterRank) or "" }, ";")
 end
 
--- Returns outlawId, mapID, time, layer
+-- Returns outlawId, mapID, time, layer, hunterRank
 function Protocol.DecodePosse(s)
     if type(s) ~= "string" then return nil end
     local f = Split(s, ";")
-    if #f ~= 4 or Blank(f[1]) then return nil end
+    if (#f ~= 4 and #f ~= 5) or Blank(f[1]) then return nil end
     local t = Protocol.FromB36(f[3])
     if not t then return nil end
-    return f[1], Protocol.FromB36(f[2]), t, Protocol.FromB36(f[4])
+    return f[1], Protocol.FromB36(f[2]), t, Protocol.FromB36(f[4]), Protocol.FromB36(f[5])
 end
 
 -------------------------------------------------

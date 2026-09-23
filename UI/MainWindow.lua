@@ -4,7 +4,8 @@
 --   WANTED         who is WANTED now; sort by rank, kills or last kill
 --   Hall of Shame  every enemy with the Coward badge (killed lowbies), WANTED or not
 --   My deaths      our own PvP deaths, newest first
--- ("My marks" arrives with HH-050.) A row click opens the outlaw's poster (UI/Poster.lua).
+--   My marks       our HeadHunter rank and what earned or cost marks (HH-050)
+-- A row click opens the outlaw's poster (UI/Poster.lua).
 --
 -- MainWindow.Rows(tab, sortKey, now) is the pure part (tested offline): one table per
 -- row with the text of each column. The rest only draws it, with templates both
@@ -23,7 +24,7 @@ MainWindow.ROW_HEIGHT = 18
 MainWindow.MAX_ROWS = 300
 MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 
-MainWindow.TABS = { "wanted", "shame", "deaths" }
+MainWindow.TABS = { "wanted", "shame", "deaths", "marks" }
 
 -- Columns per tab: key, header, width, sort key (WANTED only)
 MainWindow.COLUMNS = {
@@ -40,6 +41,12 @@ MainWindow.COLUMNS = {
         { key = "coward", header = "COL_COWARD_KILLS", width = 90 },
         { key = "kills", header = "COL_KILLS", width = 50 },
         { key = "status", header = "COL_STATUS", width = 170 },
+    },
+    marks = {
+        { key = "time", header = "COL_WHEN", width = 90 },
+        { key = "change", header = "COL_CHANGE", width = 60 },
+        { key = "reason", header = "COL_REASON", width = 340 },
+        { key = "total", header = "COL_TOTAL", width = 60 },
     },
     deaths = {
         { key = "time", header = "COL_WHEN", width = 90 },
@@ -176,6 +183,20 @@ local function ShameRows(now)
     return rows
 end
 
+-- Our marks history (HH-050), newest first
+local function MarksRows()
+    local rows = {}
+    for _, event in ipairs(ns.Marks:Events()) do
+        rows[#rows + 1] = {
+            time = date("%m-%d %H:%M", event.t),
+            change = ns.Marks.Change(event),
+            reason = ns.Marks.Reason(event),
+            total = tostring(event.total or 0),
+        }
+    end
+    return rows
+end
+
 local function DeathRows(now)
     local deaths = ns.db and ns.db.deaths or {}
     local rows = {}
@@ -184,7 +205,7 @@ local function DeathRows(now)
         if type(report) == "table" and type(report.killer) == "table" then
             local id = ns.RulesEngine.EnemyId(report.killer)
             local zone = ns.Utils.MapName(report.mapID) or L.UNKNOWN_ZONE
-            local kind = L["KILL_" .. (report.classification or "unknown"):upper()]
+            local kind = ns.Classify.ReportLabel(report)
             local name = Named(ns.DeathReports.DisplayName(report.killer), report.killer)
             -- This death first, then what we know about the killer overall
             local entry = id and ns.Wanted:Get(id)
@@ -208,7 +229,9 @@ end
 function MainWindow.Rows(tab, sortKey, now)
     now = now or ns.Utils.ServerTime()
     local rows
-    if tab == "shame" then
+    if tab == "marks" then
+        rows = MarksRows()
+    elseif tab == "shame" then
         rows = ShameRows(now)
     elseif tab == "deaths" then
         rows = DeathRows(now)
@@ -253,7 +276,7 @@ local function CreateMainFrame()
     local previous
     for i, tab in ipairs(MainWindow.TABS) do
         local button = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-        button:SetSize(120, 22)
+        button:SetSize(110, 22)
         if previous then
             button:SetPoint("LEFT", previous, "RIGHT", 6, 0)
         else
@@ -273,13 +296,14 @@ local function CreateMainFrame()
     f.options:SetScript("OnClick", function() ns.SettingsPanel:Open() end)
 
     f.count = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    f.count:SetPoint("RIGHT", f.options, "LEFT", -10, 0)
+    -- Bottom edge: the tabs and the Options button fill the top row
+    f.count:SetPoint("BOTTOMRIGHT", -16, 10)
 
     -- Column headers (buttons: clicking a sortable one sorts)
     f.headers = {}
     f.scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
     f.scroll:SetPoint("TOPLEFT", 14, -84)
-    f.scroll:SetPoint("BOTTOMRIGHT", -34, 14)
+    f.scroll:SetPoint("BOTTOMRIGHT", -34, 28)
     f.content = CreateFrame("Frame", nil, f.scroll)
     f.content:SetSize(MainWindow.WIDTH - 50, MainWindow.ROW_HEIGHT)
     f.scroll:SetScrollChild(f.content)
@@ -394,7 +418,11 @@ function MainWindow:Refresh()
         rowFrames[i].data = nil
     end
     frame.content:SetHeight(math.max(1, #rows) * self.ROW_HEIGHT)
-    frame.count:SetText(string.format(L.WINDOW_COUNT, #rows))
+    if current.tab == "marks" then
+        frame.count:SetText(string.format(L.MARKS_STATUS, ns.Marks.RankNameByIndex(ns.Marks:RankIndex()), ns.Marks:Total()))
+    else
+        frame.count:SetText(string.format(L.WINDOW_COUNT, #rows))
+    end
     frame.empty:SetText(#rows == 0 and L["EMPTY_" .. current.tab:upper()] or "")
     self.shownRows = rows
 end
@@ -450,7 +478,7 @@ end
 
 ns.Events:Register("HH_INITIALIZED", function()
     local request = function() MainWindow:RequestRefresh() end
-    for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_DEATH_RECORDED", "HH_REPORT_UPDATED" }) do
+    for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_DEATH_RECORDED", "HH_REPORT_UPDATED", "HH_MARKS_CHANGED" }) do
         ns.Events:Register(event, request, OWNER)
     end
 end, OWNER)

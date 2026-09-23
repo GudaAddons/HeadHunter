@@ -198,6 +198,21 @@ return function(T, H)
         T.eq(a.timesWanted, 3, "wanted three times")
     end)
 
+    T.case("outnumbered kills: Gang for every attacker (not Coward), never Gunslinger", function()
+        local reports = {}
+        for i = 1, 3 do
+            -- Gank and two friends, all the victim's level: fair by level, but 3 vs 1
+            reports[i] = Report(i, "V" .. i, { killerLevel = 40, assists = {
+                { key = "Pal-Stonespine", level = 40 }, { key = "Buddy-Stonespine", level = 40 } } })
+        end
+        local e, entries = Compute(reports, 5)
+        T.eq(e.badges.gang, true, "Gang")
+        T.eq(e.gangKills, 3, "three gang kills")
+        T.eq(e.badges.coward, nil, "not Coward (author, 2026-09-23)")
+        T.eq(e.badges.gunslinger, nil, "not a Gunslinger")
+        T.eq(entries["Pal-Stonespine"].badges.gang, true, "the assists too")
+    end)
+
     T.case("assists get the kill too; GUID-only enemies are tracked by GUID", function()
         local _, entries = Compute({
             Report(0, "A", { assists = { { key = "Helper-Stonespine", level = 40 } } }),
