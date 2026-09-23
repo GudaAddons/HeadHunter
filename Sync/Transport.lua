@@ -449,9 +449,16 @@ function Transport:Receive(message, chatType, sender)
     end
     -- Other-faction traffic can share a custom channel; it is never ours to trust,
     -- except duel records (High Noon lists both factions; they never touch WANTED)
-    if faction ~= ns.Utils.UnitFaction("player") and typeCode ~= ns.Protocol.TYPES.DUEL then
-        self.diag.lastIgnored = "other faction (" .. faction .. ") from " .. tostring(sender)
-        return
+    -- and pings (the manual test, HH-100: does anything cross factions?)
+    local TYPES = ns.Protocol.TYPES
+    if faction ~= ns.Utils.UnitFaction("player") then
+        self.stats.crossFaction = (self.stats.crossFaction or 0) + 1
+        ns:Debug("Other faction (" .. faction .. ") message from", tostring(sender), "via", tostring(chatType),
+            "type", tostring(typeCode))
+        if typeCode ~= TYPES.DUEL and typeCode ~= TYPES.PING then
+            self.diag.lastIgnored = "other faction (" .. faction .. ") from " .. tostring(sender)
+            return
+        end
     end
     for _, record in ipairs(records) do
         inboxTail = inboxTail + 1
@@ -507,9 +514,10 @@ ns.Events:Register("HH_INITIALIZED", function()
             Transport:JoinChannel()
         end
     end, OWNER)
-    Transport:RegisterHandler(ns.Protocol.TYPES.PING, function(record, sender, _, chatType)
+    Transport:RegisterHandler(ns.Protocol.TYPES.PING, function(record, sender, faction, chatType)
         -- Manual connectivity test: shown in chat because the player asked for it
-        ns:Print(string.format(ns.L.SYNC_PING_RECEIVED, tostring(sender), tostring(record), tostring(chatType)))
+        ns:Print(string.format(ns.L.SYNC_PING_RECEIVED, tostring(sender), tostring(faction), tostring(record),
+            tostring(chatType)))
     end)
     ScheduleFlush()
 end, OWNER)
@@ -549,6 +557,17 @@ ns.SlashCommands:Register("sync", function(args)
     end
     if sub == "probe" then
         Transport:ProbeChatTypes()
+        return
+    end
+    -- /hh sync whisper "<name>": an addon whisper ping (HH-100: can it cross factions?)
+    if sub == "whisper" then
+        local target = args[2]
+        if not target then
+            ns:Print(ns.L.SYNC_WHISPER_USAGE)
+            return
+        end
+        Transport:SendDirect(ns.Protocol.TYPES.PING, { "whisper " .. date("%H:%M:%S") }, target)
+        ns:Print(string.format(ns.L.SYNC_WHISPER_QUEUED, target))
         return
     end
     if sub == "ping" then

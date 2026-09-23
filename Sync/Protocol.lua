@@ -27,6 +27,7 @@ Protocol.TYPES = {
     JUSTICE = "K", -- a WANTED outlaw killed by a HeadHunter or their group (HH-048)
     OFFER = "O",   -- catch-up: "I have N records for you" (HH-023)
     DUEL = "U",    -- High Noon: a duel someone saw (HH-091); also accepted from the other faction
+    TOURNAMENT = "V", -- Gurubashi Tournament: announce, entrants, requests (HH-101)
     PING = "T", -- /hh sync ping: manual connectivity test
 }
 

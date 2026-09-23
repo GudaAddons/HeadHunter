@@ -46,6 +46,11 @@ Rules\Wanted.lua
 Rules\Marks.lua
 Rules\HighNoon.lua
 
+# Gurubashi Tournament (M9)
+Tournament\Arena.lua
+Tournament\Brackets.lua
+Tournament\Tournaments.lua
+
 # Alerts (M4)
 Alerts\Alerts.lua
 Alerts\Zones.lua

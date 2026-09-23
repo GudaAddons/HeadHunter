@@ -137,6 +137,7 @@ function H.Install(opts)
     _G.UiMapPoint = { CreateFromCoordinates = function(mapID, x, y) return { uiMapID = mapID, x = x, y = y } end }
     _G.C_SuperTrack = { SetSuperTrackedUserWaypoint = function() end }
     H.playerMap = 1429
+    H.playerX, H.playerY = 0.42, 0.65
 
     _G.HeadHunter_DB = opts.savedDB
     _G.SLASH_HEADHUNTER1, _G.SLASH_HEADHUNTER2 = nil, nil
@@ -325,7 +326,7 @@ function H.Install(opts)
         GetBestMapForUnit = function() return H.playerMap end,
         GetMapInfo = function(id) return H.maps[id] end,
         GetPlayerMapPosition = function()
-            return { GetXY = function() return 0.42, 0.65 end }
+            return { GetXY = function() return H.playerX, H.playerY end }
         end,
         -- H.noWaypoints: the client refuses user waypoints (as Classic Era does)
         CanSetUserWaypointOnMap = function() return not H.noWaypoints end,
