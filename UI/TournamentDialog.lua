@@ -202,6 +202,10 @@ function TournamentDialog:UpdatePreview()
 end
 
 function TournamentDialog:Open()
+    if not ns.Tournaments:CanHost() then
+        ns:Print(L.TOUR_ERR_ORGANIZER_LEVEL)
+        return false
+    end
     frame = frame or CreateDialog()
     self.values = self.Defaults()
     local v = self.values

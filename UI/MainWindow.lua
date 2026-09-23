@@ -553,9 +553,10 @@ function MainWindow:UpdateTourButtons()
     local t = current.selected and ns.Tournaments:Get(current.selected)
     if not t then current.selected = nil end
     local actions = self.TourActions(t)
-    self.tourButtons = { create = onTab, action = onTab and actions.action or nil, cancel = onTab and actions.cancel }
+    local create = onTab and ns.Tournaments:CanHost()
+    self.tourButtons = { create = create, action = onTab and actions.action or nil, cancel = onTab and actions.cancel }
     if not frame then return end
-    if onTab then frame.tourCreate:Show() else frame.tourCreate:Hide() end
+    if create then frame.tourCreate:Show() else frame.tourCreate:Hide() end
     if onTab and actions.action then
         frame.tourAction:SetText(L["TOUR_BUTTON_" .. actions.action:upper()])
         frame.tourAction:Show()

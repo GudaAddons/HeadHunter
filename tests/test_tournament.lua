@@ -521,6 +521,26 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("below level 19: no Create button, no dialog, no /hh tour create", function()
+        local ns = H.Boot({ client = "forever" })
+        H.units.player.level = 14
+        local MW = ns.MainWindow
+        MW:Toggle()
+        MW:SelectTab("tours")
+        T.eq(MW.tourButtons.create, false, "no Create button")
+        T.eq(ns.TournamentDialog:Open(), false, "the dialog does not open")
+        T.ok(not ns.TournamentDialog:IsShown(), "not shown")
+        T.ok(H.Printed("You can host tournaments from level 19"), "told why")
+        H.printed = {}
+        H.Slash('tour create "Lowbie Cup" 1v1 single bo1 30 19')
+        T.ok(H.Printed("You can host tournaments from level 19"), "the command refuses too")
+        T.eq(#ns.Tournaments:List(), 0, "nothing created")
+        H.units.player.level = 19
+        MW:Refresh()
+        T.eq(MW.tourButtons.create, true, "at 19: Create")
+        T.noErrors()
+    end)
+
     T.case("create dialog: venue dropdown with our faction's venues; the chest only matters at Gurubashi", function()
         local ns = H.Boot({ client = "forever" })
         local D = ns.TournamentDialog

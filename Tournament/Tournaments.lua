@@ -236,7 +236,7 @@ function Tournaments:Create(opts, click)
     local store = Store()
     local me = Me()
     if not store or not me then return nil, "NOT_READY" end
-    if (U.UnitLevel("player") or 0) < self.MIN_LEVEL then return nil, "ORGANIZER_LEVEL" end
+    if not self:CanHost() then return nil, "ORGANIZER_LEVEL" end
     local name = Tournaments.Clean(opts.name)
     if name == "" then return nil, "NAME" end
     if not Tournaments.FORMATS[opts.format] then return nil, "FORMAT" end
@@ -472,6 +472,11 @@ function Tournaments:JoinStatus(t)
         return ({ LEVEL_LOW = "level", PARTY_SIZE = "party", NOT_LEADER = "leader" })[reason] or "open"
     end
     return "open"
+end
+
+-- Hosting starts at MIN_LEVEL (joining is checked against each tournament's minimum)
+function Tournaments:CanHost()
+    return (ns.Utils.UnitLevel("player") or 0) >= self.MIN_LEVEL
 end
 
 function Tournaments:IsOrganizer(t)
