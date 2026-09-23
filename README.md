@@ -41,6 +41,8 @@ Cowards are listed in the **Hall of Shame**.
 - A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 20 minutes after the last fight.
 - A **skull** shows where a WANTED outlaw made their last kill (for 10 minutes).
 
+![A PvP area on the world map](Assets/screenshot-map.png)
+
 ### HeadHunter window
 Type `/hh` or click the minimap button:
 - **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill.
