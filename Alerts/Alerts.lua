@@ -7,11 +7,14 @@
 --       chat = "...",                  -- one chat line
 --       sound = true,                  -- play the alert sound
 --       popup = { text, accept, decline, onAccept, onDecline },  -- optional (HH-043)
+--       combat = true,                 -- show at once even in combat (no popup allowed)
 --   })
 --
 -- Rules (docs/addon/features.md sections 4 and 8):
 --   - never inside instances (dropped, not queued)
---   - in combat: queued and shown when combat ends (duplicates merged, stale dropped)
+--   - in combat: queued and shown when combat ends (duplicates merged, stale dropped),
+--     except alerts marked `combat` with no popup (a WANTED outlaw in sight: author,
+--     2026-09-23), which show at once
 --   - settings.alerts: enabled, sound, popups
 -- Returns true when shown, "queued" when waiting for combat to end, false otherwise.
 
@@ -102,7 +105,7 @@ function Alerts:Show(alert)
     local last = lastShown[alert.key]
     if last and now - last < (alert.throttle or self.DEFAULT_THROTTLE) then return false end
 
-    if InCombat() then
+    if InCombat() and not (alert.combat and not alert.popup) then
         -- Newest version of the same alert wins
         queue[alert.key] = { alert = alert, queuedAt = now }
         return "queued"

@@ -5,7 +5,8 @@
 --
 -- Driven by HH_ENEMY_SEEN from the enemy cache, so it inherits its rules: hostile
 -- players only, nothing inside instances, and a 2 s refresh throttle per GUID.
--- The same outlaw alerts again at most every THROTTLE seconds.
+-- The same outlaw alerts again at most every THROTTLE seconds. Shown at once even in
+-- combat (author, 2026-09-23): the outlaw may be the one attacking us.
 -- Level window (docs/addon/features.md section 4) deferred on purpose (tickets HH-043).
 
 local addonName, ns = ...
@@ -55,6 +56,7 @@ function Sighting:OnEnemySeen(record, source)
         text = text,
         chat = chat,
         sound = true,
+        combat = true, -- the outlaw may be the one we are fighting: tell us now
     })
 end
 

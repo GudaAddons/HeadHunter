@@ -153,16 +153,24 @@ return function(T, H)
         T.eq(#H.centerTexts, 0, "silent")
     end)
 
-    T.case("seen during combat: shown when combat ends", function()
+    T.case("seen during combat: shown at once, not again after combat", function()
         local ns = H.Boot({ client = "era" })
         WantedGank(ns)
         H.inCombat = true
         H.units.nameplate1 = GankPlate()
         H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
-        T.eq(#H.centerTexts, 0, "waits")
+        T.eq(#H.centerTexts, 1, "shown in combat")
+        T.eq(#H.sounds, 1, "with sound")
         H.inCombat = false
         H.Fire("PLAYER_REGEN_ENABLED")
-        T.eq(#H.centerTexts, 1, "shown after combat")
+        T.eq(#H.centerTexts, 1, "not repeated when combat ends")
+    end)
+
+    T.case("combat alerts with a popup still wait for combat to end", function()
+        local ns = H.Boot({ client = "era" })
+        H.inCombat = true
+        T.eq(ns.Alerts:Show(Alert("p", { combat = true, popup = { text = "x" } })), "queued", "popup waits")
+        T.eq(ns.Alerts:Show(Alert("c", { combat = true, text = "now" })), true, "no popup: at once")
     end)
 
     T.case("forever: an outlaw known only by GUID is recognised when seen", function()
