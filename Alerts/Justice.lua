@@ -41,6 +41,8 @@ function JusticeAlerts:OnCaught(entry, before)
                 onDecline = function() ns.Justice:SkipAnnounce() end,
             }
         end
+    elseif record.origin == "relay" then
+        -- Learned at login (HH-023): old news, the chat line is enough
     elseif ns.Posse:IsMember(entry.id) then
         alert.text = string.format(L.JUSTICE_CENTER_POSSE, outlaw, byMe and L.POSSE_YOU or Name(record.killer))
         alert.sound = "soft"

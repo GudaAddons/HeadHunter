@@ -25,6 +25,7 @@ Protocol.MAX_ASSISTS = 4
 Protocol.TYPES = {
     DEATH = "D", IDENTITY = "G", QUERY = "Q", SNAPSHOT = "S", POSSE = "J", HOTSPOT = "P",
     JUSTICE = "K", -- a WANTED outlaw killed by a HeadHunter or their group (HH-048)
+    OFFER = "O",   -- catch-up: "I have N records for you" (HH-023)
     PING = "T", -- /hh sync ping: manual connectivity test
 }
 

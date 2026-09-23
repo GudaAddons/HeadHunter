@@ -1,7 +1,8 @@
 -- HH-022: the shared set of death reports, and what enters it.
 --
 -- ns.db.reports is a grow-only set keyed by report id ("<victim key>:<time>"):
--- our own deaths plus every death other addon users of our faction reported.
+-- our own deaths plus every death other addon users of our faction reported
+-- (origin "peer"), or passed on at login by another HeadHunter (origin "relay", HH-023).
 -- Reports never change except to complete a given-name-only enemy. Everything the
 -- rules derive (WANTED, ranks, badges; M3) is computed from this set, so the order
 -- in which reports arrive never matters.
@@ -41,7 +42,7 @@ function Reports:Count()
     local total, mine, peers = 0, 0, 0
     for _, report in pairs(Store() or {}) do
         total = total + 1
-        if report.origin == "peer" then peers = peers + 1 else mine = mine + 1 end
+        if report.origin == "local" or report.origin == "sim" then mine = mine + 1 else peers = peers + 1 end
     end
     return total, mine, peers
 end
@@ -181,12 +182,37 @@ function Reports:OnPeerDeath(record, sender)
     self:Add(report, "peer", sender)
 end
 
+-- A report passed on by another HeadHunter during login catch-up (HH-023). It is
+-- not from the victim, so it is taken on the relaying peer's word; the time checks
+-- still apply. Returns the added report, or nil.
+function Reports:AddRelayed(record)
+    local report = ns.Protocol.DecodeDeath(record)
+    if not report or not Canonical(report) then return nil end
+    local now = ns.Utils.ServerTime()
+    if report.t > now + self.MAX_SKEW or report.t < now - self.MAX_AGE then return nil end
+    return self:Add(report, "relay")
+end
+
+-- Reports to hand to a peer who missed them, newer than `since`, newest first, at
+-- most `limit`. Local-only simulations (/hh spree, /hh sim death) stay here;
+-- /hh sim send ones were shared already (report.shared).
+function Reports:Since(since, limit)
+    local list = {}
+    for _, report in self:All() do
+        if report.t > since and (report.origin ~= "sim" or report.shared) then list[#list + 1] = report end
+    end
+    table.sort(list, function(a, b) return a.t > b.t end)
+    for i = #list, (limit or #list) + 1, -1 do list[i] = nil end
+    return list
+end
+
 function Reports:OnPeerIdentity(record, sender)
     local reportId, identity = ns.Protocol.DecodeIdentity(record)
     if not reportId then return end
     local report = self:Get(reportId)
     -- Only the victim of that report may complete it
-    if not report or report.origin ~= "peer" or not ns.Utils.SameCharacter(sender, report.victim.key) then return end
+    if not report or report.origin == "local" or report.origin == "sim"
+            or not ns.Utils.SameCharacter(sender, report.victim.key) then return end
     identity.key = ns.Utils.PlayerKey(identity.key)
     if not identity.key then return end
     self:Complete(report, identity)

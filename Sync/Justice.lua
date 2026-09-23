@@ -181,6 +181,32 @@ function Justice:OnPeer(record, sender)
         "peer", sender)
 end
 
+-- A catch passed on by another HeadHunter during login catch-up (HH-023): no rate
+-- limit (one pull brings many), the time checks still apply
+function Justice:AddRelayed(record, sender)
+    local outlaw, t, mapID, killer = ns.Protocol.DecodeJustice(record)
+    if not outlaw then return nil end
+    local U = ns.Utils
+    if not outlaw:find("^guid:") then
+        outlaw = U.PlayerKey(outlaw)
+        if not outlaw then return nil end
+    end
+    local now = U.ServerTime()
+    if t > now + self.MAX_SKEW or t < now - ns.Reports.MAX_AGE then return nil end
+    return self:Add({ id = outlaw .. ":" .. t, outlaw = outlaw, t = t, mapID = mapID,
+        killer = killer and U.PlayerKey(killer), hunter = killer and U.PlayerKey(killer) }, "relay", sender)
+end
+
+-- Catches to hand to a peer who missed them, newest first
+function Justice:Since(since)
+    local list = {}
+    for _, record in self:All() do
+        if record.t > since then list[#list + 1] = record end
+    end
+    table.sort(list, function(a, b) return a.t > b.t end)
+    return list
+end
+
 -------------------------------------------------
 -- Era: [Announce] to the whole realm (needs the click)
 -------------------------------------------------

@@ -179,3 +179,9 @@ L.JUSTICE_NOTHING = "No catch waiting to be announced."
 L.HELP_JUSTICE = "|cffffff00/hh justice|r: Announce your catch of a WANTED outlaw to all HeadHunters (Classic Era)"
 L.CATCH_NOT_WANTED = "%s is not WANTED right now (or was caught less than a minute ago)."
 L.CATCH_NEEDS_DEBUG = "/hh catch is a debug tool: turn on /hh debug on first."
+
+-- Login catch-up (HH-023)
+L.CATCHUP_STARTED = "Asking other HeadHunters for what you missed."
+L.CATCHUP_BUSY = "Catch-up already running."
+L.CATCHUP_NO_ROUTE = "No HeadHunters reachable right now (Classic Era: join a guild or group)."
+L.HELP_CATCHUP = "|cffffff00/hh catchup|r: Ask other HeadHunters for reports and catches you missed"

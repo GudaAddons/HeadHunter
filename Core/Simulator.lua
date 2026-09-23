@@ -121,6 +121,7 @@ function Simulator:Send(args)
             mapID = mapID, x = x, y = y,
             layer = ns.Layer:Current(),
             confidence = "sim",
+            shared = true, -- sent to other HeadHunters, so login catch-up may pass it on
         }
         if ns.Reports:Add(report, "sim") then
             local record = ns.Protocol.EncodeDeath(report,

@@ -1,0 +1,204 @@
+-- HH-023: login catch-up. What happened while we were offline comes from a peer.
+--
+-- WANTED is derived from reports + catches, so catch-up passes on those records
+-- (never a finished WANTED list) and every client still computes the same result.
+--
+--   1. hello   we -> automatic routes   Q "h<since>"  "I missed everything after <since>"
+--   2. offer   peer -> us (whisper)     O "<count>"   after a random delay, only if it
+--                                                     has records newer than <since>
+--   3. pull    us -> best peer (whisper) Q "p<since>" the peer with the most records
+--   4. data    peer -> us (whisper)     S "D<death>" / "K<catch>" ... then "E<count>"
+--
+-- Offers are tiny, and only one peer sends data, so a busy realm does not flood a
+-- player who logs in. <since> is our last logout minus MARGIN (the SavedVariables
+-- time); without saved data it is the report lifetime (30 days). Relayed records are
+-- taken on the relaying peer's word (origin "relay"); the time checks still apply.
+-- Era: the hello reaches guild and group only (its channel refuses addon messages);
+-- /hh catchup asks again (e.g. after joining a group).
+-- Silent except in debug mode.
+
+local addonName, ns = ...
+local L = ns.L
+
+local CatchUp = ns:RegisterModule("CatchUp", {})
+
+local OWNER = "CatchUp"
+
+CatchUp.START_DELAY = 20     -- after login: channel joined, guild known
+CatchUp.RETRY = 10           -- no route yet: try again
+CatchUp.MAX_WAIT = 120       -- then give up until /hh catchup
+CatchUp.OFFER_DELAY = 3      -- peers wait up to this long before offering
+CatchUp.OFFER_WAIT = 5       -- after the first offer, collect for this long
+CatchUp.NO_OFFER_WAIT = 30   -- no offer by then: nobody has anything for us
+CatchUp.GIVE_UP = 60         -- a pull that brings nothing is abandoned
+CatchUp.MARGIN = 600         -- ask from 10 min before our last logout
+CatchUp.MAX_RECORDS = 300    -- newest first, per answer
+CatchUp.ANSWER_COOLDOWN = 300 -- one answer per requester per 5 minutes
+
+local state = "idle"         -- idle | asking | pulling | done
+local since
+local offers = {}            -- array of { sender, count }
+local source                 -- the peer we pull from
+local received = { reports = 0, catches = 0 }
+local answered = {}          -- compact requester -> GetTime() of our last answer
+local attempt = 0
+
+CatchUp.last = nil           -- summary of the last catch-up (tests, /hh sync)
+
+local function B36(n) return ns.Protocol.ToB36(n) end
+local function FromB36(s) return ns.Protocol.FromB36(s) end
+
+-- Last logout minus a margin, or the whole report lifetime without saved data
+function CatchUp.Since(now)
+    now = now or ns.Utils.ServerTime()
+    local meta = ns.db and ns.db.meta
+    local savedAt = meta and tonumber(meta.savedAt) or 0
+    local oldest = now - ns.Reports.MAX_AGE
+    if not ns.Database.restoredFromDisk or savedAt <= 0 then return oldest end
+    return math.max(oldest, savedAt - CatchUp.MARGIN)
+end
+
+function CatchUp:State()
+    return state
+end
+
+-------------------------------------------------
+-- Asking (the player who logged in)
+-------------------------------------------------
+
+function CatchUp:Start()
+    if state == "asking" or state == "pulling" then return false end
+    local Transport = ns.Transport
+    if not ns.Guards:IsActive() or #Transport:AutoRoutes() == 0 then return false end
+    state, offers, source = "asking", {}, nil
+    received = { reports = 0, catches = 0 }
+    since = since or CatchUp.Since()
+    Transport:Queue(ns.Protocol.TYPES.QUERY, "h" .. B36(since), Transport.PRIORITY.alert, "Q:hello")
+    ns:Debug("Catch-up: asking for records after", since)
+    -- Hello flush + offer delay + whisper flush, with room for combat flush intervals
+    C_Timer.After(self.NO_OFFER_WAIT, function()
+        if state == "asking" and #offers == 0 then
+            state = "done"
+            CatchUp.last = { reports = 0, catches = 0, from = nil }
+            ns:Debug("Catch-up: no offers")
+        end
+    end)
+    return true
+end
+
+local function Choose()
+    if state ~= "asking" or #offers == 0 then return end
+    table.sort(offers, function(a, b) return a.count > b.count end)
+    source = offers[1].sender
+    state = "pulling"
+    ns.Transport:SendDirect(ns.Protocol.TYPES.QUERY, { "p" .. B36(since) }, source)
+    ns:Debug("Catch-up: pulling", offers[1].count, "record(s) from", source)
+    C_Timer.After(CatchUp.GIVE_UP, function()
+        if state == "pulling" then CatchUp:Finish("timeout") end
+    end)
+end
+
+function CatchUp:OnOffer(record, sender)
+    local count = FromB36(record)
+    if state ~= "asking" or not count or count <= 0 then return end
+    offers[#offers + 1] = { sender = sender, count = count }
+    if #offers == 1 then C_Timer.After(self.OFFER_WAIT, Choose) end
+end
+
+function CatchUp:Finish(reason)
+    state = "done"
+    CatchUp.last = { reports = received.reports, catches = received.catches, from = source, reason = reason }
+    ns:Debug("Catch-up done (" .. tostring(reason) .. "):", received.reports, "report(s),",
+        received.catches, "catch(es) from", tostring(source))
+end
+
+function CatchUp:OnData(record, sender)
+    if state ~= "pulling" or not ns.Utils.SameCharacter(sender, source) then return end
+    local kind, body = record:sub(1, 1), record:sub(2)
+    if kind == "D" then
+        if ns.Reports:AddRelayed(body) then received.reports = received.reports + 1 end
+    elseif kind == "K" then
+        if ns.Justice:AddRelayed(body, sender) then received.catches = received.catches + 1 end
+    elseif kind == "E" then
+        self:Finish("complete")
+    end
+end
+
+-------------------------------------------------
+-- Answering (everyone else)
+-------------------------------------------------
+
+-- The records newer than `since` we can pass on, as S records (newest first)
+function CatchUp.Records(sinceTime)
+    local Protocol = ns.Protocol
+    local maxLength = Protocol.MAX_MESSAGE - 4 - 1 -- header, kind letter
+    local records = {}
+    for _, record in ipairs(ns.Justice:Since(sinceTime)) do
+        records[#records + 1] = "K" .. ns.Justice.Encode(record)
+    end
+    for _, report in ipairs(ns.Reports:Since(sinceTime, CatchUp.MAX_RECORDS)) do
+        if #records >= CatchUp.MAX_RECORDS then break end
+        local encoded = Protocol.EncodeDeath(report, maxLength)
+        if encoded then records[#records + 1] = "D" .. encoded end
+    end
+    return records
+end
+
+local function RecentlyAnswered(sender)
+    local at = answered[ns.Utils.CompactName(sender)]
+    return at ~= nil and ns.Utils.Now() - at < CatchUp.ANSWER_COOLDOWN
+end
+
+function CatchUp:OnQuery(record, sender)
+    local kind, value = record:sub(1, 1), FromB36(record:sub(2))
+    if not value or not ns.Guards:IsActive() then return end
+    local Transport, TYPES = ns.Transport, ns.Protocol.TYPES
+    if kind == "h" then
+        if RecentlyAnswered(sender) then return end
+        local count = #CatchUp.Records(value)
+        if count == 0 then return end
+        -- Random delay: the requester collects offers for a few seconds anyway
+        C_Timer.After(math.random() * self.OFFER_DELAY, function()
+            Transport:SendDirect(TYPES.OFFER, { B36(count) }, sender)
+        end)
+    elseif kind == "p" then
+        if RecentlyAnswered(sender) then return end
+        answered[ns.Utils.CompactName(sender)] = ns.Utils.Now()
+        local records = CatchUp.Records(value)
+        records[#records + 1] = "E" .. B36(#records)
+        Transport:SendDirect(TYPES.SNAPSHOT, records, sender)
+        ns:Debug("Catch-up: sending", #records - 1, "record(s) to", sender)
+    end
+end
+
+-------------------------------------------------
+-- Wiring
+-------------------------------------------------
+
+-- Wait for a route (channel joined, guild known), then ask once
+local function TryStart()
+    attempt = attempt + 1
+    if CatchUp:Start() then return end
+    if attempt * CatchUp.RETRY < CatchUp.MAX_WAIT then
+        C_Timer.After(CatchUp.RETRY, TryStart)
+    end
+end
+
+ns.Events:Register("HH_INITIALIZED", function()
+    local Transport, TYPES = ns.Transport, ns.Protocol.TYPES
+    Transport:RegisterHandler(TYPES.QUERY, function(record, sender) CatchUp:OnQuery(record, sender) end)
+    Transport:RegisterHandler(TYPES.OFFER, function(record, sender) CatchUp:OnOffer(record, sender) end)
+    Transport:RegisterHandler(TYPES.SNAPSHOT, function(record, sender) CatchUp:OnData(record, sender) end)
+    since = CatchUp.Since() -- before this session's logout time is written
+    C_Timer.After(CatchUp.START_DELAY, TryStart)
+end, OWNER)
+
+ns.SlashCommands:Register("catchup", function()
+    if CatchUp:Start() then
+        ns:Print(L.CATCHUP_STARTED)
+    elseif state == "asking" or state == "pulling" then
+        ns:Print(L.CATCHUP_BUSY)
+    else
+        ns:Print(L.CATCHUP_NO_ROUTE)
+    end
+end, L.HELP_CATCHUP)

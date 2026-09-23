@@ -4,6 +4,7 @@
 --   Transport:Queue(typeCode, record, priority, coalesceKey)
 --   Transport:RegisterHandler(typeCode, function(record, sender, faction, chatType) end)
 --   Transport:SendRealmWide(typeCode, records)   -- Era: only from a click / typed command
+--   Transport:SendDirect(typeCode, records, target) -- addon whispers to one player (catch-up)
 --
 -- Automatic routes (addon messages, no player action needed), chosen per flush:
 --   Forever: the hidden channel HeadHunterSync (realm/region wide)
@@ -37,6 +38,7 @@ Transport.INBOX_BUDGET_MS = 3
 Transport.JOIN_DEFER_MAX = 15 -- x 2 s waiting for the server channels to take /1
 Transport.MAX_OUTBOX = 200    -- records kept while no route is available
 Transport.MAX_TEXT_MESSAGES = 2 -- channel text lines sent per click
+Transport.MAX_DIRECT = 150    -- whisper messages waiting (catch-up answers)
 
 -- Lower number = sent first
 Transport.PRIORITY = { alert = 1, posse = 2, hotspot = 3, bulk = 4 }
@@ -48,6 +50,7 @@ local inboxHead = 1    -- next item to handle
 local inboxTail = 0    -- last item added (explicit: # is undefined once the front is cleared)
 local handlers = {}
 local seq = 0
+local direct = {}      -- array of { message, target }: whispers to one player, oldest first
 
 local tokens = Transport.BURST
 local lastRefill
@@ -319,11 +322,50 @@ function Transport:Flush()
     end
 end
 
+-------------------------------------------------
+-- Direct: addon whispers to one player (works on both clients, no route needed)
+-------------------------------------------------
+
+-- Packs records into messages for `target`; they go out after the outbox, under the
+-- same token bucket. Returns the number of messages queued.
+function Transport:SendDirect(typeCode, records, target)
+    local faction = MyFactionCode()
+    if not faction or not target or #records == 0 then return 0 end
+    local messages = ns.Protocol.Pack(faction, typeCode, records)
+    local queued = 0
+    for _, message in ipairs(messages) do
+        if #direct >= self.MAX_DIRECT then break end
+        direct[#direct + 1] = { message = message, target = target }
+        queued = queued + 1
+    end
+    return queued
+end
+
+function Transport:DirectCount()
+    return #direct
+end
+
+function Transport:FlushDirect()
+    if #direct == 0 or not ns.Guards:IsActive() then return end
+    Refill(ns.Utils.Now())
+    while #direct > 0 and tokens >= 1 do
+        local item = table.remove(direct, 1)
+        -- A failed whisper (player gone offline) is dropped, never retried
+        if Send(item.message, { chatType = "WHISPER", target = item.target }) then
+            self.stats.sent = self.stats.sent + 1
+        end
+        tokens = tokens - 1
+    end
+end
+
 local function ScheduleFlush()
     local inCombat = ns.Utils.SafeCall(UnitAffectingCombat, "player")
     local delay = inCombat and Transport.COMBAT_FLUSH_INTERVAL or Transport.FLUSH_INTERVAL
     C_Timer.After(delay, function()
         local ok, err = pcall(Transport.Flush, Transport)
+        if not ok then ns:Error(err) end
+        -- Alerts and pings first; catch-up whispers take what the bucket has left
+        ok, err = pcall(Transport.FlushDirect, Transport)
         if not ok then ns:Error(err) end
         ScheduleFlush()
     end)

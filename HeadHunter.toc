@@ -37,6 +37,7 @@ Sync\Transport.lua
 Sync\Reports.lua
 Sync\ReportPrompt.lua
 Sync\Justice.lua
+Sync\CatchUp.lua
 
 # Rules (M3)
 Rules\Engine.lua
