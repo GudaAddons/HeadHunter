@@ -354,6 +354,44 @@ function H.Install(opts)
         ROGUE = { r = 1, g = 0.96, b = 0.41 }, MAGE = { r = 0.25, g = 0.78, b = 0.92 },
         WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
     }
+    -- opts.tooltip = "script" (OnTooltipSetUnit) | "processor" (TooltipDataProcessor):
+    -- a GameTooltip stand-in; H.ShowUnitTooltip(unit) shows a unit on it and
+    -- H.tooltipLines collects the added lines
+    _G.TooltipDataProcessor = nil
+    H.tooltipLines = {}
+    if opts.tooltip then
+        -- A plain table: missing fields must read as nil, as on a real tooltip
+        local tip = setmetatable(NewFrame("GameTooltip"), nil)
+        for _, method in ipairs({ "SetOwner", "SetText", "Show", "Hide", "ClearLines" }) do
+            tip[method] = function() end
+        end
+        tip.hooks = {}
+        function tip:HookScript(script, fn)
+            self.hooks[script] = self.hooks[script] or {}
+            table.insert(self.hooks[script], fn)
+        end
+        function tip:GetUnit() return self.unitName, self.unit end
+        function tip:AddLine(text) H.tooltipLines[#H.tooltipLines + 1] = text end
+        local postCalls = {}
+        if opts.tooltip == "processor" then
+            _G.Enum.TooltipDataType = { Unit = 2 }
+            _G.TooltipDataProcessor = { AddTooltipPostCall = function(_, fn) postCalls[#postCalls + 1] = fn end }
+        end
+        local function Run(script)
+            for _, fn in ipairs(tip.hooks[script] or {}) do fn(tip) end
+        end
+        -- times: how often the client fires the unit callback for this one tooltip
+        function H.ShowUnitTooltip(unit, times)
+            Run("OnTooltipCleared")
+            H.tooltipLines = {}
+            tip.unit = unit
+            tip.unitName = H.units[unit] and H.units[unit].name
+            for _ = 1, times or 1 do
+                Run("OnTooltipSetUnit")
+                for _, fn in ipairs(postCalls) do fn(tip, {}) end
+            end
+        end
+    end
     -- opts.minimap: a Minimap frame exists (the minimap button needs one)
     _G.Minimap = opts.minimap and NewFrame("Minimap") or nil
     -- opts.worldMap: the world map exists at load (otherwise it never loads)

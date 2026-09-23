@@ -37,6 +37,7 @@ local DEFAULTS = {
         },
         serialKillerWindowMin = 15, -- 5..15
         mapPins = true, -- HH-046: hotspot and WANTED pins on the world map
+        tooltip = true, -- HH-062: WANTED line on enemy player tooltips
         minimap = { angle = 200, hidden = false }, -- HH-060 minimap button
     },
     deaths = {},  -- array of death reports, oldest first (HH-013)

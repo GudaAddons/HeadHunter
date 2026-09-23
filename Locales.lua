@@ -228,3 +228,11 @@ L.MINIMAP_HINT = "Left-click: open · Drag: move"
 L.MINIMAP_HIDDEN = "Minimap button hidden (/hh minimap to show it again)."
 L.MINIMAP_SHOWN = "Minimap button shown."
 L.HELP_MINIMAP = "|cffffff00/hh minimap|r: Show or hide the minimap button"
+
+-- Tooltip line (HH-062)
+L.TOOLTIP_WANTED = "|cffff2020WANTED|r · %s · %d kills"
+L.TOOLTIP_KNOWN = "HeadHunter: %d kills known"
+L.TOOLTIP_CAUGHT = " · caught %dx"
+L.TOOLTIP_ON = "WANTED line on enemy tooltips: on."
+L.TOOLTIP_OFF = "WANTED line on enemy tooltips: off."
+L.HELP_TOOLTIP = "|cffffff00/hh tooltip [on|off]|r: WANTED line on enemy player tooltips"

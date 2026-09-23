@@ -49,7 +49,7 @@ end
 local SUITES = {
     "test_expansion", "test_events", "test_utils", "test_database", "test_guards", "test_commands",
     "test_classify", "test_enemy_cache", "test_death_reports", "test_era_deaths", "test_forever_deaths",
-    "test_protocol", "test_sync", "test_rules_engine", "test_wanted", "test_alerts", "test_activity", "test_posse", "test_layer", "test_pets", "test_hotspots", "test_map_markers", "test_justice", "test_catchup", "test_main_window",
+    "test_protocol", "test_sync", "test_rules_engine", "test_wanted", "test_alerts", "test_activity", "test_posse", "test_layer", "test_pets", "test_hotspots", "test_map_markers", "test_justice", "test_catchup", "test_main_window", "test_tooltip_line",
 }
 
 for _, suite in ipairs(SUITES) do

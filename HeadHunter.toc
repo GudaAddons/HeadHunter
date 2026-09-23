@@ -56,6 +56,7 @@ Alerts\Justice.lua
 UI\MapMarkers.lua
 UI\MainWindow.lua
 UI\MinimapButton.lua
+UI\TooltipLine.lua
 
 # Bootstrap (load last)
 Core\Main.lua
