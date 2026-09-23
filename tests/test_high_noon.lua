@@ -205,6 +205,21 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("High Noon starts at level 10: lower duels are not counted", function()
+        local ns = H.Boot({ client = "era" })
+        local D = ns.Duels
+        T.ok(not D.Fair({ winnerLevel = 9, loserLevel = 12 }), "a level 9 duelist")
+        T.ok(not D.Fair({ winnerLevel = 12, loserLevel = 9 }), "either side")
+        T.ok(D.Fair({ winnerLevel = 10, loserLevel = 14 }), "10 and up")
+        H.units.player.level = 9
+        H.units.target = { name = "Bob", level = 10, class = "MAGE", race = "Gnome", faction = "Alliance", isPlayer = true }
+        H.Fire("CHAT_MSG_SYSTEM", "Vati has defeated Bob in a duel")
+        T.eq(D:Count(), 0, "not stored")
+        T.eq(D:OnRecord(ns.Protocol.EncodeDuel({ winner = "A-Firemaw", loser = "B-Firemaw", t = H.serverTime - 60,
+            faction = "Alliance", winnerLevel = 8, loserLevel = 9 }), "X-Firemaw"), nil, "peer record refused")
+        T.noErrors()
+    end)
+
     T.case("peer records must be fair too; old unfair duels are pruned", function()
         local ns = H.Boot({ client = "era" })
         local P = ns.Protocol

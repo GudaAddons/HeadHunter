@@ -8,9 +8,9 @@
 -- WoW Forever sends no result line: there the duelists' own addons judge their duel
 -- (DUEL_REQUESTED, countdown, UNIT_HEALTH, DUEL_OUTOFBOUNDS, DUEL_FINISHED; see "Our
 -- own duels" below). Era does both; the pair dedupe keeps one.
--- Only fair duels count: both levels known and at most LEVEL_RANGE apart (author,
--- 2026-09-23: beating lowbies must not climb the list). Checked when a duel is seen,
--- when a record arrives and when stored duels are pruned.
+-- Only fair duels count: both levels known, both at least MIN_LEVEL (10), and at most
+-- LEVEL_RANGE apart (author, 2026-09-23: beating lowbies must not climb the list).
+-- Checked when a duel is seen, when a record arrives and when stored duels are pruned.
 --
 -- ns.db.duels is a grow-only set, keyed "<winner>><loser>:<time>". Many witnesses see
 -- the same duel: the same pair within DEDUPE seconds is one duel.
@@ -33,6 +33,7 @@ Duels.MAX_SKEW = 300
 Duels.SENDER_LIMIT = 30     -- duel records accepted per sender per window
 Duels.SENDER_WINDOW = 600
 Duels.LEVEL_RANGE = 5       -- the most levels apart two duelists can be
+Duels.MIN_LEVEL = 10        -- High Noon starts at level 10 (author, 2026-09-23)
 Duels.MIN_FIGHT = 2         -- seconds after the last countdown line: shorter is a cancel
 
 -- enUS, used when the client's strings are missing
@@ -134,10 +135,11 @@ local function LevelOf(key, unit)
     return level and level >= 1 and level or nil
 end
 
--- Both levels known and at most LEVEL_RANGE apart
+-- Both levels known, both MIN_LEVEL or higher, and at most LEVEL_RANGE apart
 function Duels.Fair(duel)
     local a, b = tonumber(duel.winnerLevel), tonumber(duel.loserLevel)
-    return a ~= nil and b ~= nil and a >= 1 and b >= 1 and math.abs(a - b) <= Duels.LEVEL_RANGE
+    return a ~= nil and b ~= nil and a >= Duels.MIN_LEVEL and b >= Duels.MIN_LEVEL
+        and math.abs(a - b) <= Duels.LEVEL_RANGE
 end
 
 -- Whose duel was it? A duelist we can see tells; one the enemy cache knows is the

@@ -122,6 +122,10 @@ return function(T, H)
         T.eq(select(2, Create(ns, { bestOf = 2 })), "BEST_OF", "best of")
         T.eq(select(2, Create(ns, { start = H.serverTime + 10 })), "START", "too soon")
         T.eq(select(2, Create(ns, { minLevel = 61 })), "LEVEL", "level")
+        T.eq(select(2, Create(ns, { minLevel = 18 })), "LEVEL", "tournaments start at level 19")
+        H.units.player.level = 18
+        T.eq(select(2, Create(ns)), "ORGANIZER_LEVEL", "hosts from level 19")
+        H.units.player.level = 30
         T.eq(select(2, Create(ns, { bracket = "robin", maxTeams = 9 })), "TEAMS", "round robin max 8")
         local t = Create(ns)
         T.ok(t ~= nil, "created")

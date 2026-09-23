@@ -49,6 +49,7 @@ Tournaments.ROBIN_MAX_TEAMS = 8        -- everyone meets everyone: keep it short
 Tournaments.MIN_LEAD = 60              -- the start is at least a minute ahead
 Tournaments.MAX_LEAD = 7 * 86400
 Tournaments.MAX_NAME = 30
+Tournaments.MIN_LEVEL = 19             -- tournaments start at level 19 (author, 2026-09-23)
 Tournaments.ORGANIZER_TIMEOUT = 300    -- author: gone for 5 minutes = cancelled
 Tournaments.HEARTBEAT = 60
 Tournaments.HEARTBEAT_BEFORE = 600     -- players start pinging 10 min before the start
@@ -235,6 +236,7 @@ function Tournaments:Create(opts, click)
     local store = Store()
     local me = Me()
     if not store or not me then return nil, "NOT_READY" end
+    if (U.UnitLevel("player") or 0) < self.MIN_LEVEL then return nil, "ORGANIZER_LEVEL" end
     local name = Tournaments.Clean(opts.name)
     if name == "" then return nil, "NAME" end
     if not Tournaments.FORMATS[opts.format] then return nil, "FORMAT" end
@@ -248,8 +250,8 @@ function Tournaments:Create(opts, click)
     local venue = opts.venue or ns.Arena.DEFAULT_VENUE
     if not ns.Arena.VenueAllowed(venue, U.UnitFaction("player")) then return nil, "VENUE" end
     if ns.Arena.VENUE[venue].chest and not ns.Arena.StartClearOfChest(start, now) then return nil, "CHEST" end
-    local minLevel = math.floor(tonumber(opts.minLevel) or 1)
-    if minLevel < 1 or minLevel > 60 then return nil, "LEVEL" end
+    local minLevel = math.floor(tonumber(opts.minLevel) or self.MIN_LEVEL)
+    if minLevel < self.MIN_LEVEL or minLevel > 60 then return nil, "LEVEL" end
     local cap = bracket == "robin" and self.ROBIN_MAX_TEAMS or self.MAX_TEAMS
     local maxTeams = math.floor(tonumber(opts.maxTeams) or cap)
     if maxTeams < 2 or maxTeams > cap then return nil, "TEAMS" end

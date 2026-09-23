@@ -71,7 +71,7 @@ When you log in, HeadHunter asks other HeadHunters what you missed while you wer
 
 ### High Noon (duels)
 - Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon. WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.
-- Only duels between players at most 5 levels apart count. Beating lowbies does not help.
+- Only duels between players of level 10 or higher, at most 5 levels apart, count. Beating lowbies does not help.
 - Duels are shared like death reports, and never make anyone WANTED.
 - A rating for every duelist (starts at 1000). You are listed after 5 duels.
 - Ranks: **Greenhorn** (under 5 duels), **Quickdraw**, **Sharpshooter**, **Deadeye** and **Legend**. The best duelist of each faction is the **Top Gun**.

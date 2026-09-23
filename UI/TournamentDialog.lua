@@ -28,7 +28,7 @@ function TournamentDialog.Defaults()
     return {
         name = "", venue = ns.Arena.DEFAULT_VENUE, format = 1, bracket = "single", bestOf = 3,
         minutes = ns.Arena.FirstFreeMinutes(TournamentDialog.DEFAULT_MINUTES),
-        minLevel = (level and level >= 1) and level or 1, maxTeams = 16,
+        minLevel = math.max(ns.Tournaments.MIN_LEVEL, level or 0), maxTeams = 16,
     }
 end
 
