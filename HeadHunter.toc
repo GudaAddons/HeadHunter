@@ -58,6 +58,7 @@ UI\MainWindow.lua
 UI\Poster.lua
 UI\MinimapButton.lua
 UI\TooltipLine.lua
+UI\SettingsPanel.lua
 
 # Bootstrap (load last)
 Core\Main.lua

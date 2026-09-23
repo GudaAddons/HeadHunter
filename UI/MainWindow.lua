@@ -266,8 +266,14 @@ local function CreateMainFrame()
         previous = button
     end
 
+    f.options = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    f.options:SetSize(80, 22)
+    f.options:SetPoint("TOPRIGHT", -14, -30)
+    f.options:SetText(L.OPTIONS_BUTTON)
+    f.options:SetScript("OnClick", function() ns.SettingsPanel:Open() end)
+
     f.count = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    f.count:SetPoint("TOPRIGHT", -16, -36)
+    f.count:SetPoint("RIGHT", f.options, "LEFT", -10, 0)
 
     -- Column headers (buttons: clicking a sortable one sorts)
     f.headers = {}

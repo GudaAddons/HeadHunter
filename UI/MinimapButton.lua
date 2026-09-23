@@ -88,10 +88,13 @@ end
 
 ns.Events:Register("HH_INITIALIZED", function()
     MinimapButton:Apply()
+    -- The options page (and /hh minimap) change it through the database
+    ns.Events:Register("HH_SETTING_CHANGED", function(_, path)
+        if path == "minimap.hidden" then MinimapButton:Apply() end
+    end, OWNER)
 end, OWNER)
 
 ns.SlashCommands:Register("minimap", function()
-    Settings().hidden = not Settings().hidden
-    MinimapButton:Apply()
+    ns.Database:SetSetting("minimap.hidden", not Settings().hidden)
     ns:Print(Settings().hidden and L.MINIMAP_HIDDEN or L.MINIMAP_SHOWN)
 end, L.HELP_MINIMAP)

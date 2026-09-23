@@ -393,6 +393,23 @@ function H.Install(opts)
         end
     end
     _G.CLASS_ICON_TCOORDS = { ROGUE = { 0.49609375, 0.7421875, 0, 0.25 } }
+
+    -- opts.options = "settings" (Settings API canvas category) | "interface" (old
+    -- InterfaceOptions list) | nil (neither). H.optionsOpened records what was opened.
+    H.optionsOpened = nil
+    _G.Settings, _G.InterfaceOptions_AddCategory, _G.InterfaceOptionsFrame_OpenToCategory = nil, nil, nil
+    if opts.options == "settings" then
+        _G.Settings = {
+            RegisterCanvasLayoutCategory = function(panel, name)
+                return { ID = name, panel = panel, GetID = function(self) return self.ID end }
+            end,
+            RegisterAddOnCategory = function() end,
+            OpenToCategory = function(id) H.optionsOpened = id end,
+        }
+    elseif opts.options == "interface" then
+        _G.InterfaceOptions_AddCategory = function() end
+        _G.InterfaceOptionsFrame_OpenToCategory = function(panel) H.optionsOpened = panel end
+    end
     -- opts.minimap: a Minimap frame exists (the minimap button needs one)
     _G.Minimap = opts.minimap and NewFrame("Minimap") or nil
     -- opts.worldMap: the world map exists at load (otherwise it never loads)

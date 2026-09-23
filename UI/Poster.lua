@@ -124,7 +124,9 @@ local function CreatePosterFrame()
     end
     f:SetSize(Poster.WIDTH, Poster.HEIGHT)
     f:SetPoint("CENTER", UIParent, "CENTER", 260, 0)
-    f:SetFrameStrata("HIGH")
+    -- Above the main window (HIGH), which it is opened from and may overlap
+    f:SetFrameStrata("DIALOG")
+    f:SetToplevel(true)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
@@ -189,6 +191,7 @@ function Poster:Show(id)
     frame = frame or CreatePosterFrame()
     shownId = id
     frame:Show()
+    frame:Raise()
     self:Refresh()
     return true
 end
