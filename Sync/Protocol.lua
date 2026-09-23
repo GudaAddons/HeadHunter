@@ -24,6 +24,7 @@ Protocol.MAX_ASSISTS = 4
 
 Protocol.TYPES = {
     DEATH = "D", IDENTITY = "G", QUERY = "Q", SNAPSHOT = "S", POSSE = "J", HOTSPOT = "P",
+    JUSTICE = "K", -- a WANTED outlaw killed by a HeadHunter or their group (HH-048)
     PING = "T", -- /hh sync ping: manual connectivity test
 }
 
@@ -267,6 +268,25 @@ function Protocol.DecodePosse(s)
     local t = Protocol.FromB36(f[3])
     if not t then return nil end
     return f[1], Protocol.FromB36(f[2]), t, Protocol.FromB36(f[4])
+end
+
+-------------------------------------------------
+-- Justice: outlawId ; time ; mapID ; killer (who landed the blow, display only).
+-- The sender is the hunter who saw it (the killer or in their group).
+-------------------------------------------------
+
+function Protocol.EncodeJustice(outlawId, t, mapID, killer)
+    return table.concat({ outlawId, Protocol.ToB36(t), mapID and Protocol.ToB36(mapID) or "", killer or "" }, ";")
+end
+
+-- Returns outlawId, time, mapID, killer (nil when blank)
+function Protocol.DecodeJustice(s)
+    if type(s) ~= "string" then return nil end
+    local f = Split(s, ";")
+    if #f ~= 4 or Blank(f[1]) then return nil end
+    local t = Protocol.FromB36(f[2])
+    if not t then return nil end
+    return f[1], t, Protocol.FromB36(f[3]), not Blank(f[4]) and f[4] or nil
 end
 
 -------------------------------------------------

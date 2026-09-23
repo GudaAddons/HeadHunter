@@ -6,7 +6,8 @@
 -- (M4) and UI (M6):
 --   HH_WANTED_ADDED(entry)            an enemy became WANTED
 --   HH_WANTED_RANK(entry, oldRank)    rank went up
---   HH_WANTED_EXPIRED(entry)          the timer ran out
+--   HH_WANTED_EXPIRED(entry)          7 days without a kill
+--   HH_WANTED_CAUGHT(entry, before)   killed by a HeadHunter or their group (HH-048)
 --   HH_WANTED_UPDATED()               the list changed in any way
 --
 --   Wanted:Get(id), Wanted:ByKey(key), Wanted:List() (WANTED only, sorted),
@@ -80,7 +81,11 @@ local function Publish(newEntries)
             ns.Events:Fire("HH_WANTED_RANK", entry, before.rank)
         elseif before and before.wanted and not entry.wanted then
             changed = true
-            ns.Events:Fire("HH_WANTED_EXPIRED", entry)
+            if entry.lastCaught and entry.lastCaught ~= before.lastCaught then
+                ns.Events:Fire("HH_WANTED_CAUGHT", entry, before)
+            else
+                ns.Events:Fire("HH_WANTED_EXPIRED", entry)
+            end
         elseif not before or (entry.wanted and entry.kills ~= before.kills) then
             changed = true
         end
@@ -106,7 +111,8 @@ function Wanted:ComputeNow(yield)
     local reports = {}
     for _, report in ns.Reports:All() do reports[#reports + 1] = report end
     local result = ns.RulesEngine.Compute(reports, ns.Utils.ServerTime(),
-        { serialWindow = SerialWindow(), wantedKills = Wanted.TestThreshold() }, yield)
+        { serialWindow = SerialWindow(), wantedKills = Wanted.TestThreshold(), catches = ns.Justice:CatchesByOutlaw() },
+        yield)
     Publish(result)
     return result
 end
@@ -175,6 +181,7 @@ ns.Events:Register("HH_INITIALIZED", function()
     local request = function() Wanted:RequestRecompute() end
     ns.Events:Register("HH_REPORT_ADDED", request, OWNER)
     ns.Events:Register("HH_REPORT_UPDATED", request, OWNER)
+    ns.Events:Register("HH_JUSTICE_ADDED", request, OWNER)
     ns.Events:Register("HH_SETTING_CHANGED", function(_, path)
         if path == "serialKillerWindowMin" or path == "testWantedKills" then request() end
     end, OWNER)
@@ -223,8 +230,9 @@ ns.SlashCommands:Register("wanted", function()
     for i = 1, math.min(15, #list) do
         local e = list[i]
         local badges = Wanted.BadgeNames(e)
-        print(string.format("  %s  |cffff4040%s|r  %d kills  %s left%s", Wanted.RankName(e.rank), DisplayName(e),
-            math.floor(e.kills), Wanted.TimeLeft(e), badges ~= "" and ("  · " .. badges) or ""))
+        local lastKill = e.lastKill and ns.Utils.Ago(ns.Utils.ServerTime() - e.lastKill.t) or "-"
+        print(string.format(L.WANTED_LINE, Wanted.RankName(e.rank), DisplayName(e), math.floor(e.kills), lastKill,
+            badges ~= "" and ("  · " .. badges) or ""))
     end
 end, L.HELP_WANTED)
 
@@ -249,7 +257,7 @@ ns.SlashCommands:Register("outlaw", function(args)
     ns:Print(string.format(L.OUTLAW_LINE1, DisplayName(entry), entry.wanted and Wanted.RankName(entry.rank) or L.NOT_WANTED,
         entry.wanted and Wanted.TimeLeft(entry) or "-"))
     ns:Print(string.format(L.OUTLAW_LINE2, entry.killCount, entry.exactKills, entry.guessedKills, entry.timesWanted,
-        entry.peakRank and Wanted.RankName(entry.peakRank) or "-", Wanted.BadgeNames(entry)))
+        entry.timesCaught or 0, entry.peakRank and Wanted.RankName(entry.peakRank) or "-", Wanted.BadgeNames(entry)))
     if entry.lastKill then
         ns:Print(string.format(L.OUTLAW_LINE3, date("%m-%d %H:%M", entry.lastKill.t),
             ns.Utils.DisplayName(entry.lastKill.victim) or "?", ns.Utils.MapName(entry.lastKill.mapID) or "?"))

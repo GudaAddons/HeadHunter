@@ -275,6 +275,12 @@ function Utils.Now()
     return GetTime()
 end
 
+-- "just now" / "5 min ago"
+function Utils.Ago(seconds)
+    if seconds < 60 then return ns.L.JUST_NOW end
+    return string.format(ns.L.MINUTES_AGO, math.floor(seconds / 60))
+end
+
 -------------------------------------------------
 -- Map
 -------------------------------------------------
@@ -318,6 +324,22 @@ function Utils.ContinentOf(mapID)
         if not id or id == 0 then return nil end
     end
     return nil
+end
+
+-- Map pin + tracked waypoint at x, y (0..1) on mapID. False when the client or the
+-- map does not allow it.
+function Utils.SetWaypoint(mapID, x, y)
+    if not (mapID and x and y and C_Map and C_Map.SetUserWaypoint and UiMapPoint) then return false end
+    if C_Map.CanSetUserWaypointOnMap and not SafeCall(C_Map.CanSetUserWaypointOnMap, mapID) then
+        return false
+    end
+    local point = SafeCall(UiMapPoint.CreateFromCoordinates, mapID, x, y)
+    if not point then return false end
+    local ok = pcall(C_Map.SetUserWaypoint, point)
+    if ok and C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+        pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
+    end
+    return ok
 end
 
 -------------------------------------------------

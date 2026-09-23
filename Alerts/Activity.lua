@@ -1,7 +1,7 @@
 -- HH-043: a WANTED outlaw just killed someone near you.
 --
 --   WANTED · Ganker Wiadro (?? Dwarf Rogue) killed Headhunta in Elwynn Forest, 1 min ago
---   4 kills · 2h 58m left · Coward
+--   4 kills · WANTED until caught · Coward
 --   [Join the posse] [Decline]
 --
 -- Triggered by new reports (HH_REPORT_ADDED) from other players (or simulated ones).
@@ -33,10 +33,7 @@ local function Describe(enemy)
     return table.concat(parts, " ")
 end
 
-local function Ago(seconds)
-    if seconds < 60 then return L.JUST_NOW end
-    return string.format(L.MINUTES_AGO, math.floor(seconds / 60))
-end
+local Ago = ns.Utils.Ago
 
 -- Every WANTED enemy in the report (killer first, then assists)
 local function WantedIn(report)
@@ -68,7 +65,7 @@ function Activity:Check(report)
         local badges = Wanted.BadgeNames(entry)
         local headline = string.format(L.ACTIVITY_HEADLINE, Wanted.RankName(entry.rank), name, Describe(enemy),
             victim, zone, Ago(age))
-        local details = string.format(L.ACTIVITY_DETAILS, math.floor(entry.kills), Wanted.TimeLeft(entry))
+        local details = string.format(L.ACTIVITY_DETAILS, math.floor(entry.kills))
             .. (badges ~= "" and (" · " .. badges) or "")
         local layerMatch, myLayer = ns.Layer:Compare(report.layer, report.mapID)
         if layerMatch == "same" then

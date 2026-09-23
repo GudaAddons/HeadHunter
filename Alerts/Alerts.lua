@@ -26,8 +26,9 @@ Alerts.QUEUE_MAX_AGE = 60     -- seconds an alert may wait for combat to end
 Alerts.SOUND = 8959           -- SOUNDKIT.RAID_WARNING
 Alerts.POPUP = "HEADHUNTER_ALERT"            -- WANTED activity (Join the posse)
 Alerts.HOTSPOT_POPUP = "HEADHUNTER_HOTSPOT"  -- PvP hotspots (Help / Ignore)
+Alerts.JUSTICE_POPUP = "HEADHUNTER_JUSTICE"  -- our catch, Era: Announce / Close (HH-048)
 -- One StaticPopup per kind, so a hotspot never replaces a WANTED popup on screen
-local DIALOGS = { Alerts.POPUP, Alerts.HOTSPOT_POPUP }
+local DIALOGS = { Alerts.POPUP, Alerts.HOTSPOT_POPUP, Alerts.JUSTICE_POPUP }
 
 local lastShown = {}          -- key -> GetTime()
 local queue = {}              -- key -> { alert, queuedAt }, while in combat

@@ -67,8 +67,18 @@ end
 function Hotspots:AddDeath(report)
     local zone, data = Zone(report.mapID)
     if not zone or not report.id then return nil end
-    data.deaths[report.id] = { t = report.t or ns.Utils.ServerTime(), killer = ns.RulesEngine.EnemyId(report.killer) }
-    if report.x and report.y then data.lastX, data.lastY = report.x, report.y end
+    -- Reports keep the map the victim stood on (maybe a cave); hotspots use the zone
+    local _, x, y = ns.Zones.ToZone(report.mapID, report.x, report.y)
+    local U = ns.Utils
+    local t = report.t or U.ServerTime()
+    data.deaths[report.id] = { t = t, killer = ns.RulesEngine.EnemyId(report.killer), x = x, y = y }
+    -- Our own death: we were in that fight (a quick gank can end before our combat
+    -- tick sees it), so we count as a HeadHunter there and are not alerted about it
+    if report.victim and U.SameCharacter(report.victim.key, U.UnitKey("player")) then
+        local me = U.CompactName(U.UnitKey("player"))
+        local known = me and data.fighters[me]
+        if me and (not known or known.t < t) then data.fighters[me] = { t = t, x = x, y = y } end
+    end
     return zone
 end
 
@@ -114,24 +124,63 @@ function Hotspots:IsLoneOutlaw(zone, a, e)
     return entry ~= nil and entry.wanted == true
 end
 
--- Newest known fight position in the zone
+-- Newest known fight position in the zone (a fighter or a death), in zone coordinates
 local function LastPosition(data)
     local best
-    for _, fighter in pairs(data.fighters) do
-        if fighter.x and (not best or fighter.t > best.t) then best = fighter end
+    for _, list in ipairs({ data.fighters, data.deaths }) do
+        for _, item in pairs(list) do
+            if item.x and item.y and (not best or item.t > best.t) then best = item end
+        end
     end
     if best then return best.x, best.y end
-    return data.lastX, data.lastY
+    return nil
+end
+
+-- Time of the newest activity of any kind in the zone
+local function Newest(data)
+    local newest = 0
+    for _, list in ipairs({ data.fighters, data.enemies, data.deaths }) do
+        for _, value in pairs(list) do
+            local t = type(value) == "table" and value.t or value
+            if t > newest then newest = t end
+        end
+    end
+    return newest
+end
+
+-- Burning zones for the map pins (HH-046), hottest first:
+--   { zone, level, heat, a, e, d, x, y, t = newest activity }
+-- x, y is the newest fight position (nil when none is known). Lone-outlaw zones are
+-- left out: the WANTED skull pin already marks that ganker.
+function Hotspots:Active(now)
+    now = now or ns.Utils.ServerTime()
+    local list = {}
+    for zone, data in pairs(zones) do
+        local heat, level, a, e, d = self:Heat(zone, now)
+        if level > 0 and not self:IsLoneOutlaw(zone, a, e) then
+            local x, y = LastPosition(data)
+            list[#list + 1] = { zone = zone, level = level, heat = heat, a = a, e = e, d = d, x = x, y = y,
+                t = Newest(data) }
+        end
+    end
+    table.sort(list, function(p, q)
+        if p.heat ~= q.heat then return p.heat > q.heat end
+        return p.zone < q.zone
+    end)
+    return list
 end
 
 -------------------------------------------------
 -- Alerts
 -------------------------------------------------
 
+Hotspots.FIRE_ICON = "Interface\\Icons\\Spell_Fire_Fire"
+
 local function Fire(level)
-    local icon = "|TInterface\\Icons\\Spell_Fire_Fire:14:14|t"
+    local icon = "|T" .. Hotspots.FIRE_ICON .. ":14:14|t"
     return string.rep(icon, level)
 end
+Hotspots.Fire = Fire
 
 local function EnemyFaction()
     local mine = ns.Utils.UnitFaction("player")
@@ -139,18 +188,33 @@ local function EnemyFaction()
     if mine == "Horde" then return FACTION_ALLIANCE or "Alliance" end
     return L.ENEMIES
 end
+Hotspots.EnemyFaction = EnemyFaction
 
-function Hotspots:SetWaypoint(zone)
+-- Our side of the fight. The count next to it is the HeadHunter users in the fight
+-- (only they send pings), so it is a lower bound.
+local function OwnFaction()
+    local mine = ns.Utils.UnitFaction("player")
+    if mine == "Alliance" then return FACTION_ALLIANCE or "Alliance" end
+    if mine == "Horde" then return FACTION_HORDE or "Horde" end
+    return L.HEADHUNTERS
+end
+Hotspots.OwnFaction = OwnFaction
+
+-- [Help]: a waypoint to the newest fight where the client allows it (Classic Era does
+-- not), and chat always says where it is. title: "Battle", ...
+function Hotspots:Help(zone, title)
     local data = zones[zone]
-    if not data then return false end
+    local x, y
     -- Not "data and LastPosition(data)": `and` would keep only the first return value
-    local x, y = LastPosition(data)
-    if not (x and y and C_Map and C_Map.SetUserWaypoint and UiMapPoint) then return false end
-    local point = ns.Utils.SafeCall(UiMapPoint.CreateFromCoordinates, zone, x, y)
-    return point ~= nil and pcall(C_Map.SetUserWaypoint, point)
+    if data then x, y = LastPosition(data) end
+    local zoneName = ns.Utils.MapName(zone) or L.UNKNOWN_ZONE
+    return ns.MapMarkers.GuideAndTell(zone, x, y, string.format(L.GUIDE_HOTSPOT, title, zoneName),
+        string.format(L.HOTSPOT_WAYPOINT, zoneName))
 end
 
 function Hotspots:Evaluate(zone)
+    -- The zone's data changed (map pins redraw); HH_HOTSPOT below is only for alerts
+    ns.Events:Fire("HH_HOTSPOT_CHANGED", zone)
     local now = ns.Utils.ServerTime()
     local heat, level, a, e, d = self:Heat(zone, now)
     if level == 0 then
@@ -171,7 +235,7 @@ function Hotspots:Evaluate(zone)
 
     local zoneName = ns.Utils.MapName(zone) or L.UNKNOWN_ZONE
     local title = L["HOTSPOT_LEVEL_" .. level]
-    local line = string.format(L.HOTSPOT_LINE, Fire(level), title, zoneName, e, EnemyFaction(), a, d)
+    local line = string.format(L.HOTSPOT_LINE, Fire(level), title, zoneName, e, EnemyFaction(), a, OwnFaction(), d)
     local alert = {
         key = "hot:" .. zone .. ":" .. level,
         throttle = self.LEVEL_THROTTLE,
@@ -186,9 +250,7 @@ function Hotspots:Evaluate(zone)
             text = line,
             accept = L.HOTSPOT_HELP,
             decline = L.HOTSPOT_IGNORE,
-            onAccept = function()
-                if Hotspots:SetWaypoint(zone) then ns:Print(string.format(L.HOTSPOT_WAYPOINT, zoneName)) end
-            end,
+            onAccept = function() Hotspots:Help(zone, title) end,
             onDecline = function() ignored[zone] = ns.Utils.Now() + Hotspots.IGNORE_TIME end,
         }
     end
@@ -211,8 +273,9 @@ function Hotspots:Tick()
     if #guids == 0 then return end
     local ids = {}
     for i, guid in ipairs(guids) do ids[i] = Hotspots.ShortId(guid) end
+    -- Pings carry the zone, so the position must be on the zone map too (not a cave's)
     local mapID = U.PlayerMapID()
-    local x, y = U.PlayerPosition(mapID)
+    local _, x, y = ns.Zones.ToZone(mapID, U.PlayerPosition(mapID))
     local now = U.ServerTime()
     local zone = self:AddFighter(mapID, U.CompactName(U.UnitKey("player")), now, x, y, ids)
     if not zone then return end

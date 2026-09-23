@@ -36,6 +36,7 @@ Sync\Protocol.lua
 Sync\Transport.lua
 Sync\Reports.lua
 Sync\ReportPrompt.lua
+Sync\Justice.lua
 
 # Rules (M3)
 Rules\Engine.lua
@@ -48,6 +49,10 @@ Alerts\Posse.lua
 Alerts\Sighting.lua
 Alerts\Activity.lua
 Alerts\Hotspots.lua
+Alerts\Justice.lua
+
+# UI
+UI\MapMarkers.lua
 
 # Bootstrap (load last)
 Core\Main.lua

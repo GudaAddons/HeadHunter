@@ -89,6 +89,29 @@ function Zones.ZoneOf(mapID)
     return mapID
 end
 
+-- Where childMapID sits on ancestorMapID: minX, maxX, minY, maxY (0..1), or nil
+function Zones.RectOn(childMapID, ancestorMapID)
+    if not (C_Map and childMapID and ancestorMapID) then return nil end
+    local U = ns.Utils
+    local minX, maxX, minY, maxY = U.SafeCall(C_Map.GetMapRectOnMap, childMapID, ancestorMapID)
+    minX, maxX = tonumber(U.Accessible(minX)), tonumber(U.Accessible(maxX))
+    minY, maxY = tonumber(U.Accessible(minY)), tonumber(U.Accessible(maxY))
+    if not (minX and maxX and minY and maxY) or maxX <= minX or maxY <= minY then return nil end
+    return minX, maxX, minY, maxY
+end
+
+-- A position on mapID (a cave or sub-zone map included) as a position on its zone:
+-- zone, x, y. The position is nil when it cannot be translated (a wrong spot is
+-- worse than none).
+function Zones.ToZone(mapID, x, y)
+    local zone = Zones.ZoneOf(mapID)
+    if not zone or not (x and y) then return zone, nil, nil end
+    if zone == tonumber(mapID) then return zone, x, y end
+    local minX, maxX, minY, maxY = Zones.RectOn(mapID, zone)
+    if not minX then return zone, nil, nil end
+    return zone, minX + x * (maxX - minX), minY + y * (maxY - minY)
+end
+
 function Zones.ContinentOf(mapID)
     local zone = Zones.ZoneOf(mapID)
     return zone and (CONTINENT[zone] or ns.Utils.ContinentOf(zone))

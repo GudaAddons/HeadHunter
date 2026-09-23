@@ -6,11 +6,11 @@
 --   Kill        every enemy in a report (killer and each assist) gets one kill,
 --               weighted by confidence: exact 1, inferred 0.5, sim 1
 --   WANTED      enters at WANTED_KILLS weighted kills within WANTED_WINDOW
---               (4 in 20 min); each kill while WANTED adds to the count and
---               restarts the timer; when the timer runs out the status ends and
---               the count resets
---   Timer       <=10 kills 3 h; 11-29: 3 h + 10 min per kill above 10;
---               >=30: 24 h + 1 h per kill above 30; capped at 7 days
+--               (4 in 20 min); each kill while WANTED adds to the count
+--   Ends        when a HeadHunter or their group kills the outlaw (a "catch",
+--               Sync/Justice.lua; author 2026-09-23), or after WANTED_IDLE (7 days)
+--               without a kill. Either way the count resets: the next WANTED
+--               needs a fresh 4 kills in 20 min (kills before a catch never count)
 --   Rank        Ganker 4-9, Outlaw 10-19, Desperado 20-29, Most Wanted 30-49,
 --               Dead or Alive 50+
 --   Badges      Coward: any coward kill (skull or grey victim)
@@ -26,7 +26,7 @@ local addonName, ns = ...
 
 local Engine = ns:RegisterModule("RulesEngine", {})
 
-local MINUTE, HOUR, DAY = 60, 3600, 86400
+local MINUTE, DAY = 60, 86400
 
 Engine.WANTED_KILLS = 4
 Engine.WANTED_WINDOW = 20 * MINUTE
@@ -35,7 +35,7 @@ Engine.SERIAL_VICTIMS = 5
 Engine.DEFAULT_SERIAL_WINDOW = 15 * MINUTE
 Engine.GUNSLINGER_MIN_KILLS = 3
 Engine.GIANT_SLAYER_KILLS = 2
-Engine.MAX_DURATION = 7 * DAY
+Engine.WANTED_IDLE = 7 * DAY   -- WANTED ends after this long without a kill
 Engine.WEIGHT = { exact = 1, inferred = 0.5, sim = 1 }
 
 -- How often Compute calls `yield` (reports, then enemies)
@@ -55,19 +55,6 @@ Engine.RANK_ORDER = RANK_ORDER
 
 -- Weighted sums compare with a small tolerance (0.5 steps)
 local EPSILON = 1e-6
-
-function Engine.Duration(kills)
-    local k = math.floor(kills + EPSILON)
-    local duration
-    if k <= 10 then
-        duration = 3 * HOUR
-    elseif k < 30 then
-        duration = 3 * HOUR + (k - 10) * 10 * MINUTE
-    else
-        duration = 24 * HOUR + (k - 30) * HOUR
-    end
-    return math.min(duration, Engine.MAX_DURATION)
-end
 
 function Engine.Rank(kills)
     local k = math.floor(kills + EPSILON)
@@ -169,22 +156,46 @@ end
 -- One enemy
 -------------------------------------------------
 
--- opts.wantedKills overrides WANTED_KILLS (testing only: /hh debug wanted <n>)
-function Engine.Evaluate(kills, now, opts)
+-- opts.wantedKills overrides WANTED_KILLS (testing only: /hh debug wanted <n>).
+-- catches: times this enemy was killed by a HeadHunter or their group (any order).
+function Engine.Evaluate(kills, now, opts, catches)
     opts = opts or {}
     local wantedKills = opts.wantedKills or Engine.WANTED_KILLS
     table.sort(kills, function(a, b)
         if a.t ~= b.t then return a.t < b.t end
         return (a.reportId or "") < (b.reportId or "")
     end)
+    local catchTimes = {}
+    for i, t in ipairs(catches or {}) do catchTimes[i] = t end
+    table.sort(catchTimes)
 
     local wanted, count, wantedUntil, wantedSince = false, 0, 0, nil
     local timesWanted, peakRank = 0, nil
     local windowStart, windowSum = 1, 0
     local total, coward, fair, giant = 0, 0, 0, 0
     local exact, partial = 0, 0
+    local nextCatch, timesCaught, lastCaught = 1, 0, nil
+    local ranOut = false -- the last WANTED ended by 7 days without a kill
+
+    -- A catch at time t, before kill number `nextKill`: WANTED ends and the count
+    -- restarts; the kills before it never count toward a new WANTED
+    local function ApplyCatch(t, nextKill)
+        if wanted and t <= wantedUntil then
+            timesCaught = timesCaught + 1
+            lastCaught = t
+        elseif wanted then
+            ranOut = true -- it had already run out before this catch
+        end
+        wanted, count = false, 0
+        windowStart, windowSum = nextKill, 0
+    end
 
     for i, kill in ipairs(kills) do
+        -- A kill at the same second as a catch happened before it
+        while catchTimes[nextCatch] and catchTimes[nextCatch] < kill.t do
+            ApplyCatch(catchTimes[nextCatch], i)
+            nextCatch = nextCatch + 1
+        end
         total = total + kill.weight
         if kill.weight >= 1 then exact = exact + 1 else partial = partial + 1 end
         if kill.class == "coward" then coward = coward + 1 end
@@ -198,16 +209,17 @@ function Engine.Evaluate(kills, now, opts)
         end
 
         if wanted and kill.t > wantedUntil then
-            wanted, count = false, 0 -- the timer ran out before this kill
+            wanted, count = false, 0 -- 7 days without a kill before this one
         end
         if wanted then
             count = count + kill.weight
         elseif windowSum >= wantedKills - EPSILON then
             wanted, count, wantedSince = true, windowSum, kill.t
             timesWanted = timesWanted + 1
+            ranOut = false
         end
         if wanted then
-            wantedUntil = kill.t + Engine.Duration(count)
+            wantedUntil = kill.t + Engine.WANTED_IDLE
             local rank = Engine.Rank(count) or "ganker"
             if rank and (not peakRank or RANK_ORDER[rank] > RANK_ORDER[peakRank]) then
                 peakRank = rank
@@ -215,11 +227,19 @@ function Engine.Evaluate(kills, now, opts)
         end
     end
 
+    -- Catches after the last kill (a catch "in the future" is ignored until then)
+    while catchTimes[nextCatch] and catchTimes[nextCatch] <= now do
+        ApplyCatch(catchTimes[nextCatch], #kills + 1)
+        nextCatch = nextCatch + 1
+    end
+
     local last = kills[#kills]
     local active = wanted and now <= wantedUntil
     return {
         wanted = active,
-        expired = wanted and not active,
+        expired = (wanted and not active) or ranOut, -- ended by 7 days without a kill
+        timesCaught = timesCaught,
+        lastCaught = lastCaught,
         kills = active and count or 0,
         -- Below the Ganker threshold only with a lowered test threshold: still a Ganker
         rank = active and (Engine.Rank(count) or "ganker") or nil,
@@ -244,13 +264,15 @@ function Engine.Evaluate(kills, now, opts)
     }
 end
 
--- reports: array. Returns id -> entry (every enemy with at least one kill)
+-- reports: array. opts.catches: enemy id -> array of catch times (Sync/Justice.lua).
+-- Returns id -> entry (every enemy with at least one kill)
 function Engine.Compute(reports, now, opts, yield)
+    opts = opts or {}
     local byEnemy = Engine.CollectKills(reports, yield)
     local entries = {}
     local processed = 0
     for id, bucket in pairs(byEnemy) do
-        local entry = Engine.Evaluate(bucket.kills, now, opts)
+        local entry = Engine.Evaluate(bucket.kills, now, opts, opts.catches and opts.catches[id])
         local info = bucket.info or {}
         entry.id = id
         entry.key = info.key

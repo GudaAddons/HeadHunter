@@ -81,18 +81,9 @@ end
 -- Join / decline
 -------------------------------------------------
 
-local function SetWaypoint(mapID, x, y)
-    if not (mapID and x and y and C_Map and C_Map.SetUserWaypoint and UiMapPoint) then return false end
-    if C_Map.CanSetUserWaypointOnMap and not ns.Utils.SafeCall(C_Map.CanSetUserWaypointOnMap, mapID) then
-        return false
-    end
-    local point = ns.Utils.SafeCall(UiMapPoint.CreateFromCoordinates, mapID, x, y)
-    if not point then return false end
-    local ok = pcall(C_Map.SetUserWaypoint, point)
-    if ok and C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
-        pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
-    end
-    return ok
+-- The game's waypoint where the client allows it (Classic Era does not)
+local function Guide(report)
+    return ns.MapMarkers.Guide(report.mapID, report.x, report.y)
 end
 
 -- Runs inside the popup click (a hardware event): Era may send channel text here
@@ -109,10 +100,11 @@ function Posse:Join(entry, report)
     local U = ns.Utils
     local name = entry.key and U.DisplayName(entry.key) or entry.name
     local zone = U.MapName(report.mapID) or L.UNKNOWN_ZONE
-    if SetWaypoint(report.mapID, report.x, report.y) then
+    local how, zx, zy = Guide(report)
+    if how == "waypoint" then
         ns:Print(string.format(L.POSSE_JOINED_PIN, name, zone))
-    elseif report.x and report.y then
-        ns:Print(string.format(L.POSSE_JOINED_COORDS, name, zone, report.x * 100, report.y * 100))
+    elseif how == "coords" then
+        ns:Print(string.format(L.POSSE_JOINED_COORDS, name, zone, zx * 100, zy * 100))
     else
         ns:Print(string.format(L.POSSE_JOINED, name, zone))
     end
@@ -151,7 +143,7 @@ end
 -- HeadHunters on the automatic routes).
 function Posse:Refresh(entry, report)
     local U = ns.Utils
-    SetWaypoint(report.mapID, report.x, report.y)
+    Guide(report)
     local now = U.ServerTime()
     local myLayer = ns.Layer:Current()
     AddMember(entry.id, U.UnitKey("player") or "me", now, U.PlayerMapID(), true, myLayer)

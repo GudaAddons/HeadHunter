@@ -158,6 +158,24 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("our own deaths put us in the fight: no alert about it", function()
+        local ns = H.Boot({ client = "era" })
+        local me = ns.Utils.UnitKey("player")
+        for i = 1, 5 do
+            local t = H.serverTime - (5 - i) * 60
+            ns.Reports:Add({ id = me .. ":" .. t, t = t, victim = { key = me, level = 30 },
+                killer = { key = (i % 2 == 0) and "Torch-Stonespine" or "Burner-Stonespine", level = 60 },
+                assists = {}, mapID = 1429, x = 0.5, y = 0.5, confidence = "sim" }, "sim")
+        end
+        Settle()
+        T.eq(Popups(), 0, "no popup about our own deaths")
+        T.ok(not H.Printed("Battle"), "no chat line either")
+        local heat, level, a = ns.Hotspots:Heat(1429)
+        T.eq(level, 2, "still a Battle for the map and for others")
+        T.eq(a, 1, "we count as a HeadHunter in that fight")
+        T.noErrors()
+    end)
+
     T.case("no pings out of combat or inside instances", function()
         local ns = H.Boot({ client = "forever" })
         H.units.nameplate1 = { name = "Grim", realm = "Reaper", faction = "Horde", isPlayer = true, guid = "Player-1" }

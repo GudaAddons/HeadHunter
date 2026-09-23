@@ -20,7 +20,7 @@ local Reports = ns:RegisterModule("Reports", {})
 
 local OWNER = "Reports"
 
-Reports.MAX_AGE = 8 * 86400     -- WANTED lasts at most 7 days (features.md section 2)
+Reports.MAX_AGE = 30 * 86400    -- WANTED lasts until caught or 7 days without a kill (HH-048)
 Reports.MAX_COUNT = 5000
 Reports.MAX_SKEW = 300          -- seconds a peer's clock may run ahead
 Reports.SENDER_LIMIT = 10       -- reports accepted per sender per window

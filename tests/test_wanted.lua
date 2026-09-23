@@ -43,13 +43,17 @@ return function(T, H)
         T.eq(events.rank[1], "ganker>outlaw", "rank event")
     end)
 
-    T.case("the expiry ticker ends WANTED without any new report", function()
+    T.case("the expiry ticker ends WANTED after 7 days without a kill", function()
         local ns = H.Boot({ client = "era" })
         local events = Track(ns)
         H.Slash("spree Gank 4 60")
         Settle()
         T.eq(#ns.Wanted:List(), 1, "wanted")
-        H.serverTime = H.serverTime + 3 * 3600 + 1
+        H.serverTime = H.serverTime + 6 * 86400
+        H.Advance(60)
+        Settle()
+        T.eq(#ns.Wanted:List(), 1, "still wanted after 6 days")
+        H.serverTime = H.serverTime + 86400 + 1
         H.Advance(60)   -- ticker
         Settle()
         T.eq(#ns.Wanted:List(), 0, "expired")

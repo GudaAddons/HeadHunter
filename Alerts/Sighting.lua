@@ -47,7 +47,7 @@ function Sighting:OnEnemySeen(record, source)
     local suffix = badges ~= "" and (" · " .. badges) or ""
     local text = string.format(L.SIGHTING_TEXT, Wanted.RankName(entry.rank), name)
     local chat = string.format(L.SIGHTING_CHAT, Wanted.RankName(entry.rank), name, Describe(record),
-        math.floor(entry.kills), Wanted.TimeLeft(entry)) .. suffix
+        math.floor(entry.kills)) .. suffix
 
     ns.Alerts:Show({
         key = "seen:" .. entry.id,

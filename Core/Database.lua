@@ -36,11 +36,13 @@ local DEFAULTS = {
             whisperInvite = true, -- Join on another layer: whisper the victim for an invite
         },
         serialKillerWindowMin = 15, -- 5..15
+        mapPins = true, -- HH-046: hotspot and WANTED pins on the world map
     },
     deaths = {},  -- array of death reports, oldest first (HH-013)
     reports = {}, -- report id -> report: own + peer deaths, grow-only (HH-022)
     enemies = {}, -- player key -> enemy record (HH-010)
     wanted = {},  -- player key -> WANTED state (HH-031)
+    justice = {}, -- catch id -> WANTED outlaw killed by a HeadHunter or their group (HH-048)
     marks = { total = 0, events = {} }, -- HH-050
 }
 

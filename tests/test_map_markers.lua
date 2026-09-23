@@ -1,0 +1,318 @@
+-- HH-046: map markers (fire pins for hotspots, skull pins for WANTED outlaws), and
+-- the zone coordinates they rely on.
+
+return function(T, H)
+    local function near(actual, expected, label)
+        T.ok(actual ~= nil and math.abs(actual - expected) < 1e-9,
+            string.format("%s: got %s, want %s", label, tostring(actual), tostring(expected)))
+    end
+
+    local function Ping(ns, mapID, sender, enemyIds, ago, x, y)
+        local record = ns.Protocol.EncodeHotspot(mapID, H.serverTime - (ago or 5), x or 0.4, y or 0.6, enemyIds)
+        H.Deliver(ns.Protocol.Pack("A", "P", { record }), sender)
+    end
+
+    local function Ids(from, to)
+        local ids = {}
+        for i = from, to do ids[#ids + 1] = string.format("E%07d", i) end
+        return ids
+    end
+
+    local serial = 0
+    local function Kill(ns, mapID, ago, killer, x, y)
+        serial = serial + 1
+        local victim = "Victim" .. serial .. "-Firemaw"
+        local t = H.serverTime - (ago or 30)
+        killer = killer or "Gank-Stonespine"
+        ns.Reports:Add({
+            id = victim .. ":" .. t, t = t,
+            victim = { key = victim, level = 30 },
+            killer = { key = killer, name = killer, level = 60, class = "ROGUE", race = "Orc" },
+            assists = {}, mapID = mapID, x = x or 0.5, y = y or 0.25, confidence = "exact",
+        }, "peer", victim)
+    end
+
+    -- Report arrival + WANTED recompute + delayed death check
+    local function Settle()
+        H.Advance(1)
+        for _ = 1, 10 do H.Advance(0) end
+        H.Advance(0.5)
+        for _ = 1, 3 do H.Advance(0) end
+    end
+
+    local function Battle(ns, mapID)
+        Ping(ns, mapID, "Alpha-Firemaw", Ids(1, 12))
+        Ping(ns, mapID, "Bravo-Firemaw", Ids(1, 2))
+    end
+
+    local function Find(text, lines)
+        for _, line in ipairs(lines) do
+            if line:find(text, 1, true) then return true end
+        end
+        return false
+    end
+
+    -------------------------------------------------
+    -- Zone coordinates
+    -------------------------------------------------
+
+    T.case("cave positions become zone positions; unknown rect gives no position", function()
+        local Z = H.Boot({ client = "era" }).Zones
+        local zone, x, y = Z.ToZone(9001, 0.4, 0.5)
+        T.eq(zone, 1429, "zone of the cave")
+        T.eq(x, nil, "no rect: no x")
+        T.eq(y, nil, "no rect: no y")
+        H.mapRects["9001:1429"] = { 0.5, 0.6, 0.2, 0.3 }
+        zone, x, y = Z.ToZone(9001, 0.4, 0.5)
+        near(x, 0.54, "x on the zone")
+        near(y, 0.25, "y on the zone")
+        zone, x, y = Z.ToZone(1429, 0.4, 0.5)
+        T.eq(x, 0.4, "a zone map stays as is")
+    end)
+
+    T.case("our own fight in a cave is placed on the zone (ping and waypoint)", function()
+        local ns = H.Boot({ client = "forever" })
+        H.playerMap = 9001
+        H.mapRects["9001:1429"] = { 0.5, 0.6, 0.2, 0.3 }
+        H.inCombat = true
+        H.units.nameplate1 = { name = "Grim", realm = "Reaper", level = 60, class = "ROGUE", race = "Orc",
+            faction = "Horde", isPlayer = true, guid = "Player-4613-00ABCDEF" }
+        H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        H.Advance(5) -- tick
+        H.Advance(3) -- flush
+        local record
+        for _, m in ipairs(H.sent) do
+            if m.message:find("^1AP:") then record = select(3, ns.Protocol.Unpack(m.message))[1] end
+        end
+        T.ok(record ~= nil, "ping sent")
+        local mapID, _, x, y = ns.Protocol.DecodeHotspot(record)
+        T.eq(mapID, 1429, "ping carries the zone")
+        near(x, 0.542, "ping x on the zone")
+        near(y, 0.265, "ping y on the zone")
+        T.eq(ns.Hotspots:Help(1429, "Battle"), "waypoint", "waypoint set")
+        near(H.waypoints[#H.waypoints].x, 0.542, "waypoint x on the zone")
+        T.noErrors()
+    end)
+
+    T.case("deaths in a cave are placed on the zone", function()
+        local ns = H.Boot({ client = "era" })
+        H.mapRects["9001:1429"] = { 0.5, 0.6, 0.2, 0.3 }
+        Kill(ns, 9001, 20, "One-Stonespine", 0.5, 0.5)
+        Kill(ns, 9001, 10, "Two-Stonespine", 0.5, 0.5)
+        Settle()
+        local spots = ns.Hotspots:Active()
+        T.eq(#spots, 1, "one burning zone")
+        T.eq(spots[1].zone, 1429, "the cave's zone")
+        near(spots[1].x, 0.55, "x on the zone")
+        near(spots[1].y, 0.25, "y on the zone")
+    end)
+
+    -------------------------------------------------
+    -- Pin data
+    -------------------------------------------------
+
+    T.case("fire pin on its zone, projected on the continent, absent elsewhere", function()
+        local ns = H.Boot({ client = "era" })
+        Battle(ns, 1417)
+        local pins = ns.MapMarkers:PinsFor(1417)
+        T.eq(#pins, 1, "one pin on Arathi")
+        local pin = pins[1]
+        T.eq(pin.kind, "hotspot", "fire pin")
+        T.eq(pin.level, 2, "Battle")
+        near(pin.size, 0.10, "area: 10% of the zone's width")
+        T.eq(pin.alpha, ns.MapMarkers.AREA_ALPHA[2], "Battle shade")
+        T.ok(ns.MapMarkers.AREA_ALPHA[3] > pin.alpha and pin.alpha > ns.MapMarkers.AREA_ALPHA[1], "darker = more PvP")
+        near(pin.x, 0.4, "x")
+        near(pin.y, 0.6, "y")
+        T.ok(Find("PvP zone", pin.lines) and Find("Battle", pin.lines) and Find("Arathi Highlands", pin.lines), "title")
+        T.ok(Find("≈12 Horde fighting 2 Alliance, 0 death(s) in 5 min", pin.lines), "counts")
+        T.ok(Find("just now", pin.lines), "age")
+
+        T.eq(#ns.MapMarkers:PinsFor(1415), 0, "continent without a rect: not placed")
+        H.mapRects["1417:1415"] = { 0.5, 0.7, 0.3, 0.5 }
+        pins = ns.MapMarkers:PinsFor(1415)
+        T.eq(#pins, 1, "on Eastern Kingdoms")
+        near(pins[1].x, 0.58, "continent x")
+        near(pins[1].y, 0.42, "continent y")
+        near(pins[1].size, 0.02, "area shrinks with the zone on the continent")
+        T.eq(pins[1].waypoint.mapID, 1417, "waypoint stays on the zone")
+        T.eq(#ns.MapMarkers:PinsFor(1429), 0, "not on another zone")
+        T.eq(#ns.MapMarkers:PinsFor(1414), 0, "not on the other continent")
+    end)
+
+    T.case("hotspot alerts say PvP and count both sides", function()
+        local ns = H.Boot({ client = "era" })
+        Ping(ns, 1429, "Alpha-Firemaw", Ids(1, 12)) -- the player's zone becomes a Battle
+        local text
+        for _, p in ipairs(H.popups) do
+            if p.which == "HEADHUNTER_HOTSPOT" then text = p.text end
+        end
+        T.ok(text ~= nil, "Battle popup")
+        T.ok(text:find("PvP", 1, true) ~= nil, "says PvP")
+        T.ok(text:find("≈12 Horde fighting 1 Alliance, 0 death(s) in 5 min", 1, true) ~= nil, "both sides: " .. text)
+    end)
+
+    T.case("a fire pin goes away when the zone cools down", function()
+        local ns = H.Boot({ client = "era" })
+        Battle(ns, 1417)
+        T.eq(#ns.MapMarkers:PinsFor(1417), 1, "burning")
+        H.serverTime = H.serverTime + 301
+        T.eq(#ns.MapMarkers:PinsFor(1417), 0, "cooled down")
+    end)
+
+    T.case("WANTED outlaw: skull pin at the last kill, no fire pin for a lone ganker", function()
+        local ns = H.Boot({ client = "era" })
+        for i = 1, 3 do Kill(ns, 1436, 60 + i * 30) end
+        Kill(ns, 1436, 30, nil, 0.3, 0.7)
+        Settle()
+        T.eq(#ns.Wanted:List(), 1, "Gank is WANTED")
+        local pins = ns.MapMarkers:PinsFor(1436)
+        T.eq(#pins, 1, "only the skull")
+        local pin = pins[1]
+        T.eq(pin.kind, "wanted", "skull pin")
+        near(pin.x, 0.3, "last kill x")
+        near(pin.y, 0.7, "last kill y")
+        T.eq(pin.hunted, false, "not hunting yet")
+        T.ok(Find("WANTED", pin.lines) and Find("Gank", pin.lines), "title")
+        T.ok(Find("4 kills · until caught", pin.lines), "rank, kills, until caught")
+        T.ok(Find("Last kill just now in Westfall", pin.lines), "last kill")
+
+        ns.MapMarkers:SetWaypoint(pin)
+        local wp = H.waypoints[#H.waypoints]
+        T.eq(wp.uiMapID, 1436, "waypoint map")
+        near(wp.x, 0.3, "waypoint x")
+        T.ok(H.Printed("Waypoint set in Westfall"), "confirmed in chat")
+        T.noErrors()
+    end)
+
+    T.case("a skull shows for 10 min after the last kill; a new kill brings it back", function()
+        local ns = H.Boot({ client = "era" })
+        for i = 1, 4 do Kill(ns, 1436, i * 30) end
+        Settle()
+        T.eq(#ns.MapMarkers:PinsFor(1436), 1, "fresh kill: skull")
+        H.serverTime = H.serverTime + 9 * 60
+        T.eq(#ns.MapMarkers:PinsFor(1436), 1, "9 min later: still there")
+        H.serverTime = H.serverTime + 2 * 60
+        T.eq(#ns.MapMarkers:PinsFor(1436), 0, "11 min later: gone from the map")
+        T.eq(#ns.Wanted:List(), 1, "but still WANTED")
+        Kill(ns, 1417, 10, nil, 0.2, 0.3) -- strikes again elsewhere
+        Settle()
+        T.eq(#ns.MapMarkers:PinsFor(1436), 0, "not back at the old place")
+        T.eq(#ns.MapMarkers:PinsFor(1417), 1, "back on the map at the new kill")
+    end)
+
+    T.case("the outlaw our posse hunts is marked and shows the posse", function()
+        local ns = H.Boot({ client = "era" })
+        for i = 1, 4 do Kill(ns, 1436, i * 30) end
+        Settle()
+        local entry = ns.Wanted:List()[1]
+        ns.Posse:Join(entry, { mapID = 1436, x = 0.5, y = 0.25 })
+        local pin = ns.MapMarkers:PinsFor(1436)[1]
+        T.eq(pin.hunted, true, "hunted")
+        T.ok(Find("Posse: you", pin.lines), "posse line")
+        T.noErrors()
+    end)
+
+    -------------------------------------------------
+    -- Guiding where the client has no waypoints (Classic Era)
+    -------------------------------------------------
+
+    T.case("Help without game waypoints: chat gives the coordinates", function()
+        local ns = H.Boot({ client = "era" })
+        H.noWaypoints = true
+        Battle(ns, 1417)
+        T.eq(ns.Hotspots:Help(1417, "Battle"), "coords", "no waypoint: coordinates")
+        T.eq(#H.waypoints, 0, "no game waypoint")
+        T.ok(H.Printed("PvP Battle in Arathi Highlands at 40.0, 60.0."), "chat says where")
+        T.noErrors()
+    end)
+
+    T.case("Help with no known position says so", function()
+        local ns = H.Boot({ client = "era" })
+        H.noWaypoints = true
+        ns.Hotspots:Help(1417, "Battle")
+        T.ok(H.Printed("PvP Battle in Arathi Highlands: position unknown."), "said so")
+    end)
+
+    T.case("Join the posse and clicking a skull give coordinates without game waypoints", function()
+        local ns = H.Boot({ client = "era" })
+        H.noWaypoints = true
+        for i = 1, 4 do Kill(ns, 1436, i * 30, nil, 0.3, 0.7) end
+        Settle()
+        local entry = ns.Wanted:List()[1]
+        ns.Posse:Join(entry, { mapID = 1436, x = 0.3, y = 0.7 })
+        T.ok(H.Printed("You joined the posse against Gank%-Stonespine%. Last seen in Westfall at 30%.0, 70%.0%."),
+            "join says where")
+        ns.MapMarkers:SetWaypoint(ns.MapMarkers:PinsFor(1436)[1])
+        T.ok(H.Printed("Gank%-Stonespine's last kill at 30%.0, 70%.0%."), "skull click says where")
+        T.noErrors()
+    end)
+
+    -------------------------------------------------
+    -- Drawing
+    -------------------------------------------------
+
+    T.case("pins drawn on the shown map, follow map changes, zoom and data", function()
+        local ns = H.Boot({ client = "era", worldMap = true })
+        local map, M = H.worldMap, ns.MapMarkers
+        map:Open(1417)
+        T.eq(M:ShownCount(), 0, "nothing yet")
+        Battle(ns, 1417)
+        H.Advance(0.2)
+        T.eq(M:ShownCount(), 1, "redrawn on new data")
+
+        local canvas = map.ScrollContainer.Child
+        local drawn
+        for _, frame in ipairs(H.AllFrames()) do
+            if rawget(frame, "discs") and frame.shown then drawn = frame end
+        end
+        T.ok(drawn ~= nil, "PvP area shown")
+        T.eq(drawn.point[4], 400, "x offset on the canvas")
+        T.eq(drawn.point[5], -420, "y offset on the canvas")
+        T.eq(drawn.width, 100, "10% of the canvas wide")
+        local inner = drawn.discs[3]
+        T.eq(rawget(inner, "texture"), M.CIRCLE, "disc")
+        T.eq(inner.color[1], 1, "red")
+        T.eq(inner.color[4], M.AREA_ALPHA[2], "Battle shade in the middle")
+        T.ok(drawn.discs[1].color[4] < inner.color[4], "lighter at the edge")
+        T.eq(drawn.label.text.shownText, "PVP", "PVP in the middle")
+        T.eq(drawn.label.data.kind, "hotspot", "label carries tooltip and click")
+
+        canvas.scale = 2 -- zoom in
+        M:OnUpdate(0.01)
+        T.eq(drawn.scale, 1, "the area zooms with the map")
+        T.eq(drawn.point[4], 400, "same place on the canvas")
+        T.eq(drawn.label.scale, 0.5, "the label keeps its size on screen")
+
+        canvas.scale = 0.1 -- far out: the area keeps a minimum size on screen
+        M:OnUpdate(0.01)
+        T.eq(drawn.width, 320, "32 px on screen at scale 0.1")
+
+        map:SetMapID(1429)
+        T.eq(M:ShownCount(), 0, "another zone")
+        map:SetMapID(1417)
+        T.eq(M:ShownCount(), 1, "back")
+        map:Close()
+        T.eq(M:ShownCount(), 0, "closed")
+
+        H.Slash("map off")
+        map:Open(1417)
+        T.eq(M:ShownCount(), 0, "turned off")
+        T.ok(H.Printed("Map pins: off"), "status")
+        H.Slash("map on")
+        H.Advance(0.2)
+        T.eq(M:ShownCount(), 1, "turned on")
+        T.noErrors()
+    end)
+
+    T.case("a world map that loads later is picked up", function()
+        local ns = H.Boot({ client = "era" })
+        _G.WorldMapFrame = H.NewWorldMap()
+        H.worldMap = _G.WorldMapFrame
+        H.Fire("ADDON_LOADED", "Blizzard_WorldMap")
+        Battle(ns, 1417)
+        H.worldMap:Open(1417)
+        T.eq(ns.MapMarkers:ShownCount(), 1, "drawn")
+        T.noErrors()
+    end)
+end

@@ -43,11 +43,51 @@ local function NewFrame(name)
     function frame:Hide() self.shown = false end
     function frame:IsShown() return self.shown end
     function frame:CreateFontString() return NewFrame() end
+    function frame:CreateTexture() return NewFrame() end
+    function frame:SetFrameLevel(level) self.frameLevel = level end
+    -- rawget: a missing field would otherwise be the no-op method below
+    function frame:GetFrameLevel() return rawget(self, "frameLevel") or 0 end
+    function frame:SetScale(scale) self.scale = scale end
+    function frame:GetScale() return rawget(self, "scale") or 1 end
+    function frame:SetPoint(...) self.point = { ... } end
+    function frame:SetTexture(texture) self.texture = texture end
+    function frame:SetSize(w, h) self.width, self.height = w, h end
+    function frame:SetVertexColor(r, g, b, a) self.color = { r, g, b, a } end
+    function frame:SetText(text) self.shownText = text end
     function frame:GetVerticalScrollRange() return 0 end
     frames[#frames + 1] = frame
     if name then _G[name] = frame end
     -- Any other widget method is a harmless no-op
     return setmetatable(frame, { __index = function() return NoOp end })
+end
+
+-- World map stand-in: a canvas (ScrollContainer.Child) plus the script hooks the
+-- addon adds. map:Open(mapID) / map:Close() drive it like a player would.
+local function NewWorldMap()
+    local map = NewFrame()
+    map.hooks = {}
+    function map:HookScript(script, fn) self.hooks[script] = fn end
+    function map:SetMapID(mapID) self.mapID = mapID end
+    function map:Open(mapID)
+        self.shown = true
+        if self.hooks.OnShow then self.hooks.OnShow(self) end
+        if mapID then self:SetMapID(mapID) end
+    end
+    function map:Close()
+        self.shown = false
+        if self.hooks.OnHide then self.hooks.OnHide(self) end
+    end
+    local canvas = NewFrame()
+    function canvas:GetWidth() return 1000 end
+    function canvas:GetHeight() return 700 end
+    map.ScrollContainer = { Child = canvas }
+    return map
+end
+H.NewWorldMap = NewWorldMap
+
+-- Every frame created since the last Install
+function H.AllFrames()
+    return frames
 end
 
 -------------------------------------------------
@@ -93,6 +133,7 @@ function H.Install(opts)
         [947] = { mapID = 947, name = "Azeroth", mapType = 1, parentMapID = 0 },
     }
     H.waypoints = {}
+    H.noWaypoints = false
     _G.UiMapPoint = { CreateFromCoordinates = function(mapID, x, y) return { uiMapID = mapID, x = x, y = y } end }
     _G.C_SuperTrack = { SetSuperTrackedUserWaypoint = function() end }
     H.playerMap = 1429
@@ -285,9 +326,33 @@ function H.Install(opts)
         GetPlayerMapPosition = function()
             return { GetXY = function() return 0.42, 0.65 end }
         end,
-        CanSetUserWaypointOnMap = function() return true end,
+        -- H.noWaypoints: the client refuses user waypoints (as Classic Era does)
+        CanSetUserWaypointOnMap = function() return not H.noWaypoints end,
         SetUserWaypoint = function(point) H.waypoints[#H.waypoints + 1] = point end,
+        GetMapRectOnMap = function(child, parent)
+            local r = H.mapRects[child .. ":" .. parent]
+            if r then return r[1], r[2], r[3], r[4] end
+        end,
     }
+    -- "child:parent" -> { minX, maxX, minY, maxY }: where a map sits on a map above it
+    H.mapRects = {}
+
+    -- hooksecurefunc(table, "method", hook) and hooksecurefunc("global", hook)
+    _G.hooksecurefunc = function(target, method, hook)
+        if type(target) == "string" then
+            target, method, hook = _G, target, method
+        end
+        local original = target[method]
+        target[method] = function(...)
+            local results = { original(...) }
+            hook(...)
+            return unpack(results)
+        end
+    end
+    _G.GameTooltip = nil
+    -- opts.worldMap: the world map exists at load (otherwise it never loads)
+    _G.WorldMapFrame = opts.worldMap and NewWorldMap() or nil
+    H.worldMap = _G.WorldMapFrame
 end
 
 -------------------------------------------------
