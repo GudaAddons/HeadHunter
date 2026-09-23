@@ -137,8 +137,9 @@ return function(T, H)
         T.eq(ns.CatchUp:State(), "pulling", "pulling")
     end)
 
-    T.case("no route (Era, no guild or group): nothing is sent until /hh catchup can", function()
+    T.case("no route (Era, no guild, group or channel): nothing is sent until /hh catchup can", function()
         local ns = H.Boot({ client = "era" })
+        H.channels.HeadHunterSync = nil
         Run(25)
         T.eq(#Sent("^1AQ:"), 0, "no hello")
         H.Slash("catchup")
@@ -147,6 +148,49 @@ return function(T, H)
         H.Slash("catchup")
         Run(4)
         T.eq(#Sent("^1AQ:h", "PARTY"), 1, "asked the group")
+    end)
+
+    T.case("era: after a real absence a Catch up popup sends the hello realm-wide", function()
+        local ns = H.Boot({ client = "era", savedDB = { meta = { savedAt = H.serverTime - 7200, createdAt = 1, loadCount = 3 } } })
+        Run(25)
+        local popup
+        for _, p in ipairs(H.popups) do if p.which == "HEADHUNTER_CATCHUP" then popup = p end end
+        T.ok(popup ~= nil, "offered")
+        T.ok(popup.text:find("2 h 0 min ago", 1, true) ~= nil, "says how long: " .. popup.text)
+        _G.StaticPopupDialogs.HEADHUNTER_CATCHUP.OnAccept()
+        T.eq(#H.chatSent, 1, "one channel text line")
+        T.ok(H.chatSent[1].text:find("^HH1:1AQ:h") ~= nil, "the hello, realm-wide")
+        T.eq(ns.CatchUp:State(), "asking", "asking")
+        T.noErrors()
+    end)
+
+    T.case("era: no popup after a /reload (just away), none on Forever", function()
+        H.Boot({ client = "era", savedDB = { meta = { savedAt = H.serverTime - 60, createdAt = 1, loadCount = 3 } } })
+        Run(40)
+        for _, p in ipairs(H.popups) do T.ok(p.which ~= "HEADHUNTER_CATCHUP", "no popup after a reload") end
+        H.Boot({ client = "forever" })
+        Run(40)
+        for _, p in ipairs(H.popups) do T.ok(p.which ~= "HEADHUNTER_CATCHUP", "no popup on Forever") end
+    end)
+
+    T.case("era: /hh catchup (typed) asks realm-wide without guild or group", function()
+        local ns = H.Boot({ client = "era" })
+        Run(3)
+        H.Slash("catchup")
+        T.eq(#H.chatSent, 1, "channel text")
+        T.ok(H.chatSent[1].text:find("^HH1:1AQ:h") ~= nil, "the hello")
+        T.ok(H.Printed("Asking other HeadHunters"), "said so")
+    end)
+
+    T.case("era: a hello received as channel text is answered by whisper", function()
+        local ns = H.Boot({ client = "era" })
+        Spree(ns, "Gank-Stonespine", 3)
+        local hello = "HH1:" .. ns.Protocol.Pack("A", "Q", { "h" .. B36(H.serverTime - 3600) })[1]
+        H.Fire("CHAT_MSG_CHANNEL", hello, "Newbie-Firemaw", "", "5. HeadHunterSync", "", "", 0, 5, "HeadHunterSync")
+        Run(8)
+        local offers = Sent("^1AO:", "WHISPER")
+        T.eq(#offers, 1, "offer whispered")
+        T.eq(offers[1].target, "Newbie-Firemaw", "to the requester")
     end)
 
     T.case("forever: the hello goes on the hidden channel; nobody offers, nothing happens", function()

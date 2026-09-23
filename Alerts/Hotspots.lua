@@ -200,6 +200,21 @@ local function OwnFaction()
 end
 Hotspots.OwnFaction = OwnFaction
 
+-- "≈4 Horde fighting 5 Alliance, 4 death(s) in 5 min", saying only what is known:
+-- a = HeadHunters fighting, e = enemies seen, d = deaths
+function Hotspots.Describe(a, e, d)
+    local parts = {}
+    if e > 0 and a > 0 then
+        parts[1] = string.format(L.HOTSPOT_BOTH, e, EnemyFaction(), a, OwnFaction())
+    elseif e > 0 then
+        parts[1] = string.format(L.HOTSPOT_ENEMIES, e, EnemyFaction())
+    elseif a > 0 then
+        parts[1] = string.format(L.HOTSPOT_OURS, a, OwnFaction())
+    end
+    if d > 0 then parts[#parts + 1] = string.format(L.HOTSPOT_DEATHS, d) end
+    return table.concat(parts, ", ")
+end
+
 -- [Help]: a waypoint to the newest fight where the client allows it (Classic Era does
 -- not), and chat always says where it is. title: "Battle", ...
 function Hotspots:Help(zone, title)
@@ -235,7 +250,7 @@ function Hotspots:Evaluate(zone)
 
     local zoneName = ns.Utils.MapName(zone) or L.UNKNOWN_ZONE
     local title = L["HOTSPOT_LEVEL_" .. level]
-    local line = string.format(L.HOTSPOT_LINE, Fire(level), title, zoneName, e, EnemyFaction(), a, OwnFaction(), d)
+    local line = string.format(L.HOTSPOT_LINE, Fire(level), title, zoneName, Hotspots.Describe(a, e, d))
     local alert = {
         key = "hot:" .. zone .. ":" .. level,
         throttle = self.LEVEL_THROTTLE,

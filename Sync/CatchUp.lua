@@ -13,8 +13,10 @@
 -- player who logs in. <since> is our last logout minus MARGIN (the SavedVariables
 -- time); without saved data it is the report lifetime (30 days). Relayed records are
 -- taken on the relaying peer's word (origin "relay"); the time checks still apply.
--- Era: the hello reaches guild and group only (its channel refuses addon messages);
--- /hh catchup asks again (e.g. after joining a group).
+-- Era: the automatic hello reaches guild and group only (its channel refuses addon
+-- messages). After 15+ minutes away a [Catch up] popup sends it realm-wide as
+-- channel text (the click allows that), and so does a typed /hh catchup. Offers,
+-- pull and data are addon whispers, which Era allows between any two players.
 -- Silent except in debug mode.
 
 local addonName, ns = ...
@@ -34,6 +36,7 @@ CatchUp.GIVE_UP = 60         -- a pull that brings nothing is abandoned
 CatchUp.MARGIN = 600         -- ask from 10 min before our last logout
 CatchUp.MAX_RECORDS = 300    -- newest first, per answer
 CatchUp.ANSWER_COOLDOWN = 300 -- one answer per requester per 5 minutes
+CatchUp.PROMPT_AWAY = 900    -- Era: offer the realm-wide catch-up after 15 min away
 
 local state = "idle"         -- idle | asking | pulling | done
 local since
@@ -66,15 +69,28 @@ end
 -- Asking (the player who logged in)
 -------------------------------------------------
 
-function CatchUp:Start()
-    if state == "asking" or state == "pulling" then return false end
+-- realmWide: called from a click or typed command, so on Era the hello may also go
+-- to the whole realm as channel text. Returns true when a hello went out.
+function CatchUp:Start(realmWide)
     local Transport = ns.Transport
-    if not ns.Guards:IsActive() or #Transport:AutoRoutes() == 0 then return false end
+    if not ns.Guards:IsActive() then return false end
+    since = since or CatchUp.Since()
+    local hello = "h" .. B36(since)
+    local canRealm = realmWide and Transport:RealmWideNeedsClick() and Transport:ChannelID() ~= nil
+    if state == "asking" or state == "pulling" then
+        -- Era: the click widens a hello that only reached guild and group
+        if canRealm and state == "asking" then
+            return Transport:SendRealmWide(ns.Protocol.TYPES.QUERY, { hello }) > 0
+        end
+        return false
+    end
+    local auto = #Transport:AutoRoutes() > 0
+    if not auto and not canRealm then return false end
     state, offers, source = "asking", {}, nil
     received = { reports = 0, catches = 0 }
-    since = since or CatchUp.Since()
-    Transport:Queue(ns.Protocol.TYPES.QUERY, "h" .. B36(since), Transport.PRIORITY.alert, "Q:hello")
-    ns:Debug("Catch-up: asking for records after", since)
+    if auto then Transport:Queue(ns.Protocol.TYPES.QUERY, hello, Transport.PRIORITY.alert, "Q:hello") end
+    if canRealm then Transport:SendRealmWide(ns.Protocol.TYPES.QUERY, { hello }) end
+    ns:Debug("Catch-up: asking for records after", since, canRealm and "(realm-wide)" or "")
     -- Hello flush + offer delay + whisper flush, with room for combat flush intervals
     C_Timer.After(self.NO_OFFER_WAIT, function()
         if state == "asking" and #offers == 0 then
@@ -175,12 +191,51 @@ end
 -- Wiring
 -------------------------------------------------
 
+-- Seconds since our last logout, or nil without saved data (a fresh install)
+function CatchUp.AwayFor(now)
+    local savedAt = ns.db and tonumber(ns.db.meta.savedAt) or 0
+    if not ns.Database.restoredFromDisk or savedAt <= 0 then return nil end
+    return (now or ns.Utils.ServerTime()) - savedAt
+end
+
+-- Era: the automatic hello reaches guild and group only; after a real absence, offer
+-- the realm-wide one (it needs the click). Returns true when shown, false when not
+-- needed, nil while the channel is not joined yet.
+function CatchUp:OfferRealmWide()
+    local Transport = ns.Transport
+    if not Transport:RealmWideNeedsClick() then return false end
+    local away = CatchUp.AwayFor()
+    if away and away < self.PROMPT_AWAY then return false end
+    if not Transport:ChannelID() then return nil end
+    local text = away and string.format(L.CATCHUP_PROMPT, ns.Utils.Ago(away)) or L.CATCHUP_PROMPT_NEW
+    return ns.Alerts:Show({
+        key = "catchup",
+        throttle = 0,
+        popup = {
+            dialog = ns.Alerts.CATCHUP_POPUP,
+            text = text,
+            accept = L.CATCHUP_BUTTON,
+            decline = L.REPORT_SKIP,
+            onAccept = function() CatchUp:Start(true) end,
+        },
+    }) ~= false
+end
+
 -- Wait for a route (channel joined, guild known), then ask once
 local function TryStart()
     attempt = attempt + 1
     if CatchUp:Start() then return end
     if attempt * CatchUp.RETRY < CatchUp.MAX_WAIT then
         C_Timer.After(CatchUp.RETRY, TryStart)
+    else
+        ns:Debug("Catch-up: no route (Classic Era: a guild, a group, or the Catch up click)")
+    end
+end
+
+-- Era: offer the realm-wide catch-up once the channel is joined
+local function TryOffer(tries)
+    if CatchUp:OfferRealmWide() == nil and tries * CatchUp.RETRY < CatchUp.MAX_WAIT then
+        C_Timer.After(CatchUp.RETRY, function() TryOffer(tries + 1) end)
     end
 end
 
@@ -191,10 +246,12 @@ ns.Events:Register("HH_INITIALIZED", function()
     Transport:RegisterHandler(TYPES.SNAPSHOT, function(record, sender) CatchUp:OnData(record, sender) end)
     since = CatchUp.Since() -- before this session's logout time is written
     C_Timer.After(CatchUp.START_DELAY, TryStart)
+    C_Timer.After(CatchUp.START_DELAY, function() TryOffer(1) end)
 end, OWNER)
 
+-- A typed command is a hardware event: on Era the hello can go realm-wide
 ns.SlashCommands:Register("catchup", function()
-    if CatchUp:Start() then
+    if CatchUp:Start(true) then
         ns:Print(L.CATCHUP_STARTED)
     elseif state == "asking" or state == "pulling" then
         ns:Print(L.CATCHUP_BUSY)

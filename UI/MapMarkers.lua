@@ -79,8 +79,7 @@ local function HotspotPin(spot, mapID, now)
             label = string.format(L.GUIDE_HOTSPOT, L["HOTSPOT_LEVEL_" .. spot.level], zoneName) },
         lines = {
             string.format(L.MAP_HOTSPOT_TITLE, L["HOTSPOT_LEVEL_" .. spot.level], zoneName),
-            string.format(L.MAP_HOTSPOT_COUNTS, spot.e, ns.Hotspots.EnemyFaction(), spot.a, ns.Hotspots.OwnFaction(),
-                spot.d),
+            ns.Hotspots.Describe(spot.a, spot.e, spot.d),
             ns.Utils.Ago(math.max(0, now - spot.t)),
             L.MAP_CLICK_WAYPOINT,
         },

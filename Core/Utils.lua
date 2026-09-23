@@ -275,10 +275,15 @@ function Utils.Now()
     return GetTime()
 end
 
--- "just now" / "5 min ago"
+-- "just now" / "5 min ago" / "8 h 52 min ago" / "3 d 4 h ago"
 function Utils.Ago(seconds)
-    if seconds < 60 then return ns.L.JUST_NOW end
-    return string.format(ns.L.MINUTES_AGO, math.floor(seconds / 60))
+    local L = ns.L
+    if seconds < 60 then return L.JUST_NOW end
+    local minutes = math.floor(seconds / 60)
+    if minutes < 60 then return string.format(L.MINUTES_AGO, minutes) end
+    local hours = math.floor(minutes / 60)
+    if hours < 24 then return string.format(L.HOURS_AGO, hours, minutes % 60) end
+    return string.format(L.DAYS_AGO, math.floor(hours / 24), hours % 24)
 end
 
 -------------------------------------------------

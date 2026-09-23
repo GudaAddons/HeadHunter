@@ -125,7 +125,7 @@ return function(T, H)
         near(pin.x, 0.4, "x")
         near(pin.y, 0.6, "y")
         T.ok(Find("PvP zone", pin.lines) and Find("Battle", pin.lines) and Find("Arathi Highlands", pin.lines), "title")
-        T.ok(Find("≈12 Horde fighting 2 Alliance, 0 death(s) in 5 min", pin.lines), "counts")
+        T.ok(Find("≈12 Horde fighting 2 Alliance", pin.lines) and not Find("death", pin.lines), "counts (no deaths: not mentioned)")
         T.ok(Find("just now", pin.lines), "age")
 
         T.eq(#ns.MapMarkers:PinsFor(1415), 0, "continent without a rect: not placed")
@@ -149,7 +149,7 @@ return function(T, H)
         end
         T.ok(text ~= nil, "Battle popup")
         T.ok(text:find("PvP", 1, true) ~= nil, "says PvP")
-        T.ok(text:find("≈12 Horde fighting 1 Alliance, 0 death(s) in 5 min", 1, true) ~= nil, "both sides: " .. text)
+        T.ok(text:find("≈12 Horde fighting 1 Alliance", 1, true) ~= nil, "both sides: " .. text)
     end)
 
     T.case("a fire pin goes away when the zone cools down", function()

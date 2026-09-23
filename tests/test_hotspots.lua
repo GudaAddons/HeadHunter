@@ -189,6 +189,14 @@ return function(T, H)
         T.eq(#H.sent, 0, "inside a battleground")
     end)
 
+    T.case("the hotspot line says only what is known", function()
+        local D = H.Boot({ client = "era" }).Hotspots.Describe
+        T.eq(D(0, 0, 4), "4 death(s) in 5 min", "deaths only (e.g. from reports)")
+        T.eq(D(0, 3, 0), "≈3 Horde seen fighting", "enemies only")
+        T.eq(D(2, 0, 1), "2 Alliance fighting, 1 death(s) in 5 min", "ours only")
+        T.eq(D(5, 4, 4), "≈4 Horde fighting 5 Alliance, 4 death(s) in 5 min", "everything")
+    end)
+
     T.case("/hh hotspots lists active zones", function()
         local ns = H.Boot({ client = "era" })
         H.Slash("hotspots")
