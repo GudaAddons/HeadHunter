@@ -296,3 +296,8 @@ L.COL_CHANGE = "Marks"
 L.COL_REASON = "Why"
 L.COL_TOTAL = "Total"
 L.EMPTY_MARKS = "No marks yet: join posses and bring WANTED outlaws down."
+
+-- Level window (HH-047)
+L.ACTIVITY_NOT_YOUR_LEVEL = "|cffaaaaaanot your level range: no popup|r"
+L.DEBUG_LEVELS_OFF = "Test mode: level window OFF (every level gets WANTED popups). /hh debug levels on to restore it."
+L.DEBUG_LEVELS_ON = "Level window on: WANTED popups only from the outlaw's level -5 to +9."

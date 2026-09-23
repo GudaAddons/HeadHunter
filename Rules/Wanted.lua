@@ -99,6 +99,30 @@ local function Publish(newEntries)
     if changed then ns.Events:Fire("HH_WANTED_UPDATED") end
 end
 
+-- HH-047 level window (features.md section 4): the WANTED popup, and the Decline
+-- penalty, only for players who can really fight the outlaw: from the outlaw's level
+-- - 5 to + 9 (at +10 hunting them would be ganking too). A skull outlaw (level
+-- unknown, at least levelMin) has no upper bound. Unknown level: everyone.
+-- /hh debug levels off turns it off for testing with high-level characters.
+Wanted.LEVEL_BELOW = 5
+Wanted.LEVEL_ABOVE = 9
+
+function Wanted.LevelWindowOff()
+    return ns.db ~= nil and ns.db.settings.testNoLevelWindow == true
+end
+
+function Wanted.InLevelWindow(entry, myLevel)
+    if Wanted.LevelWindowOff() then return true end
+    myLevel = myLevel or ns.Utils.UnitLevel("player")
+    if not myLevel or myLevel < 1 then return true end
+    local level = entry.level
+    if not level or level == -1 then
+        if not entry.levelMin then return true end
+        return myLevel >= entry.levelMin - Wanted.LEVEL_BELOW
+    end
+    return myLevel >= level - Wanted.LEVEL_BELOW and myLevel <= level + Wanted.LEVEL_ABOVE
+end
+
 -- Testing override of the WANTED threshold (/hh debug wanted <n|off>); nil = real rule
 function Wanted.TestThreshold()
     local n = ns.db and tonumber(ns.db.settings.testWantedKills)

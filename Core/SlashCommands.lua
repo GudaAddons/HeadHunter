@@ -73,6 +73,15 @@ end, L.HELP_STATUS)
 
 SlashCommands:Register("debug", function(args)
     local mode = args[1] and args[1]:lower()
+    -- /hh debug levels <off|on>: testing override of the level window (HH-047)
+    if mode == "levels" then
+        local value = args[2] and args[2]:lower()
+        if value == "off" or value == "on" then
+            ns.Database:SetSetting("testNoLevelWindow", value == "off" or nil)
+        end
+        ns:Print(ns.Wanted.LevelWindowOff() and L.DEBUG_LEVELS_OFF or L.DEBUG_LEVELS_ON)
+        return
+    end
     -- /hh debug wanted <n|off>: testing override of the WANTED kill threshold
     if mode == "wanted" then
         local value = args[2] and args[2]:lower()

@@ -1,5 +1,5 @@
 -- HH-061: the poster. Everything known about one enemy, opened from a row of the main
--- window. Basic layout for now; the parchment "WANTED — DEAD OR ALIVE" art comes later.
+-- window. Basic layout for now; the parchment "WANTED: DEAD OR ALIVE" art comes later.
 --
 --   [race][class] Name (class color)            60 Orc Rogue
 --   WANTED · Ganker · 8 kills        Coward, Gunslinger

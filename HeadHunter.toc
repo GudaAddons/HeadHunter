@@ -1,5 +1,5 @@
 ## Interface: 11509, 16001
-## Title: HeadHunter
+## Title: HeadHunter - Wanted: Dead or Alive
 ## Notes: Track gankers, post WANTED bounties and hunt them down with your faction.
 ## Author: Vati
 ## Version: 0.1.0

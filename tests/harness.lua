@@ -448,10 +448,13 @@ function H.Fire(event, ...)
 end
 
 -- Install + load + ADDON_LOADED + PLAYER_LOGIN + PLAYER_ENTERING_WORLD
+-- opts.levelWindow: keep the HH-047 level window on. Off by default, as with
+-- /hh debug levels off, so alert tests are free to mix levels (the player is 30).
 function H.Boot(opts)
     H.Install(opts)
     local ns = H.Load()
     H.Fire("ADDON_LOADED", "HeadHunter")
+    if ns.db and not (opts and opts.levelWindow) then ns.db.settings.testNoLevelWindow = true end
     H.Fire("PLAYER_LOGIN")
     H.Fire("PLAYER_ENTERING_WORLD", true, false)
     return ns

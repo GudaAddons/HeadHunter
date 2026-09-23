@@ -5,7 +5,8 @@
 --        N by the outlaw's rank: Ganker 3, Outlaw 5, Desperado 8, Most Wanted 12,
 --        Dead or Alive 20 (author, 2026-09-23). Once per outlaw per minute.
 --   -1   Decline while eligible: at most once per 10 min; never in combat, in an
---        instance or AFK. Letting the popup time out costs nothing.
+--        instance, AFK or outside the level window (HH-047). Letting the popup time
+--        out costs nothing.
 --   none when the outlaw is 10+ levels below us: hunting down is ganking too.
 -- Ranks: Tracker 0, Bounty Hunter 10, Manhunter 25, Headhunter 50, Reaper 100.
 --
@@ -169,7 +170,10 @@ function Marks.DeclineCounts()
 end
 
 function Marks:OnDecline(entry)
-    if not Marks.DeclineCounts() or Marks.HuntingDown(entry) then return nil end
+    -- Outside the level window (HH-047) a decline never costs anything
+    if not Marks.DeclineCounts() or Marks.HuntingDown(entry) or not ns.Wanted.InLevelWindow(entry) then
+        return nil
+    end
     local now = ns.Utils.Now()
     if lastDecline and now - lastDecline < self.DECLINE_COOLDOWN then return nil end
     lastDecline = now

@@ -93,6 +93,10 @@ function Activity:Check(report)
             if distance then
                 ns.Alerts:Show({ key = "declined:" .. entry.id .. ":" .. tostring(report.id), throttle = 0, chat = headline })
             end
+        elseif inRange and not Wanted.InLevelWindow(entry) then
+            -- HH-047: not a fight for our level (either way): a chat line, no popup
+            ns.Alerts:Show({ key = "activity-level:" .. entry.id, throttle = self.THROTTLE,
+                chat = headline .. " · " .. L.ACTIVITY_NOT_YOUR_LEVEL })
         elseif inRange then
             ns.Alerts:Show({
                 key = "activity:" .. entry.id,
