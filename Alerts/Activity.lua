@@ -25,12 +25,9 @@ Activity.FRESH = 600
 Activity.THROTTLE = 120
 Activity.CHECK_DELAY = 1.5  -- after the WANTED recompute (1 s debounce)
 
+-- "60 Night Elf Hunter" (skull icon for a skull level)
 local function Describe(enemy)
-    local level = enemy.level == -1 and "??" or (enemy.level and tostring(enemy.level)) or "?"
-    local parts = { level }
-    if enemy.race then parts[#parts + 1] = enemy.race end
-    if enemy.class then parts[#parts + 1] = enemy.class:sub(1, 1) .. enemy.class:sub(2):lower() end
-    return table.concat(parts, " ")
+    return ns.DeathReports.Describe(enemy)
 end
 
 local Ago = ns.Utils.Ago

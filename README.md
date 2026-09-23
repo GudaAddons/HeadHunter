@@ -4,10 +4,12 @@
 
 For **Classic Era** and **WoW: Forever**.
 
+![The HeadHunter window with an outlaw's poster](Assets/screenshot-window.jpg)
+
 ## How it works
 
 1. **An enemy player kills you.** HeadHunter saves who did it: name, level, class, race and zone. If more than one player attacked you, it saves all of them.
-2. **Your report is shared** with every HeadHunter player of your faction. No website or server is needed.
+2. **Your report is shared** with every HeadHunter player of your faction.
 3. **Gankers become WANTED.** An enemy who kills 4 players within 20 minutes gets a WANTED poster. Every HeadHunter sees the same list.
 4. **Hunt them down.** You get an alert when a WANTED outlaw kills someone near you. Join the posse and go after them.
 5. **Justice served.** When a HeadHunter, or anyone in their group, kills a WANTED outlaw, the outlaw is no longer WANTED for everyone.
@@ -31,7 +33,7 @@ Cowards are listed in the **Hall of Shame**.
 
 ### Alerts
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
-- **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**.
+- **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**. Only players close to the outlaw's level get this popup, the others get a chat line.
 - **Justice served**: a message when a WANTED outlaw is brought down.
 - **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you.
 

@@ -236,6 +236,6 @@ ns.SlashCommands:Register("enemies", function()
     for i = 1, math.min(10, #list) do
         local r = list[i]
         print(string.format("  %s  %s %s %s", ns.Utils.DisplayName(r.key),
-            r.level == -1 and "??" or tostring(r.level or "?"), r.race or "?", r.class or "?"))
+            ns.Utils.LevelText(r.level), ns.Utils.RaceName(r.race) or "?", r.class or "?"))
     end
 end, ns.L.HELP_ENEMIES)

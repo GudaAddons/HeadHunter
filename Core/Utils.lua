@@ -351,6 +351,21 @@ function Utils.RaceIcon(race, sex, size)
     return string.format("|A:%s-%s-%s:%d:%d|a", prefix, name, GENDER_ATLAS[sex] or "male", size, size)
 end
 
+-- A level for text: the skull icon for -1 (10+ levels above the viewer), "?" unknown
+Utils.SKULL_TEXT = "|TInterface\\TargetingFrame\\UI-TargetingFrame-Skull:14:14|t"
+
+function Utils.LevelText(level)
+    if level == -1 then return Utils.SKULL_TEXT end
+    return level and tostring(level) or "?"
+end
+
+-- A race token as players know it ("NightElf" -> "Night Elf", "Scourge" -> "Undead")
+local RACE_NAMES = { NightElf = "Night Elf", Scourge = "Undead" }
+
+function Utils.RaceName(race)
+    return race and (RACE_NAMES[race] or race) or nil
+end
+
 -- Inline class icon for text, from the client's class icon sheet, or "" when unknown
 function Utils.ClassIcon(class, size)
     local coords = type(class) == "string" and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]

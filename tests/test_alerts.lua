@@ -123,7 +123,9 @@ return function(T, H)
         H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
         T.eq(#H.centerTexts, 1, "center text")
         T.ok(H.centerTexts[1]:find("WANTED") and H.centerTexts[1]:find("Gank"), "names the outlaw")
-        T.ok(H.Printed("spotted %(%?%? Orc Rogue%)"), "chat line with level, race, class")
+        local expected, found = "spotted (" .. ns.Utils.SKULL_TEXT .. " Orc Rogue)", false
+        for _, line in ipairs(H.printed) do found = found or line:find(expected, 1, true) ~= nil end
+        T.ok(found, "chat line with the skull icon (not ??), race, class")
         T.ok(H.Printed("Coward"), "badge")
         T.eq(#H.sounds, 1, "sound")
         T.noErrors()

@@ -29,12 +29,9 @@ function Sighting.WantedEntry(record)
     return entry and entry.wanted and entry or nil
 end
 
+-- "60 Night Elf Hunter" (skull icon for a skull level)
 local function Describe(record)
-    local level = record.level == -1 and "??" or (record.level and tostring(record.level)) or "?"
-    local parts = { level }
-    if record.race then parts[#parts + 1] = record.race end
-    if record.class then parts[#parts + 1] = record.class:sub(1, 1) .. record.class:sub(2):lower() end
-    return table.concat(parts, " ")
+    return ns.DeathReports.Describe(record)
 end
 
 function Sighting:OnEnemySeen(record, source)
