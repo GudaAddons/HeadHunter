@@ -24,6 +24,8 @@ local Hotspots = ns:RegisterModule("Hotspots", {})
 local OWNER = "Hotspots"
 
 Hotspots.WINDOW = 300
+Hotspots.MAP_TIME = 1200 -- the map keeps a PvP area 20 min after the zone's last hot
+                         -- moment; new activity restarts it (author, 2026-09-23)
 Hotspots.TICK = 5
 Hotspots.FIGHT_RECENT = 15
 Hotspots.PING_INTERVAL = 30
@@ -34,6 +36,7 @@ Hotspots.LEVELS = { { heat = 20, id = 3 }, { heat = 10, id = 2 }, { heat = 4, id
 
 local zones = {}        -- zone mapID -> { fighters = {id -> {t, x, y}}, enemies = {id -> t}, deaths = {id -> t} }
 local announced = {}    -- zone -> highest level announced in the current burst
+local remembered = {}   -- zone -> the zone's last hot state, for the map (MAP_TIME)
 local ignored = {}      -- zone -> GetTime() until which it is muted
 local lastPing = 0
 
@@ -148,19 +151,44 @@ local function Newest(data)
     return newest
 end
 
--- Burning zones for the map pins (HH-046), hottest first:
---   { zone, level, heat, a, e, d, x, y, t = newest activity }
--- x, y is the newest fight position (nil when none is known). Lone-outlaw zones are
--- left out: the WANTED skull pin already marks that ganker.
+-- The zone as it is now, if it burns (level 1+, and not a lone WANTED ganker):
+--   { zone, level, heat, a, e, d, x, y, t = newest activity }. Also kept for the map.
+local function Burning(zone, now)
+    local heat, level, a, e, d = Hotspots:Heat(zone, now)
+    if level == 0 or Hotspots:IsLoneOutlaw(zone, a, e) then return nil end
+    local data = zones[zone]
+    local x, y = LastPosition(data)
+    local known = remembered[zone]
+    local spot = { zone = zone, level = level, heat = heat, a = a, e = e, d = d,
+        x = x or (known and known.x), y = y or (known and known.y), t = Newest(data) }
+    remembered[zone] = spot
+    return spot
+end
+
+-- PvP areas for the map (HH-046), hottest first: burning zones as they are now, and
+-- zones that burned within MAP_TIME as they last were (remembered = true). x, y is the
+-- newest fight position (nil when none is known). Lone-outlaw zones are left out: the
+-- WANTED skull pin already marks that ganker.
 function Hotspots:Active(now)
     now = now or ns.Utils.ServerTime()
-    local list = {}
-    for zone, data in pairs(zones) do
-        local heat, level, a, e, d = self:Heat(zone, now)
-        if level > 0 and not self:IsLoneOutlaw(zone, a, e) then
-            local x, y = LastPosition(data)
-            list[#list + 1] = { zone = zone, level = level, heat = heat, a = a, e = e, d = d, x = x, y = y,
-                t = Newest(data) }
+    local list, seen = {}, {}
+    for zone in pairs(zones) do
+        local spot = Burning(zone, now)
+        if spot then
+            list[#list + 1] = spot
+            seen[zone] = true
+        end
+    end
+    for zone, spot in pairs(remembered) do
+        if not seen[zone] then
+            if now - spot.t > self.MAP_TIME then
+                remembered[zone] = nil
+            else
+                local copy = {}
+                for k, v in pairs(spot) do copy[k] = v end
+                copy.remembered = true
+                list[#list + 1] = copy
+            end
         end
     end
     table.sort(list, function(p, q)
@@ -236,6 +264,7 @@ function Hotspots:Evaluate(zone)
         announced[zone] = nil
         return
     end
+    Burning(zone, now) -- the map keeps it for MAP_TIME, even if the map is not open now
     if (announced[zone] or 0) >= level then return end
     -- Our own fight: nothing to tell us
     local me = ns.Utils.CompactName(ns.Utils.UnitKey("player"))

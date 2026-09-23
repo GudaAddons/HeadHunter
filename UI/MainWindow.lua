@@ -8,8 +8,8 @@
 -- A row click opens the outlaw's poster (UI/Poster.lua).
 --
 -- MainWindow.Rows(tab, sortKey, now) is the pure part (tested offline): one table per
--- row with the text of each column. The rest only draws it, with templates both
--- clients have (the debug log window uses the same ones).
+-- row with the text of each column. The rest only draws it, in the GudaBags look
+-- (UI/Theme.lua: dark window, tabs on the bottom edge).
 
 local addonName, ns = ...
 local L = ns.L
@@ -252,10 +252,7 @@ local rowFrames = {}
 local sinceRefresh = 0
 
 local function CreateMainFrame()
-    local ok, f = pcall(CreateFrame, "Frame", "HeadHunterMainFrame", UIParent, "BasicFrameTemplateWithInset")
-    if not ok then
-        f = CreateFrame("Frame", "HeadHunterMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-    end
+    local f = CreateFrame("Frame", "HeadHunterMainFrame", UIParent)
     f:SetSize(MainWindow.WIDTH, MainWindow.HEIGHT)
     f:SetPoint("CENTER")
     f:SetFrameStrata("HIGH")
@@ -267,42 +264,25 @@ local function CreateMainFrame()
     f:SetClampedToScreen(true)
     tinsert(UISpecialFrames, "HeadHunterMainFrame")
 
-    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    f.title:SetPoint("TOP", 0, -5)
-    f.title:SetText(L.WINDOW_TITLE)
-
-    -- Tabs: plain buttons, the selected one stays highlighted
-    f.tabs = {}
-    local previous
-    for i, tab in ipairs(MainWindow.TABS) do
-        local button = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-        button:SetSize(110, 22)
-        if previous then
-            button:SetPoint("LEFT", previous, "RIGHT", 6, 0)
-        else
-            button:SetPoint("TOPLEFT", 14, -30)
-        end
-        button:SetText(L["TAB_" .. tab:upper()])
-        button:SetScript("OnClick", function() MainWindow:SelectTab(tab) end)
-        button.tab = tab
-        f.tabs[i] = button
-        previous = button
-    end
+    -- The GudaBags look (UI/Theme.lua): dark window, tabs on the bottom edge
+    ns.Theme.StyleFrame(f, L.WINDOW_TITLE)
+    local tabs = {}
+    for i, tab in ipairs(MainWindow.TABS) do tabs[i] = { id = tab, label = L["TAB_" .. tab:upper()] } end
+    f.tabs = ns.Theme.CreateTabs(f, tabs, function(tab) MainWindow:SelectTab(tab) end)
 
     f.options = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    f.options:SetSize(80, 22)
-    f.options:SetPoint("TOPRIGHT", -14, -30)
+    f.options:SetSize(80, 20)
+    f.options:SetPoint("TOPRIGHT", -30, -6)
     f.options:SetText(L.OPTIONS_BUTTON)
     f.options:SetScript("OnClick", function() ns.SettingsPanel:Open() end)
 
     f.count = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    -- Bottom edge: the tabs and the Options button fill the top row
     f.count:SetPoint("BOTTOMRIGHT", -16, 10)
 
     -- Column headers (buttons: clicking a sortable one sorts)
     f.headers = {}
     f.scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-    f.scroll:SetPoint("TOPLEFT", 14, -84)
+    f.scroll:SetPoint("TOPLEFT", 14, -56)
     f.scroll:SetPoint("BOTTOMRIGHT", -34, 28)
     f.content = CreateFrame("Frame", nil, f.scroll)
     f.content:SetSize(MainWindow.WIDTH - 50, MainWindow.ROW_HEIGHT)
@@ -373,7 +353,7 @@ local function LayoutHeaders(columns)
             frame.headers[c] = header
         end
         header:ClearAllPoints()
-        header:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -62)
+        header:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -34)
         header:SetWidth(column.width)
         header.sort = column.sort
         header.text:SetText(L[column.header])
@@ -392,9 +372,7 @@ function MainWindow:Refresh()
     sinceRefresh = 0
     if not (frame and frame:IsShown()) then return end
     local columns = self.COLUMNS[current.tab]
-    for _, button in ipairs(frame.tabs) do
-        if button.tab == current.tab then button:LockHighlight() else button:UnlockHighlight() end
-    end
+    frame.tabs:Select(current.tab)
     LayoutHeaders(columns)
     local rows = self.Rows(current.tab, current.sort)
     for i, data in ipairs(rows) do

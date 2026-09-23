@@ -19,8 +19,8 @@ function Classify.GreyLevel(level)
 end
 
 -- killerLevel as the victim saw it: -1 = skull (10+ above the victim), nil = unknown.
--- Returns "coward" | "fair" | "giant" | "normal" | "unknown" (see Classify.Enemy for
--- "outnumbered", which depends on the whole death, not the levels).
+-- Returns "coward" | "fair" | "giant" | "normal" | "unknown" (the level judgement; the
+-- group size is judged separately, see Classify.Group).
 --   coward  10+ levels above the victim, or the victim was grey to the killer
 --   fair    within FAIR_RANGE levels
 --   giant   the killer was lower level than the victim (beyond FAIR_RANGE)
@@ -39,44 +39,63 @@ function Classify.Kill(killerLevel, victimLevel)
     return "normal"
 end
 
--- Outnumbered (author, 2026-09-23): OUTNUMBERED or more enemy players hit one victim.
--- Then it is never a fair fight, whatever the levels, and it gives everyone who took
--- part the Gang badge (not Coward). Both clients record every attacker (Era: combat log;
--- Forever: Death Recap), so the count travels in every report and all clients agree.
-Classify.OUTNUMBERED = 3
+-- Group size (author, 2026-09-23), judged next to the levels, never instead of them:
+--   duo   2 enemy players on one victim   -> Duo badge
+--   gang  3 or more                       -> Gang badge
+-- A kill with help is never a fair fight (no Gunslinger, no Giant Slayer), but a
+-- lowbie kill stays a Coward kill with or without help. Both clients record every
+-- attacker (Era: combat log; Forever: Death Recap), so the count travels in every
+-- report and all clients agree.
+Classify.DUO = 2
+Classify.GANG = 3
 
 -- Enemy players on one death: the killer plus the assists
 function Classify.Attackers(report)
     return 1 + #(report.assists or {})
 end
 
--- One enemy's kill in a death that had `attackers` enemy players
+-- nil (alone) | "duo" | "gang"
+function Classify.Group(attackers)
+    attackers = attackers or 1
+    if attackers >= Classify.GANG then return "gang" end
+    if attackers >= Classify.DUO then return "duo" end
+    return nil
+end
+
+-- One enemy's kill in a death that had `attackers` enemy players: level judgement, group
 function Classify.Enemy(enemyLevel, victimLevel, attackers)
-    if (attackers or 1) >= Classify.OUTNUMBERED then return "outnumbered" end
-    return Classify.Kill(enemyLevel, victimLevel)
+    return Classify.Kill(enemyLevel, victimLevel), Classify.Group(attackers)
 end
 
--- A whole report, as the killer's kill
+-- A whole report, as the killer's kill (the level judgement)
 function Classify.Report(report)
-    return Classify.Enemy(report.killer and report.killer.level, report.victim and report.victim.level,
-        Classify.Attackers(report))
+    return Classify.Kill(report.killer and report.killer.level, report.victim and report.victim.level)
 end
 
--- Counts toward the Coward badge and the Hall of Shame
+-- Counts toward the Coward badge and the Hall of Shame (with help or not)
 function Classify.IsCoward(classification)
     return classification == "coward"
 end
 
--- Counts toward the Gang badge
-function Classify.IsGang(classification)
-    return classification == "outnumbered"
+-- Counts toward Gunslinger / Giant Slayer: only a one-on-one kill
+function Classify.IsFair(classification, group)
+    return classification == "fair" and group == nil
 end
 
--- Display text: "Fair fight", "Outnumbered (3 vs 1)", ...
+function Classify.IsGiant(classification, group)
+    return classification == "giant" and group == nil
+end
+
+-- Display text: "Fair fight", "Coward kill · Duo (2 vs 1)", "Gang (3 vs 1)", ...
+-- A same-level fight with help is not fair, so then only the group is shown.
 function Classify.Label(classification, attackers)
     classification = classification or "unknown"
-    if classification == "outnumbered" then return string.format(ns.L.KILL_OUTNUMBERED, attackers or 3) end
-    return ns.L["KILL_" .. classification:upper()]
+    local L = ns.L
+    local group = Classify.Group(attackers)
+    if not group then return L["KILL_" .. classification:upper()] end
+    local groupText = string.format(L["KILL_" .. group:upper()], attackers)
+    if classification == "fair" or classification == "unknown" then return groupText end
+    return L["KILL_" .. classification:upper()] .. " · " .. groupText
 end
 
 -- Display text for a report

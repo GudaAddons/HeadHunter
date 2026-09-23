@@ -76,7 +76,7 @@ return function(T, H)
         T.eq(rows[1].zone, "Elwynn Forest", "zone")
     end)
 
-    T.case("My deaths: a 3 vs 1 shows as Outnumbered, even if saved as fair before", function()
+    T.case("My deaths: a 3 vs 1 shows as Gang, even if saved as fair before", function()
         local ns = H.Boot({ client = "era" })
         table.insert(ns.db.deaths, { id = "Vati-Firemaw:1", t = H.serverTime - 60, classification = "fair",
             victim = { key = "Vati-Firemaw", level = 30 },
@@ -84,7 +84,7 @@ return function(T, H)
             assists = { { key = "Pal-Stonespine", level = 30 }, { key = "Buddy-Stonespine", level = 31 } },
             mapID = 1429 })
         local row = ns.MainWindow.Rows("deaths")[1]
-        T.eq(row.kind, "|cffff8000Outnumbered|r (3 vs 1)", "kind")
+        T.eq(row.kind, "|cffcc66ffGang|r (3 vs 1)", "kind")
     end)
 
     T.case("the window: /hh opens it, tabs, sorting, live refresh, row click", function()
@@ -100,6 +100,10 @@ return function(T, H)
 
         M:SelectTab("deaths")
         T.eq(select(1, M:Current()), "deaths", "tab")
+        local tabs = _G.HeadHunterMainFrame.tabs.buttons
+        T.eq(#tabs, 4, "four bottom tabs")
+        T.ok(tabs[3].selected and not tabs[1].selected, "the selected tab is drawn selected")
+        T.eq(tabs[1].point[1], "BOTTOMLEFT", "hanging from the bottom edge")
         T.eq(#M.shownRows, 0, "no deaths of ours")
         M:SelectTab("wanted")
         M:SetSort("kills")

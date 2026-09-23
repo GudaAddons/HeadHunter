@@ -13,13 +13,13 @@
 --               needs a fresh 4 kills in 20 min (kills before a catch never count)
 --   Rank        Ganker 4-9, Outlaw 10-19, Desperado 20-29, Most Wanted 30-49,
 --               Dead or Alive 50+
---   Badges      Coward: any coward kill (skull or grey victim)
---               Gang: any kill with 3+ attackers on one victim ("outnumbered",
---                 author 2026-09-23)
+--   Badges      Coward: any coward kill (skull or grey victim), with help or not
+--               Gang: any kill with 3+ attackers on one victim; Duo: with exactly 2
+--                 (author 2026-09-23; group size is judged next to the levels)
 --               Serial Killer: 5+ distinct victims in separate engagements
 --                 (kills <= 60 s apart are one engagement) within the serial window
---               Gunslinger: 3+ kills and more than half of them fair
---               Giant Slayer: 2+ kills of higher-level victims
+--               Gunslinger: 3+ kills and more than half of them fair one-on-one
+--               Giant Slayer: 2+ one-on-one kills of higher-level victims
 --
 -- Everything is derived from the report set, so the result does not depend on the
 -- order in which reports arrived.
@@ -106,12 +106,14 @@ function Engine.CollectKills(reports, yield)
                     bucket = { kills = {} }
                     byEnemy[id] = bucket
                 end
+                -- The level judgement, and the group size (duo / gang) for each attacker
+                local class, group = classify(enemy.level, victimLevel, #enemies)
                 bucket.kills[#bucket.kills + 1] = {
                     t = report.t,
                     weight = weight,
                     victim = report.victim and report.victim.key,
-                    -- 3+ attackers on one victim: "outnumbered" for each of them
-                    class = classify(enemy.level, victimLevel, #enemies),
+                    class = class,
+                    group = group,
                     mapID = report.mapID, x = report.x, y = report.y,
                     reportId = report.id,
                 }
@@ -175,7 +177,7 @@ function Engine.Evaluate(kills, now, opts, catches)
     local wanted, count, wantedUntil, wantedSince = false, 0, 0, nil
     local timesWanted, peakRank = 0, nil
     local windowStart, windowSum = 1, 0
-    local total, coward, fair, giant, gang = 0, 0, 0, 0, 0
+    local total, coward, fair, giant, gang, duo = 0, 0, 0, 0, 0, 0
     local exact, partial = 0, 0
     local nextCatch, timesCaught, lastCaught = 1, 0, nil
     local ranOut = false -- the last WANTED ended by 7 days without a kill
@@ -202,9 +204,10 @@ function Engine.Evaluate(kills, now, opts, catches)
         total = total + kill.weight
         if kill.weight >= 1 then exact = exact + 1 else partial = partial + 1 end
         if ns.Classify.IsCoward(kill.class) then coward = coward + 1 end
-        if ns.Classify.IsGang(kill.class) then gang = gang + 1 end
-        if kill.class == "fair" then fair = fair + 1 end
-        if kill.class == "giant" then giant = giant + 1 end
+        if kill.group == "gang" then gang = gang + 1 end
+        if kill.group == "duo" then duo = duo + 1 end
+        if ns.Classify.IsFair(kill.class, kill.group) then fair = fair + 1 end
+        if ns.Classify.IsGiant(kill.class, kill.group) then giant = giant + 1 end
 
         windowSum = windowSum + kill.weight
         while kills[windowStart].t < kill.t - Engine.WANTED_WINDOW do
@@ -257,9 +260,11 @@ function Engine.Evaluate(kills, now, opts, catches)
         guessedKills = partial, -- weight 0.5 (inferred)
         cowardKills = coward,   -- Hall of Shame
         gangKills = gang,       -- 3+ attackers on one victim
+        duoKills = duo,         -- 2 attackers on one victim
         badges = {
             coward = coward > 0 or nil,
             gang = gang > 0 or nil,
+            duo = duo > 0 or nil,
             serialkiller = Engine.IsSerialKiller(kills, opts.serialWindow) or nil,
             gunslinger = (#kills >= Engine.GUNSLINGER_MIN_KILLS and fair * 2 > #kills) or nil,
             giantslayer = giant >= Engine.GIANT_SLAYER_KILLS or nil,

@@ -54,6 +54,7 @@ Alerts\Hotspots.lua
 Alerts\Justice.lua
 
 # UI
+UI\Theme.lua
 UI\MapMarkers.lua
 UI\MainWindow.lua
 UI\Poster.lua

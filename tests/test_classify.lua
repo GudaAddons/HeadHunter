@@ -34,20 +34,26 @@ return function(T, H)
         end
     end)
 
-    T.case("outnumbered: 3+ attackers on one victim, whatever the levels", function()
+    T.case("group size is judged next to the levels: Duo (2), Gang (3+)", function()
         local C = H.Boot({ client = "era" }).Classify
-        local function Report(assists, killerLevel)
+        local function Report(assists, killerLevel, victimLevel)
             local list = {}
             for i = 1, assists do list[i] = { key = "A" .. i .. "-Stonespine", level = 60 } end
-            return { killer = { key = "K-Stonespine", level = killerLevel or 60 }, victim = { level = 60 }, assists = list }
+            return { killer = { key = "K-Stonespine", level = killerLevel or 60 },
+                victim = { level = victimLevel or 60 }, assists = list }
         end
-        T.eq(C.Report(Report(0)), "fair", "1 vs 1: by level")
-        T.eq(C.Report(Report(1)), "fair", "2 vs 1: still by level")
-        T.eq(C.Report(Report(2)), "outnumbered", "3 vs 1")
-        T.eq(C.Report(Report(4, -1)), "outnumbered", "5 vs 1, even with a skull killer")
-        T.eq(C.Attackers(Report(2)), 3, "attackers")
-        T.ok(C.IsGang("outnumbered") and not C.IsCoward("outnumbered") and C.IsCoward("coward"), "Gang, not Coward")
-        T.eq(C.ReportLabel(Report(2)), "|cffff8000Outnumbered|r (3 vs 1)", "label")
-        T.eq(C.ReportLabel(Report(0)), "|cff40ff40Fair fight|r", "fair label")
+        T.eq(C.Group(1), nil, "alone")
+        T.eq(C.Group(2), "duo", "2")
+        T.eq(C.Group(3), "gang", "3")
+        T.eq(C.Group(6), "gang", "6")
+        T.eq(C.Report(Report(2)), "fair", "the level judgement stays")
+        T.ok(C.IsFair("fair", nil) and not C.IsFair("fair", "duo"), "with help: not fair")
+        T.ok(not C.IsGiant("giant", "gang"), "with help: no giant slaying")
+
+        T.eq(C.ReportLabel(Report(0)), "|cff40ff40Fair fight|r", "1 vs 1")
+        T.eq(C.ReportLabel(Report(1)), "|cffcc66ffDuo|r (2 vs 1)", "same level 2 vs 1: only the group")
+        T.eq(C.ReportLabel(Report(2)), "|cffcc66ffGang|r (3 vs 1)", "same level 3 vs 1")
+        T.eq(C.ReportLabel(Report(1, 60, 20)), "|cffff8000Coward kill|r · |cffcc66ffDuo|r (2 vs 1)", "lowbie + duo")
+        T.eq(C.ReportLabel(Report(3, -1)), "|cffff8000Coward kill|r · |cffcc66ffGang|r (4 vs 1)", "skull + gang")
     end)
 end

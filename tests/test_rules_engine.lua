@@ -198,7 +198,7 @@ return function(T, H)
         T.eq(a.timesWanted, 3, "wanted three times")
     end)
 
-    T.case("outnumbered kills: Gang for every attacker (not Coward), never Gunslinger", function()
+    T.case("3+ on one victim: Gang for every attacker; same level is not fair (no Gunslinger)", function()
         local reports = {}
         for i = 1, 3 do
             -- Gank and two friends, all the victim's level: fair by level, but 3 vs 1
@@ -208,9 +208,24 @@ return function(T, H)
         local e, entries = Compute(reports, 5)
         T.eq(e.badges.gang, true, "Gang")
         T.eq(e.gangKills, 3, "three gang kills")
-        T.eq(e.badges.coward, nil, "not Coward (author, 2026-09-23)")
+        T.eq(e.badges.coward, nil, "same level: not Coward")
         T.eq(e.badges.gunslinger, nil, "not a Gunslinger")
         T.eq(entries["Pal-Stonespine"].badges.gang, true, "the assists too")
+    end)
+
+    T.case("2 on one victim: Duo; a lowbie kill with help is still Coward", function()
+        local reports = {}
+        for i = 1, 3 do
+            -- Gank (60) and a friend kill level 20 victims
+            reports[i] = Report(i, "V" .. i, { killerLevel = 60, victimLevel = 20,
+                assists = { { key = "Pal-Stonespine", level = 60 } } })
+        end
+        local e, entries = Compute(reports, 5)
+        T.eq(e.badges.duo, true, "Duo")
+        T.eq(e.duoKills, 3, "three duo kills")
+        T.eq(e.badges.gang, nil, "not Gang")
+        T.eq(e.badges.coward, true, "Coward: the victims were lowbies")
+        T.eq(entries["Pal-Stonespine"].badges.duo, true, "the partner too")
     end)
 
     T.case("assists get the kill too; GUID-only enemies are tracked by GUID", function()

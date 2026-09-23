@@ -119,10 +119,7 @@ local function Text(parent, font, anchor, relative, x, y, width)
 end
 
 local function CreatePosterFrame()
-    local ok, f = pcall(CreateFrame, "Frame", "HeadHunterPosterFrame", UIParent, "BasicFrameTemplateWithInset")
-    if not ok then
-        f = CreateFrame("Frame", "HeadHunterPosterFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-    end
+    local f = CreateFrame("Frame", "HeadHunterPosterFrame", UIParent)
     f:SetSize(Poster.WIDTH, Poster.HEIGHT)
     f:SetPoint("CENTER", UIParent, "CENTER", 260, 0)
     -- Above the main window (HIGH), which it is opened from and may overlap
@@ -135,10 +132,7 @@ local function CreatePosterFrame()
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
     f:SetClampedToScreen(true)
     tinsert(UISpecialFrames, "HeadHunterPosterFrame")
-
-    local header = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    header:SetPoint("TOP", 0, -5)
-    header:SetText(L.POSTER_HEADER)
+    ns.Theme.StyleFrame(f, L.POSTER_HEADER) -- the GudaBags look, like the main window
 
     local width = Poster.WIDTH - 32
     f.title = Text(f, "GameFontNormalLarge", "TOPLEFT", f, 16, -34, width)
