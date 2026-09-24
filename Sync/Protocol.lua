@@ -278,7 +278,8 @@ end
 -------------------------------------------------
 -- Duel (High Noon, HH-091):
 --   winner ; loser ; time ; mapID ; flags ("r" = retreat) ; faction (A/H) ;
---   winnerClass ; winnerRace ; loserClass ; loserRace   (codes, blank when unknown) ;
+--   winnerClass ; winnerRace ; loserClass ; loserRace   (codes, blank when unknown;
+--   a lower-case race code is a female character) ;
 --   winnerLevel ; loserLevel   (base 36)
 -------------------------------------------------
 
@@ -286,12 +287,25 @@ local function Level(n)
     return n and n >= 1 and Protocol.ToB36(n) or ""
 end
 
+local function RaceSexCode(race, sex)
+    local code = RACE_CODE[race]
+    if code and sex == 3 then return code:lower() end
+    return code or ""
+end
+
+-- race, sex (2 male, 3 female; nil when the code is blank or unknown)
+local function RaceSexName(code)
+    local race = RACE_NAME[code:upper()]
+    if not race then return nil, nil end
+    return race, code == code:lower() and 3 or 2
+end
+
 function Protocol.EncodeDuel(duel)
     return table.concat({
         duel.winner, duel.loser, Protocol.ToB36(duel.t), duel.mapID and Protocol.ToB36(duel.mapID) or "",
         duel.retreat and "r" or "", FACTION_CODE[duel.faction] or "",
-        CLASS_CODE[duel.winnerClass] or "", RACE_CODE[duel.winnerRace] or "",
-        CLASS_CODE[duel.loserClass] or "", RACE_CODE[duel.loserRace] or "",
+        CLASS_CODE[duel.winnerClass] or "", RaceSexCode(duel.winnerRace, duel.winnerSex),
+        CLASS_CODE[duel.loserClass] or "", RaceSexCode(duel.loserRace, duel.loserSex),
         Level(duel.winnerLevel), Level(duel.loserLevel),
     }, ";")
 end
@@ -303,10 +317,12 @@ function Protocol.DecodeDuel(s)
     if #f ~= 12 or Blank(f[1]) or Blank(f[2]) then return nil end
     local t = Protocol.FromB36(f[3])
     if not t then return nil end
+    local winnerRace, winnerSex = RaceSexName(f[8])
+    local loserRace, loserSex = RaceSexName(f[10])
     return {
         winner = f[1], loser = f[2], t = t, mapID = Protocol.FromB36(f[4]), retreat = f[5] == "r" or nil,
-        faction = FACTION_NAME[f[6]], winnerClass = CLASS_NAME[f[7]], winnerRace = RACE_NAME[f[8]],
-        loserClass = CLASS_NAME[f[9]], loserRace = RACE_NAME[f[10]],
+        faction = FACTION_NAME[f[6]], winnerClass = CLASS_NAME[f[7]], winnerRace = winnerRace, winnerSex = winnerSex,
+        loserClass = CLASS_NAME[f[9]], loserRace = loserRace, loserSex = loserSex,
         winnerLevel = Protocol.FromB36(f[11]), loserLevel = Protocol.FromB36(f[12]),
     }
 end

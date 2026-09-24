@@ -293,6 +293,38 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("a duelist seen earlier keeps class, race and sex when no longer shown", function()
+        local ns = H.Boot({ client = "era" })
+        H.units.mouseover = { name = "Brisa", level = 31, class = "PRIEST", race = "Dwarf", sex = 3,
+            faction = "Alliance", isPlayer = true }
+        H.Fire("UPDATE_MOUSEOVER_UNIT")
+        H.units.mouseover = nil
+        H.units.target = { name = "Someone", level = 12, class = "MAGE", race = "Gnome", faction = "Alliance", isPlayer = true }
+        H.Fire("CHAT_MSG_SYSTEM", "Brisa has defeated Vati in a duel")
+        local _, duel = next(ns.db.duels)
+        T.eq(duel and duel.winnerClass, "PRIEST", "class remembered")
+        T.eq(duel.winnerRace, "Dwarf", "race remembered")
+        T.eq(duel.winnerSex, 3, "sex remembered")
+        T.eq(duel.winnerLevel, 31, "level remembered")
+        T.noErrors()
+    end)
+
+    T.case("at the countdown the opponent is remembered even when we target someone else", function()
+        local ns = H.Boot({ client = "era" })
+        H.units.nameplate3 = { name = "Brisa", level = 31, class = "PRIEST", race = "Dwarf", sex = 3,
+            faction = "Alliance", isPlayer = true }
+        H.units.target = { name = "Someone", level = 12, class = "MAGE", race = "Gnome", faction = "Alliance", isPlayer = true }
+        ns.Duels:OnDuelRequested("Brisa")
+        for i = 3, 1, -1 do H.Fire("CHAT_MSG_SYSTEM", "Duel starting: " .. i) end
+        H.units.nameplate3 = nil
+        H.Fire("CHAT_MSG_SYSTEM", "Brisa has defeated Vati in a duel")
+        local _, duel = next(ns.db.duels)
+        T.eq(duel and duel.winnerRace, "Dwarf", "opponent's race, not the target's")
+        T.eq(duel.winnerSex, 3, "opponent's sex")
+        T.eq(ns.HighNoon.Compute({ duel })[duel.winner].sex, 3, "High Noon shows the female icon")
+        T.noErrors()
+    end)
+
     T.case("era: the result line and our own judgement give one duel", function()
         local ns = H.Boot({ client = "era" })
         H.units.target = { name = "Bob", level = 31, class = "MAGE", race = "Gnome", faction = "Alliance",
@@ -359,6 +391,11 @@ return function(T, H)
         local _, duel = next(ns.db.duels)
         T.eq(duel.faction, "Horde", "faction kept")
         T.eq(duel.winnerRace, "Orc", "race kept")
+
+        local female = P.DecodeDuel(P.EncodeDuel({ winner = "A-Firemaw", loser = "B-Firemaw", t = 100,
+            winnerRace = "Troll", winnerSex = 3, loserRace = "Orc", loserSex = 2, winnerLevel = 60, loserLevel = 60 }))
+        T.eq(female.winnerRace .. female.winnerSex, "Troll3", "female: lower-case race code")
+        T.eq(female.loserRace .. female.loserSex, "Orc2", "male")
 
         for i = 1, ns.Duels.SENDER_LIMIT + 5 do
             H.Deliver(P.Pack("H", "U", { Record(i) }), "Spammer-Firemaw")

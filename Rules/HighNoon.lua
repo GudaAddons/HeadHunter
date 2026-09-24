@@ -57,7 +57,7 @@ function HighNoon.Compute(duels)
         return (a.id or "") < (b.id or "")
     end)
     local players = {}
-    local function Player(key, faction, class, race)
+    local function Player(key, faction, class, race, sex)
         local p = players[key]
         if not p then
             p = { key = key, rating = HighNoon.START, wins = 0, losses = 0, duels = 0 }
@@ -66,11 +66,12 @@ function HighNoon.Compute(duels)
         p.faction = faction or p.faction
         p.class = class or p.class
         p.race = race or p.race
+        p.sex = sex or p.sex
         return p
     end
     for _, duel in ipairs(list) do
-        local w = Player(duel.winner, duel.faction, duel.winnerClass, duel.winnerRace)
-        local l = Player(duel.loser, duel.faction, duel.loserClass, duel.loserRace)
+        local w = Player(duel.winner, duel.faction, duel.winnerClass, duel.winnerRace, duel.winnerSex)
+        local l = Player(duel.loser, duel.faction, duel.loserClass, duel.loserRace, duel.loserSex)
         local expected = HighNoon.Expected(w.rating, l.rating)
         local change = HighNoon.K * (1 - expected)
         w.rating, l.rating = w.rating + change, l.rating - change

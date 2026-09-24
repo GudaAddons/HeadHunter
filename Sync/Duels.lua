@@ -110,31 +110,47 @@ local function FindUnit(key)
     return nil
 end
 
--- Levels of players seen lately (target, mouseover, nameplates): the duel message can
--- come when the opponent is no longer targeted. key -> { level, at }
+-- Players seen lately (target, mouseover, nameplates, our opponent at the countdown):
+-- the duel message can come when the duelist is no longer targeted.
+-- key -> { level, class, race, sex, at }
 Duels.SEEN_WINDOW = 600
-local seenLevels = {}
+local seenUnits = {}
 
 function Duels:RememberUnit(unit)
     local U = ns.Utils
     if not U.UnitIsPlayer(unit) then return end
-    local key, level = U.UnitKey(unit), U.UnitLevel(unit)
-    if key and level and level >= 1 then seenLevels[key] = { level = level, at = U.Now() } end
+    local key = U.UnitKey(unit)
+    if not key then return end
+    local level = U.UnitLevel(unit)
+    local old = seenUnits[key] or {}
+    seenUnits[key] = {
+        level = level and level >= 1 and level or old.level,
+        class = U.UnitClass(unit) or old.class,
+        race = U.UnitRace(unit) or old.race,
+        sex = U.UnitSex(unit) or old.sex,
+        at = U.Now(),
+    }
 end
 
--- A duelist's level: from a visible unit, else seen lately, else the enemy cache;
--- nil when unknown (a skull, -1, is unknown too: only "10+ above us")
-local function LevelOf(key, unit)
-    local level = unit and ns.Utils.UnitLevel(unit)
-    if not level or level < 1 then
-        local seen = seenLevels[key]
-        level = seen and ns.Utils.Now() - seen.at < Duels.SEEN_WINDOW and seen.level or nil
-    end
-    if not level then
-        local enemy = ns.EnemyCache:ByKey(key)
-        level = enemy and tonumber(enemy.level)
-    end
-    return level and level >= 1 and level or nil
+local function Seen(key)
+    local seen = seenUnits[key]
+    return seen and ns.Utils.Now() - seen.at < Duels.SEEN_WINDOW and seen or {}
+end
+
+-- A duelist's level, class, race and sex: from a visible unit, else seen lately, else
+-- the enemy cache. The level is nil when unknown (a skull, -1, is unknown too: only
+-- "10+ above us").
+local function Profile(key, unit)
+    local U = ns.Utils
+    local seen, enemy = Seen(key), ns.EnemyCache:ByKey(key) or {}
+    local level = unit and U.UnitLevel(unit)
+    if not level or level < 1 then level = seen.level or tonumber(enemy.level) end
+    return {
+        level = level and level >= 1 and level or nil,
+        class = unit and U.UnitClass(unit) or seen.class or enemy.class,
+        race = unit and U.UnitRace(unit) or seen.race or enemy.race,
+        sex = unit and U.UnitSex(unit) or seen.sex or enemy.sex,
+    }
 end
 
 -- Both levels known, both MIN_LEVEL or higher, and at most LEVEL_RANGE apart
@@ -255,9 +271,16 @@ local function OpponentFromTarget()
     return key
 end
 
+-- Remember our opponent from any unit that shows them (we may target someone else)
+local function RememberOpponent()
+    local unit = own and own.opponent and FindUnit(own.opponent)
+    if unit then Duels:RememberUnit(unit) end
+end
+
 -- Someone challenged us
 function Duels:OnDuelRequested(name)
     own = { opponent = ns.Utils.PlayerKey(name), low = {}, at = ns.Utils.Now() }
+    RememberOpponent()
     ns:Debug("Duel requested by", tostring(own.opponent))
 end
 
@@ -273,6 +296,7 @@ function Duels:OnChallenge(who)
         opponent = U.PlayerKey(who)
     end
     own = { opponent = opponent or OpponentFromTarget(), low = {}, at = U.Now() }
+    RememberOpponent()
     ns:Debug("Duel challenge sent to", tostring(own.opponent))
 end
 
@@ -287,7 +311,7 @@ function Duels:OnOwnDuelStart()
     DropStale()
     own = own or { low = {} }
     own.opponent = own.opponent or OpponentFromTarget()
-    Duels:RememberUnit("target") -- their level, in case the target changes before the end
+    RememberOpponent() -- level, class, race and sex, in case we lose sight of them before the end
     own.countdownAt = ns.Utils.Now()
     ns:Debug("Duel countdown against", tostring(own.opponent))
 end
@@ -296,7 +320,7 @@ function Duels:OnCombatStart()
     DropStale()
     if not own or own.countdownAt then return end
     own.opponent = own.opponent or OpponentFromTarget()
-    Duels:RememberUnit("target")
+    RememberOpponent()
     -- No countdown seen: the fight is on now, so it counts from MIN_FIGHT back
     own.countdownAt = ns.Utils.Now() - Duels.MIN_FIGHT
     ns:Debug("Duel fight started (combat) against", tostring(own.opponent))
@@ -362,13 +386,13 @@ function Duels:Record(winner, loser, retreat)
     local U = ns.Utils
     if not (winner and loser) then return nil end
     local winnerUnit, loserUnit = FindUnit(winner), FindUnit(loser)
+    local w, l = Profile(winner, winnerUnit), Profile(loser, loserUnit)
     local duel = {
         winner = winner, loser = loser, t = U.ServerTime(), retreat = retreat or nil,
         mapID = ns.Zones.ZoneOf(U.PlayerMapID()),
         faction = Duels.FactionOf(winner, loser, winnerUnit, loserUnit),
-        winnerClass = winnerUnit and U.UnitClass(winnerUnit), winnerRace = winnerUnit and U.UnitRace(winnerUnit),
-        loserClass = loserUnit and U.UnitClass(loserUnit), loserRace = loserUnit and U.UnitRace(loserUnit),
-        winnerLevel = LevelOf(winner, winnerUnit), loserLevel = LevelOf(loser, loserUnit),
+        winnerClass = w.class, winnerRace = w.race, winnerSex = w.sex, winnerLevel = w.level,
+        loserClass = l.class, loserRace = l.race, loserSex = l.sex, loserLevel = l.level,
     }
     if not Duels.Fair(duel) then
         ns:Debug("Duel not counted (levels", tostring(duel.winnerLevel), "vs", tostring(duel.loserLevel) .. "):",

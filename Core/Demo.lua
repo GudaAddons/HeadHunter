@@ -228,8 +228,8 @@ local function AddDuels(faction, me, now)
             t = now - (Demo.DUELS_PER_FACTION - i) * 2 * HOUR - math.random(0, 1800) - 30 * MINUTE,
             retreat = math.random() < 0.1 or nil,
             mapID = Spot(), faction = faction,
-            winnerClass = winner.class, winnerRace = winner.race, winnerLevel = winner.level,
-            loserClass = loser.class, loserRace = loser.race, loserLevel = loser.level,
+            winnerClass = winner.class, winnerRace = winner.race, winnerSex = winner.sex, winnerLevel = winner.level,
+            loserClass = loser.class, loserRace = loser.race, loserSex = loser.sex, loserLevel = loser.level,
             demo = true,
         }
         if ns.Duels:Add(duel, "sim") then added = added + 1 end
