@@ -46,6 +46,7 @@ return function(T, H)
         H.Slash("catch Big-Stonespine")
         T.eq(ns.Marks:Total(), 8, "Outlaw: +5")
         T.eq(ns.db.marks.total, 8, "saved")
+        T.eq(ns.db.marks.events[#ns.db.marks.events].hunter, ns.Utils.UnitKey("player"), "whose event it is")
     end)
 
     T.case("rank up is announced", function()

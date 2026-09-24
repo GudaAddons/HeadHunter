@@ -92,8 +92,9 @@ function Marks:Add(delta, reason, outlaw, rank)
     if not store then return nil end
     local before = self:RankIndex()
     store.total = math.max(0, (store.total or 0) + delta)
+    -- hunter: whose event it is, as marks are shared by the account (the sync app splits them)
     local event = { t = ns.Utils.ServerTime(), delta = delta, reason = reason, outlaw = outlaw, rank = rank,
-        total = store.total }
+        total = store.total, hunter = ns.Utils.UnitKey("player") }
     store.events[#store.events + 1] = event
     while #store.events > self.MAX_EVENTS do table.remove(store.events, 1) end
 
