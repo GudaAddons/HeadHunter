@@ -87,6 +87,41 @@ return function(T, H)
         T.eq(row.kind, "|cffcc66ffGang|r (3 vs 1)", "kind")
     end)
 
+    T.case("the window warns on Forever that saved data resets on reload, on every tab", function()
+        H.Boot({ client = "forever" })
+        H.Slash("")
+        local note = _G.HeadHunterMainFrame.forever
+        T.ok(note:IsShown(), "shown on Forever")
+        T.ok(note.text.shownText:find("saved data resets on reload", 1, true) ~= nil, "text")
+        H.Boot({ client = "era" })
+        H.Slash("")
+        T.ok(not _G.HeadHunterMainFrame.forever:IsShown(), "not on Era")
+        T.noErrors()
+    end)
+
+    T.case("the Tournaments tab: hidden while under development, /hh debug tours on|off", function()
+        local ns = H.Boot({ client = "forever" })
+        local M = ns.MainWindow
+        H.Slash("")
+        local tab = _G.HeadHunterMainFrame.toursTab
+        T.eq(tab.id, "tours", "the tab")
+        T.ok(not M.ToursEnabled(), "off by default")
+        M:SelectTab("tours")
+        T.eq(select(1, M:Current()), "wanted", "a hidden tab cannot be selected")
+
+        H.Slash("debug tours on")
+        T.ok(H.Printed("Tournaments tab shown"), "told")
+        T.ok(tab:IsShown(), "shown")
+        M:SelectTab("tours")
+        T.eq(select(1, M:Current()), "tours", "selectable")
+
+        H.Slash("debug tours off")
+        T.ok(not tab:IsShown(), "hidden")
+        T.eq(select(1, M:Current()), "wanted", "back to WANTED")
+        T.eq(ns.db.settings.devTournaments, nil, "setting cleared")
+        T.noErrors()
+    end)
+
     T.case("the window: /hh opens it, tabs, sorting, live refresh, row click", function()
         local ns = H.Boot({ client = "era" })
         local M = ns.MainWindow

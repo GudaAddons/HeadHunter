@@ -102,5 +102,6 @@ All settings are also on the options page: **Esc > Options > AddOns > HeadHunter
 - **Classic Era:** reports go to your guild and group automatically. To reach every HeadHunter on the realm, click **Report** after a death (or type `/hh report`). The same goes for **Announce** after you bring down an outlaw (`/hh justice`). The game only allows these realm-wide messages after a click.
 - **Classic Era** has no map waypoints, so HeadHunter tells you the coordinates in chat instead.
 - **WoW: Forever** shares everything automatically.
+- **WoW: Forever is in testing mode.** The Forever client does not load saved data back (a known client issue, not a HeadHunter bug), so your lists and settings reset on every reload or login. Catch-up handles it: when you log in, other HeadHunters send back what you missed, so your lists refill from the realm. HeadHunter tells you this in chat when you log in on Forever.
 - HeadHunter is off in dungeons, raids and battlegrounds. Duels never count as PvP kills.
 - The more players use HeadHunter, the better it works. Tell your guild!

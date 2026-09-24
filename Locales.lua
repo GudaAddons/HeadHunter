@@ -7,11 +7,13 @@ ns.L = L
 
 -- enUS (default). Other locales are added in HH-064.
 L.LOADED = "v%s loaded. |cffffff00/hh help|r for commands."
-L.UNSUPPORTED_CLIENT = "This client (interface %s) is not supported. HeadHunter runs on Classic Era and WoW Forever only."
+L.FOREVER_SAVED_VARS = "|cffff8800WoW Forever is in testing mode:|r this client does not load saved data back (a known client issue), so your lists and settings reset on every reload. Catch-up refills them from other HeadHunters when you log in."
+L.FOREVER_SAVED_VARS_SHORT = "Forever testing mode: saved data resets on reload (client issue)"
+L.UNSUPPORTED_CLIENT ="This client (interface %s) is not supported. HeadHunter runs on Classic Era and WoW Forever only."
 
 L.HELP_HEADER = "|cffc41e3a========== HeadHunter ==========|r"
 L.HELP_STATUS = "|cffffff00/hh status|r: Client, flags and database summary"
-L.HELP_DEBUG = "|cffffff00/hh debug [on|off]|r: Toggle debug mode (echo debug lines to chat)"
+L.HELP_DEBUG = "|cffffff00/hh debug [on|off]|r: Toggle debug mode (echo debug lines to chat). |cffffff00/hh debug tours on|off|r: Tournaments tab (under development)"
 L.HELP_LOG = "|cffffff00/hh log [clear]|r: Show the debug log window"
 L.HELP_PROBE = "|cffffff00/hh probe [watch]|r: Report which WoW APIs this client offers; 'watch' logs live combat/death signals"
 L.HELP_SIM = "|cffffff00/hh sim death|sighting|send ...|r: Inject simulated data; 'send' shares it with other characters (debug)"
@@ -305,6 +307,8 @@ L.DEBUG_LEVELS_OFF = "Test mode: level window OFF (every level gets WANTED popup
 L.DEBUG_DUELS = "High Noon: listed after %d duel(s). /hh debug duels off to restore 5."
 L.DEBUG_DUELS_USAGE = "Usage: /hh debug duels <1-5|off>"
 L.DEBUG_LEVELS_ON ="Level window on: WANTED popups only from the outlaw's level -5 to +9."
+L.DEBUG_TOURS_ON = "Tournaments tab shown (under development). /hh debug tours off to hide it."
+L.DEBUG_TOURS_OFF = "Tournaments tab hidden (under development). /hh debug tours on to show it."
 
 -- High Noon (HH-090..093)
 L.DUEL_RANK_GREENHORN = "Greenhorn"

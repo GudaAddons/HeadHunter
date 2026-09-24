@@ -199,7 +199,7 @@ return function(T, H)
         T.eq(#Sent("^1AQ:h", "CHANNEL"), 1, "hello on the channel")
         Run(40)
         T.eq(ns.CatchUp:State(), "done", "gave up quietly")
-        T.eq(#H.printed, 1, "silent (only the load line)")
+        T.eq(#H.printed, 2, "silent (only the load line and the Forever saved data warning)")
     end)
 
     -------------------------------------------------

@@ -81,6 +81,12 @@ function DB:Initialize()
     return db
 end
 
+-- Forever does not load SavedVariables back (known client bug): true while that holds,
+-- false by itself once the client restores them
+function DB:ResetsOnReload()
+    return not ns.Features.SavedVarsReliable and not self.restoredFromDisk
+end
+
 function DB:Migrate(db)
     local version = tonumber(db.schemaVersion) or 0
     if version > self.SCHEMA_VERSION then

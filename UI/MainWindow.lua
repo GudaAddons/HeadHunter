@@ -375,6 +375,11 @@ local function CreateMainFrame()
     local tabs = {}
     for i, tab in ipairs(MainWindow.TABS) do tabs[i] = { id = tab, label = L["TAB_" .. tab:upper()] } end
     f.tabs = ns.Theme.CreateTabs(f, tabs, function(tab) MainWindow:SelectTab(tab) end)
+    -- Under development: the Tournaments tab (the last one) only with /hh debug tours on
+    for _, button in ipairs(f.tabs.buttons) do
+        if button.id == "tours" then f.toursTab = button end
+    end
+    if not MainWindow.ToursEnabled() then f.toursTab:Hide() end
 
     f.options = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     f.options:SetSize(80, 20)
@@ -408,6 +413,24 @@ local function CreateMainFrame()
 
     f.count = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     f.count:SetPoint("BOTTOMRIGHT", -16, 10)
+
+    -- Forever: saved data resets on reload (known client issue), on every tab; hover for more
+    f.forever = CreateFrame("Frame", nil, f)
+    f.forever:SetSize(360, 14)
+    f.forever:SetPoint("BOTTOMLEFT", 16, 8)
+    f.forever.text = f.forever:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.forever.text:SetPoint("LEFT")
+    f.forever.text:SetTextColor(1, 0.53, 0)
+    f.forever.text:SetText(L.FOREVER_SAVED_VARS_SHORT)
+    f.forever:EnableMouse(true)
+    f.forever:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L.FOREVER_SAVED_VARS, 1, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    f.forever:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    if ns.Database:ResetsOnReload() then f.forever:Show() else f.forever:Hide() end
 
     -- Column headers (buttons: clicking a sortable one sorts)
     f.headers = {}
@@ -581,7 +604,23 @@ function MainWindow:SelectedTour()
     return current.selected
 end
 
+-- The Tournaments tab is under development: hidden unless /hh debug tours on
+function MainWindow.ToursEnabled()
+    return ns.db and ns.db.settings.devTournaments and true or false
+end
+
+-- Shows or hides the Tournaments tab after /hh debug tours on|off
+function MainWindow:ApplyToursTab()
+    local on = self.ToursEnabled()
+    if not on and current.tab == "tours" then current.tab = "wanted" end
+    if frame and frame.toursTab then
+        if on then frame.toursTab:Show() else frame.toursTab:Hide() end
+    end
+    self:Refresh()
+end
+
 function MainWindow:SelectTab(tab)
+    if tab == "tours" and not self.ToursEnabled() then tab = "wanted" end
     current.tab = tab
     if frame and frame.scroll.SetVerticalScroll then frame.scroll:SetVerticalScroll(0) end
     self:Refresh()

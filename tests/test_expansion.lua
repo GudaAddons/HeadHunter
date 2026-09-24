@@ -35,6 +35,17 @@ return function(T, H)
         T.eq(ns.Features.RealmlessNames, true, "RealmlessNames")
     end)
 
+    T.case("Forever login warns that saved data does not come back; Era does not", function()
+        H.Boot({ client = "forever" })
+        T.ok(H.Printed("WoW Forever is in testing mode"), "warned on Forever")
+        H.Boot({ client = "era" })
+        T.ok(not H.Printed("testing mode"), "no warning on Era")
+        -- Once the client loads saved data back, the warning goes quiet by itself
+        H.Boot({ client = "forever", savedDB = {} })
+        T.ok(not H.Printed("testing mode"), "quiet when restored from disk")
+        T.noErrors()
+    end)
+
     T.case("WoW Forever without any project ID", function()
         local ns = Detect({ iface = 16001, project = nil })
         T.eq(ns.Expansion.IsForever, true, "IsForever")
