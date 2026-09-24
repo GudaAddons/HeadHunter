@@ -159,6 +159,14 @@ local function CleanName(name)
     return name
 end
 
+-- GetCurrentRegion(): 1 US (Oceanic realms too), 2 KR, 3 EU, 4 TW, 5 CN
+local REGIONS = { [1] = "us", [2] = "kr", [3] = "eu", [4] = "tw", [5] = "cn" }
+
+-- The account's region as the website names it, or nil when the client does not say
+function Utils.Region()
+    return REGIONS[tonumber(Accessible(SafeCall(_G.GetCurrentRegion)))]
+end
+
 function Utils.PlayerRealm()
     local realm = AccessibleString(SafeCall(_G.GetNormalizedRealmName))
     if not realm then

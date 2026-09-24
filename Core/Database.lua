@@ -69,6 +69,8 @@ function DB:Initialize()
     if db.meta.createdAt == 0 then db.meta.createdAt = now end
     db.meta.lastLoadAt = now
     db.meta.loadCount = db.meta.loadCount + 1
+    -- For the desktop sync app: which region this data belongs to
+    db.meta.region = Utils.Region() or db.meta.region
 
     -- Lets /hh status and the probe report whether this client loaded SavedVariables
     self.restoredFromDisk = restored

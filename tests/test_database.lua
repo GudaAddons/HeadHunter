@@ -17,6 +17,22 @@ return function(T, H)
         end)
     end
 
+    T.case("saves the account's region for the sync app", function()
+        local ns = H.Boot({ client = "era" })
+        for code, name in pairs({ [1] = "us", [2] = "kr", [3] = "eu", [4] = "tw", [5] = "cn" }) do
+            _G.GetCurrentRegion = function() return code end
+            T.eq(ns.Utils.Region(), name, "region " .. code)
+        end
+        _G.GetCurrentRegion = function() return 3 end
+        ns.Database:Initialize()
+        T.eq(ns.db.meta.region, "eu", "saved in meta")
+        _G.GetCurrentRegion = nil
+        T.eq(ns.Utils.Region(), nil, "unknown without the API")
+        ns.Database:Initialize()
+        T.eq(ns.db.meta.region, "eu", "the last known region stays")
+        T.noErrors()
+    end)
+
     T.case("restored partial database keeps values and gains defaults", function()
         local saved = { settings = { alerts = { range = "continent" } }, meta = { loadCount = 4 } }
         local ns = H.Boot({ client = "era", savedDB = saved })
