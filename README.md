@@ -53,7 +53,7 @@ Type `/hh` or click the minimap button:
 - **Hall of Shame**: every known coward.
 - **Duels**: the best duelists, with a switch between the Alliance and Horde lists.
 - **My deaths**: who killed you, when and where.
-- **My marks**: your hunter points and rank.
+- **My bounty**: the bounty you collected and your hunter rank.
 
 Hover a name for details, or click it to open the outlaw's **poster**: race and class, rank, badges, recent kills, posse and a **Join the posse** button.
 
@@ -62,8 +62,8 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 
 ### Posse and hunter ranks
 - Join a posse to hunt an outlaw together. Posse members see each other.
-- Earn **marks**: +1 for joining a posse, and +3 to +20 when you or your group bring down a WANTED outlaw (more for higher ranks). Declining costs 1 mark.
-- No marks for hunting players 10 or more levels below you. Hunting down is ganking too.
+- Collect **bounty**: +1 for joining a posse, and +3 to +20 when you or your group bring down a WANTED outlaw (the higher their rank, the bigger the bounty). Declining costs 1.
+- No bounty for hunting players 10 or more levels below you. Hunting down is ganking too.
 - Hunter ranks: **Tracker**, **Bounty Hunter**, **Manhunter**, **Headhunter** and **Reaper**.
 
 ### Catch-up
@@ -87,7 +87,7 @@ When you log in, HeadHunter asks other HeadHunters what you missed while you wer
 | `/hh outlaw <name>` | Details about one enemy |
 | `/hh deaths` | Your recent PvP deaths |
 | `/hh posse` | Who is hunting which outlaw |
-| `/hh marks` | Your hunter rank and marks |
+| `/hh bounty` | Your hunter rank and the bounty you collected |
 | `/hh hotspots` | PvP activity per zone |
 | `/hh duels` | Duels: the best duelists and your rank |
 | `/hh map on/off` | PvP areas and skulls on the world map |

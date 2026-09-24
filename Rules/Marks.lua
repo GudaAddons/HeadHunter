@@ -1,4 +1,6 @@
 -- HH-050: HeadHunter Marks and hunter ranks (docs/addon/features.md section 6).
+-- Players see them as "bounty" (author, 2026-09-24): the My bounty tab, /hh bounty
+-- (/hh marks still works); the code and the saved data keep the name marks.
 --
 --   +1   joining a posse (once per outlaw per posse lifetime, 30 min)
 --   +N   a catch we saw: we or our group killed a WANTED outlaw (Sync/Justice.lua);
@@ -187,7 +189,8 @@ ns.Events:Register("HH_INITIALIZED", function()
     Events:Register("HH_CATCH_WITNESSED", function(_, entry) Marks:OnCatch(entry) end, OWNER)
 end, OWNER)
 
-ns.SlashCommands:Register("marks", function()
+-- /hh bounty (players see "bounty"; /hh marks stays as an unlisted alias)
+local function ShowBounty()
     ns:Print(string.format(L.MARKS_STATUS, Marks.RankNameByIndex(Marks:RankIndex()), Marks:Total()))
     local nextName, needed = Marks:Next()
     if nextName then ns:Print(string.format(L.MARKS_NEXT, needed, nextName)) end
@@ -195,4 +198,7 @@ ns.SlashCommands:Register("marks", function()
         if i > 5 then break end
         print("  " .. date("%m-%d %H:%M", event.t) .. "  " .. Marks.Describe(event))
     end
-end, L.HELP_MARKS)
+end
+
+ns.SlashCommands:Register("bounty", ShowBounty, L.HELP_MARKS)
+ns.SlashCommands:Register("marks", ShowBounty)
