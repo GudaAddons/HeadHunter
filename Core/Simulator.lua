@@ -2,6 +2,7 @@
 --
 --   /hh sim death "<name>" <level|skull> <CLASS> <RACE> [sex]
 --   /hh sim sighting "<name>" <level|skull> <CLASS> <RACE> [sex]
+--   /hh sim demo [clear]   every tab filled with a made-up story (Core/Demo.lua)
 --
 -- Forever names contain a space, so quote them: /hh sim death "Grim Reaper" skull ROGUE Human
 -- Simulated data goes through the same internal events as real data:
@@ -145,9 +146,14 @@ ns.SlashCommands:Register("sim", function(args)
         Simulator:Send(args)
         return
     end
+    if kind == "demo" then
+        if args[1] and args[1]:lower() == "clear" then ns.Demo:Clear() else ns.Demo:Run() end
+        return
+    end
     if kind ~= "death" and kind ~= "sighting" then
         print(L.SIM_USAGE_DEATH)
         print(L.SIM_USAGE_SIGHTING)
+        print(L.SIM_USAGE_DEMO)
         return
     end
     local enemy, err = Simulator:ParseEnemy(args)

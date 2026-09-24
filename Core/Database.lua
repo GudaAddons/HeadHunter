@@ -48,6 +48,7 @@ local DEFAULTS = {
     duels = {},   -- High Noon: duel id -> duel someone saw (HH-091)
     tournaments = {}, -- Gurubashi Tournament: id -> tournament (HH-101)
     marks = { total = 0, events = {} }, -- HH-050
+    zones = {}, -- zone mapID -> { name, continent, locale }: names for the website (Alerts/Zones.lua)
 }
 
 -- MIGRATIONS[n] upgrades a database from schema n-1 to n

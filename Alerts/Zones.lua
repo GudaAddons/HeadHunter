@@ -140,3 +140,30 @@ function Zones.InRange(eventMapID, playerMapID, range)
     if distance == "continent" then return range == "continent", distance end
     return true, distance
 end
+
+-------------------------------------------------
+-- Zone names for the website: the game knows every zone's name, the saved data does
+-- not. Each zone seen in a report, duel or catch is kept in ns.db.zones, so the
+-- desktop sync app can send new zones (new Forever zones too). Names come in the
+-- player's language; the website keeps its own English names first.
+-------------------------------------------------
+
+function Zones:Remember(mapID)
+    local store = ns.db and ns.db.zones
+    local zone = Zones.ZoneOf(mapID)
+    if not store or not zone or store[zone] then return nil end
+    local name = ns.Utils.MapName(zone)
+    if not name then return nil end
+    store[zone] = {
+        name = name,
+        continent = Zones.ContinentOf(zone),
+        locale = ns.Utils.SafeCall(_G.GetLocale),
+    }
+    return store[zone]
+end
+
+ns.Events:Register("HH_INITIALIZED", function()
+    for _, event in ipairs({ "HH_REPORT_ADDED", "HH_DUEL_ADDED", "HH_JUSTICE_ADDED" }) do
+        ns.Events:Register(event, function(_, record) Zones:Remember(record and record.mapID) end, "Zones")
+    end
+end, "Zones")

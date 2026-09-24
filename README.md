@@ -8,7 +8,7 @@
 
 For **Classic Era** and **WoW: Forever**.
 
-![The HeadHunter window with an outlaw's poster](Assets/screenshot-window.jpg)
+![The WANTED list: outlaws of both factions with their rank, kills, last kill and badges](Assets/1.png)
 
 ## How it works
 
@@ -35,6 +35,8 @@ Badges show *how* someone kills, not only how much:
 
 Cowards are listed in the **Hall of Shame**.
 
+![The Hall of Shame: every known coward, WANTED or not](Assets/5.png)
+
 ### Alerts
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
 - **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**. Only players close to the outlaw's level get this popup, the others get a chat line.
@@ -57,6 +59,8 @@ Type `/hh` or click the minimap button:
 
 Hover a name for details, or click it to open the outlaw's **poster**: race and class, rank, badges, recent kills, posse and a **Join the posse** button.
 
+![My deaths, with the details of a killer on hover](Assets/4.png)
+
 ### Enemy tooltips
 Mouse over an enemy player to see if they are WANTED, their rank, kills and badges. Any player with duels also shows their duel rank.
 
@@ -65,6 +69,8 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 - Collect **bounty**: +1 for joining a posse, and +3 to +20 when you or your group bring down a WANTED outlaw (the higher their rank, the bigger the bounty). Declining costs 1.
 - No bounty for hunting players 10 or more levels below you. Hunting down is ganking too.
 - Hunter ranks: **Tracker**, **Bounty Hunter**, **Manhunter**, **Headhunter** and **Reaper**.
+
+![My bounty: what earned or cost bounty, and your hunter rank](Assets/3.jpg)
 
 ### Catch-up
 When you log in, HeadHunter asks other HeadHunters what you missed while you were offline, so your WANTED list is up to date.
@@ -75,6 +81,8 @@ When you log in, HeadHunter asks other HeadHunters what you missed while you wer
 - Duels are shared like death reports, and never make anyone WANTED.
 - A rating for every duelist (starts at 1000). You are listed from your first duel.
 - Ranks: **Greenhorn** (under 5 duels), **Quickdraw**, **Sharpshooter**, **Deadeye** and **Legend**. The best duelist of each faction with 5 or more duels is the **Top Gun**.
+
+![Duels: the Horde list with its Top Gun, ratings and records](Assets/2.jpg)
 
 ## Commands
 

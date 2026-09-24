@@ -2,7 +2,7 @@
 ## Title: HeadHunter - Wanted: Dead or Alive
 ## Notes: Track gankers, post WANTED bounties and hunt them down with your faction.
 ## Author: Vati
-## Version: 0.1.3
+## Version: 0.1.4
 ## SavedVariables: HeadHunter_DB
 ## IconTexture: Interface\Icons\INV_Misc_Head_Human_01
 ## X-Category: PvP
@@ -21,6 +21,7 @@ Core\Guards.lua
 Core\SlashCommands.lua
 Core\Probe.lua
 Core\Simulator.lua
+Core\Demo.lua
 
 # Detection (M1)
 Detection\EnemyCache.lua
