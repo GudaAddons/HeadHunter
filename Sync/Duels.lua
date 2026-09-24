@@ -6,8 +6,9 @@
 -- records the duel, even when the duelists do not use the addon. A retreat counts as a
 -- loss. Duels never touch WANTED.
 -- WoW Forever sends no result line: there the duelists' own addons judge their duel
--- (DUEL_REQUESTED, countdown, UNIT_HEALTH, DUEL_OUTOFBOUNDS, DUEL_FINISHED; see "Our
--- own duels" below). Era does both; the pair dedupe keeps one.
+-- (DUEL_REQUESTED or our StartDuel, countdown or entering combat, UNIT_HEALTH,
+-- DUEL_OUTOFBOUNDS, DUEL_FINISHED; see "Our own duels" below). Era does both; the pair
+-- dedupe keeps one.
 -- Only fair duels count: both levels known, both at least MIN_LEVEL (10), and at most
 -- LEVEL_RANGE apart (author, 2026-09-23: beating lowbies must not climb the list).
 -- Checked when a duel is seen, when a record arrives and when stored duels are pruned.
@@ -35,6 +36,7 @@ Duels.SENDER_WINDOW = 600
 Duels.LEVEL_RANGE = 5       -- the most levels apart two duelists can be
 Duels.MIN_LEVEL = 10        -- High Noon starts at level 10 (author, 2026-09-23)
 Duels.MIN_FIGHT = 2         -- seconds after the last countdown line: shorter is a cancel
+Duels.PENDING = 90          -- a challenge not fought within this many seconds is dropped
 
 -- enUS, used when the client's strings are missing
 Duels.KNOCKOUT_FORMAT = "%1$s has defeated %2$s in a duel"
@@ -174,18 +176,70 @@ function Duels:OnSystemMessage(message)
         end
         return nil
     end
-    local U = ns.Utils
-    return self:Record(U.PlayerKey(winnerName), U.PlayerKey(loserName), retreat)
+    return self:OnResultLine(winnerName, loserName, retreat)
 end
 
 -------------------------------------------------
--- Our own duels (WoW Forever sends no result line, 2026-09-23): the opponent is the
--- challenger (DUEL_REQUESTED) or our target when the countdown starts. At
--- DUEL_FINISHED the one at 1 HP lost; leaving the duel area (DUEL_OUTOFBOUNDS) is a
--- retreat. On Era the result line records the same duel; the pair dedupe keeps one.
+-- Our own duels: the opponent is the challenger (DUEL_REQUESTED), the one we challenged
+-- (StartDuel) or our target when the fight starts. Forever's result line has given
+-- names only ("Rot has defeated Dampa in a duel", 2026-09-24) and comes after
+-- DUEL_FINISHED, so at DUEL_FINISHED we wait RESULT_WAIT seconds for it; without one,
+-- the one at 1 HP lost and leaving the duel area (DUEL_OUTOFBOUNDS) is a retreat.
+-- On Era the result line has full names; the pair dedupe keeps one duel.
 -------------------------------------------------
 
+Duels.RESULT_WAIT = 2
+
 local own = nil            -- { opponent = key, fled = bool, low = { [key] = true } }
+local finished = nil       -- our duel waiting for its result line: { me, opponent }
+
+local function GivenName(key)
+    return type(key) == "string" and (key:match("^(%S+) ") or key):lower() or nil
+end
+
+-- A name from a result line as a key. Forever's line has given names only: matched
+-- against our own duel, else against a single nearby player with that given name.
+function Duels:ResolveName(name)
+    local U = ns.Utils
+    local key = U.PlayerKey(name)
+    if key or not ns.Features.RealmlessNames or type(name) ~= "string" then return key end
+    local given = name:lower()
+    local pair = finished or own
+    for _, candidate in ipairs({ U.UnitKey("player"), pair and pair.opponent }) do
+        if GivenName(candidate) == given then return candidate end
+    end
+    local found
+    local function Check(token)
+        if not U.UnitIsPlayer(token) then return true end
+        local k = U.UnitKey(token)
+        if k and GivenName(k) == given then
+            if found and not U.SameCharacter(found, k) then return false end -- two of them: unsure
+            found = k
+        end
+        return true
+    end
+    for _, token in ipairs(TOKENS) do if not Check(token) then return nil end end
+    for i = 1, 40 do if not Check("nameplate" .. i) then return nil end end
+    return found
+end
+
+local function IsPair(duel, a, b)
+    local U = ns.Utils
+    return duel and duel.opponent and ((U.SameCharacter(a, duel.opponent) and U.SameCharacter(b, U.UnitKey("player")))
+        or (U.SameCharacter(b, duel.opponent) and U.SameCharacter(a, U.UnitKey("player"))))
+end
+
+function Duels:OnResultLine(winnerName, loserName, retreat)
+    local winner, loser = self:ResolveName(winnerName), self:ResolveName(loserName)
+    if not (winner and loser) then
+        ns:Debug("Duel result, players not known:", winnerName, ">", loserName)
+        return nil
+    end
+    -- Our own duel: the line decides, not our health judgement
+    if IsPair(finished, winner, loser) then finished = nil end
+    if IsPair(own, winner, loser) then own.decided = true end
+    return self:Record(winner, loser, retreat)
+end
 
 local function Health(unit)
     local U = ns.Utils
@@ -201,12 +255,36 @@ local function OpponentFromTarget()
     return key
 end
 
+-- Someone challenged us
 function Duels:OnDuelRequested(name)
-    own = { opponent = ns.Utils.PlayerKey(name), low = {} }
+    own = { opponent = ns.Utils.PlayerKey(name), low = {}, at = ns.Utils.Now() }
+    ns:Debug("Duel requested by", tostring(own.opponent))
 end
 
--- Every countdown line; the fight starts about a second after the last one
+-- We challenged someone (StartDuel from the unit menu or /duel): the opponent is the
+-- unit or name passed, else our target
+function Duels:OnChallenge(who)
+    local U = ns.Utils
+    local opponent
+    if type(who) == "string" and U.UnitIsPlayer(who) then
+        opponent = U.UnitKey(who)
+        Duels:RememberUnit(who)
+    elseif type(who) == "string" and who ~= "" then
+        opponent = U.PlayerKey(who)
+    end
+    own = { opponent = opponent or OpponentFromTarget(), low = {}, at = U.Now() }
+    ns:Debug("Duel challenge sent to", tostring(own.opponent))
+end
+
+-- The fight begins: a countdown line, or (when the client sends none) entering combat
+-- while a duel is pending. The fight starts about a second after the last countdown line.
+-- A challenge nobody answered (declined without DUEL_FINISHED, or timed out) goes stale
+local function DropStale()
+    if own and not own.countdownAt and own.at and ns.Utils.Now() - own.at > Duels.PENDING then own = nil end
+end
+
 function Duels:OnOwnDuelStart()
+    DropStale()
     own = own or { low = {} }
     own.opponent = own.opponent or OpponentFromTarget()
     Duels:RememberUnit("target") -- their level, in case the target changes before the end
@@ -214,13 +292,27 @@ function Duels:OnOwnDuelStart()
     ns:Debug("Duel countdown against", tostring(own.opponent))
 end
 
--- UNIT_HEALTH during our duel: remember who dropped to 1 HP (health comes back later)
+function Duels:OnCombatStart()
+    DropStale()
+    if not own or own.countdownAt then return end
+    own.opponent = own.opponent or OpponentFromTarget()
+    Duels:RememberUnit("target")
+    -- No countdown seen: the fight is on now, so it counts from MIN_FIGHT back
+    own.countdownAt = ns.Utils.Now() - Duels.MIN_FIGHT
+    ns:Debug("Duel fight started (combat) against", tostring(own.opponent))
+end
+
+-- UNIT_HEALTH during our duel: remember who dropped to 1 HP (health comes back later),
+-- and the opponent's level whenever they show up as a unit
 function Duels:OnHealth(unit)
     if not own then return end
     local U = ns.Utils
     if unit ~= "player" and unit ~= "target" and not (unit and unit:find("^nameplate")) then return end
-    local hp = Health(unit)
     local key = U.UnitKey(unit)
+    if unit ~= "player" and key and own.opponent and U.SameCharacter(key, own.opponent) then
+        Duels:RememberUnit(unit)
+    end
+    local hp = Health(unit)
     if hp and hp <= 1 and key then own.low[key] = true end
 end
 
@@ -240,13 +332,29 @@ function Duels:OnDuelFinished()
         ns:Debug("Duel finished, opponent unknown")
         return nil
     end
+    if duel.decided then return nil end -- the result line came first and recorded it
     local opponentUnit = FindUnit(opponent)
     local meLow = duel.low[me] or (Health("player") or 2) <= 1
     local opponentLow = duel.low[opponent] or (opponentUnit and (Health(opponentUnit) or 2) <= 1)
-    if duel.fled then return self:Record(opponent, me, true) end
-    if meLow then return self:Record(opponent, me, false) end
-    -- We stand: they went down (maybe unseen: enemy health can be hidden) or ran away
-    return self:Record(me, opponent, not opponentLow)
+    local winner, loser, retreat
+    if duel.fled then
+        winner, loser, retreat = opponent, me, true
+    elseif meLow then
+        winner, loser, retreat = opponent, me, false
+    else
+        -- We stand: they went down (maybe unseen: enemy health can be hidden) or ran away
+        winner, loser, retreat = me, opponent, not opponentLow
+    end
+    -- The result line usually follows: it gets RESULT_WAIT seconds to decide instead
+    local wait = { opponent = opponent }
+    finished = wait
+    C_Timer.After(Duels.RESULT_WAIT, function()
+        if finished ~= wait then return end
+        finished = nil
+        ns:Debug("Duel: no result line, judged by health")
+        Duels:Record(winner, loser, retreat)
+    end)
+    return nil
 end
 
 -- A duel result from any source we saw ourselves: store it and share it
@@ -398,4 +506,11 @@ ns.Events:Register("HH_INITIALIZED", function()
     ns.Events:Register("DUEL_OUTOFBOUNDS", function() if own then own.fled = true end end, OWNER)
     ns.Events:Register("DUEL_INBOUNDS", function() if own then own.fled = false end end, OWNER)
     ns.Events:Register("UNIT_HEALTH", function(_, unit) Duels:OnHealth(unit) end, OWNER)
-    ns.Events:Register("DUEL_FINISHED", function() Duels:OnDuelFinished() end, OWNER)end, OWNER)
+    ns.Events:Register("DUEL_FINISHED", function() Duels:OnDuelFinished() end, OWNER)
+    -- Forever may send no countdown line: entering combat with a duel pending starts it
+    ns.Events:Register("PLAYER_REGEN_DISABLED", function() Duels:OnCombatStart() end, OWNER)
+    -- Our own challenges (no event tells the challenger a duel is pending)
+    if type(_G.StartDuel) == "function" and hooksecurefunc then
+        hooksecurefunc("StartDuel", function(who) Duels:OnChallenge(who) end)
+    end
+end, OWNER)

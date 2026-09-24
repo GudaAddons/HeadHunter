@@ -188,6 +188,28 @@ local WATCHED = {
         end
     end,
     COMBAT_LOG_EVENT_UNFILTERED = OnCombatLog,
+    -- Duels (High Noon on Forever judges our own duels from these)
+    DUEL_REQUESTED = function(_, ...) Write("DUEL_REQUESTED", ShowAll(...)) end,
+    DUEL_FINISHED = function(_, ...)
+        local U = ns.Utils
+        Write("DUEL_FINISHED", ShowAll(...), "player hp:", Show(U.SafeCall(UnitHealth, "player")),
+            "target:", Show(U.UnitKey("target")), "level", Show(U.UnitLevel("target")),
+            "hp:", Show(U.SafeCall(UnitHealth, "target")))
+    end,
+    DUEL_INBOUNDS = function() Write("DUEL_INBOUNDS") end,
+    DUEL_OUTOFBOUNDS = function() Write("DUEL_OUTOFBOUNDS") end,
+    PLAYER_REGEN_DISABLED = function() Write("combat start, target:", Show(ns.Utils.UnitKey("target"))) end,
+    PLAYER_REGEN_ENABLED = function() Write("combat end") end,
+    START_TIMER = function(_, ...) Write("START_TIMER", ShowAll(...)) end,
+    CHAT_MSG_SYSTEM = function(_, message) Write("system:", Show(message)) end,
+    UNIT_HEALTH = function(_, unit)
+        if unit ~= "player" and unit ~= "target" then return end
+        local hp = ns.Utils.SafeCall(UnitHealth, unit)
+        -- Only the telling cases: hidden from addons, or down to the duel's 1 HP
+        if type(hp) ~= "number" or ns.Utils.Accessible(hp) == nil or hp <= 1 then
+            Write("UNIT_HEALTH", unit, Show(hp))
+        end
+    end,
 }
 
 function Probe:SetWatch(on)

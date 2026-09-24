@@ -2,9 +2,9 @@
 --
 -- Elo per player, computed from the duel set (Sync/Duels.lua) in time order, so every
 -- client gets the same numbers. Start 1000, K = 32; a retreat is a loss.
--- Listed after MIN_DUELS duels. Ranks: Greenhorn (under MIN_DUELS), then by rating
--- Quickdraw, Sharpshooter (1100), Deadeye (1200), Legend (1300). The #1 of each
--- faction is the Top Gun. Two lists: Alliance and Horde (duels stay inside a faction).
+-- Listed from the first duel (author, 2026-09-24). Ranks: Greenhorn (under MIN_DUELS),
+-- then by rating Quickdraw, Sharpshooter (1100), Deadeye (1200), Legend (1300). The best
+-- non-Greenhorn of each faction is the Top Gun. Two lists: Alliance and Horde (duels stay inside a faction).
 --
 --   HighNoon.Compute(duels) -> key -> player   (pure, tested offline)
 --   HighNoon:Get(key), HighNoon:List(faction)  (listed players, best first, with .position)
@@ -99,7 +99,7 @@ function HighNoon:Recompute()
     players = HighNoon.Compute(duels)
     lists = {}
     for _, p in pairs(players) do
-        if p.faction and p.duels >= HighNoon.MinDuels() then
+        if p.faction and p.duels >= 1 then
             lists[p.faction] = lists[p.faction] or {}
             table.insert(lists[p.faction], p)
         end
@@ -110,9 +110,15 @@ function HighNoon:Recompute()
             if a.wins ~= b.wins then return a.wins > b.wins end
             return a.key < b.key
         end)
+        -- Top Gun: the best of those past Greenhorn, so one lucky first duel is not enough
+        local topGun
         for i, p in ipairs(list) do
             p.position = i
-            p.topGun = i == 1 or nil
+            p.topGun = nil
+            if not topGun and p.rank ~= "greenhorn" then
+                topGun = p
+                p.topGun = true
+            end
         end
     end
     ns.Events:Fire("HH_HIGHNOON_UPDATED")

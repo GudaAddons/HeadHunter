@@ -225,6 +225,9 @@ function H.Install(opts)
         H.chatSent[#H.chatSent + 1] = { text = text, chatType = chatType, target = target }
     end
     _G.UnitAffectingCombat = function() return H.inCombat end
+    -- The duel challenge (unit menu, /duel); Sync/Duels.lua hooks it
+    H.duelsStarted = {}
+    _G.StartDuel = function(who) H.duelsStarted[#H.duelsStarted + 1] = who end
     _G.debugprofilestop = function() H.profileNow = H.profileNow + H.profileStep; return H.profileNow end
 
     -- Combat log (Era): H.FireCLEU sets the current event

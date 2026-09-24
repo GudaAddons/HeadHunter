@@ -82,7 +82,7 @@ SlashCommands:Register("debug", function(args)
         ns:Print(ns.Wanted.LevelWindowOff() and L.DEBUG_LEVELS_OFF or L.DEBUG_LEVELS_ON)
         return
     end
-    -- /hh debug duels <n|off>: testing override of the High Noon listing (MIN_DUELS)
+    -- /hh debug duels <n|off>: testing override of the Greenhorn threshold (MIN_DUELS)
     if mode == "duels" then
         local value = args[2] and args[2]:lower()
         local n = tonumber(value)

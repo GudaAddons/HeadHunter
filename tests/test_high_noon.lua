@@ -152,6 +152,7 @@ return function(T, H)
         end
         if opts.targetGone then H.units.target = nil end
         H.Fire("DUEL_FINISHED")
+        H.Advance(ns.Duels.RESULT_WAIT)
         local _, duel = next(ns.db.duels)
         return ns, duel
     end
@@ -187,7 +188,108 @@ return function(T, H)
         local ns = OwnDuel({ fight = 0 })
         T.eq(ns.Duels:Count(), 0, "cancelled")
         H.Fire("DUEL_FINISHED")
+        H.Advance(ns.Duels.RESULT_WAIT)
         T.eq(ns.Duels:Count(), 0, "no duel going on")
+        T.noErrors()
+    end)
+
+    -- Forever may send no countdown line: a challenge (either way) plus entering combat
+    local function SilentDuel(ns, opts)
+        H.units.target = { name = "Dampa", realm = "Lee", level = 31, class = "PALADIN", race = "Human",
+            faction = "Alliance", isPlayer = true, health = 900 }
+        if opts.challenged then
+            H.Fire("DUEL_REQUESTED", "Dampa Lee")
+            if opts.noTarget then H.units.target = nil end
+        else
+            _G.StartDuel("target")
+        end
+        H.Advance(opts.wait or 3)
+        if opts.combat ~= false then
+            if opts.noTarget then
+                -- They show up as our target only once the fight is on
+                H.units.target = { name = "Dampa", realm = "Lee", level = 31, class = "PALADIN", race = "Human",
+                    faction = "Alliance", isPlayer = true, health = 900 }
+            end
+            H.Fire("PLAYER_REGEN_DISABLED")
+            H.Advance(15)
+            H.units.target.health = 1
+            H.Fire("UNIT_HEALTH", "target")
+            if opts.noTarget then H.units.target = nil end
+        end
+        H.Fire("DUEL_FINISHED")
+        H.Advance(ns.Duels.RESULT_WAIT)
+        local _, duel = next(ns.db.duels)
+        return duel
+    end
+
+    T.case("forever, no countdown line: our challenge plus combat is a duel", function()
+        local ns = H.Boot({ client = "forever" })
+        local duel = SilentDuel(ns, {})
+        T.eq(H.duelsStarted[1], "target", "the challenge still goes out")
+        T.eq(ns.Duels:Count(), 1, "recorded")
+        T.eq(duel.winner, ns.Utils.UnitKey("player"), "we won")
+        T.eq(duel.loser, ns.Utils.PlayerKey("Dampa Lee"), "opponent from the challenge")
+        T.eq(duel.retreat, nil, "knockout")
+        T.noErrors()
+    end)
+
+    T.case("forever, no countdown line: challenged, never targeted, level seen in the fight", function()
+        local ns = H.Boot({ client = "forever" })
+        local duel = SilentDuel(ns, { challenged = true, noTarget = true })
+        T.eq(ns.Duels:Count(), 1, "recorded")
+        T.eq(duel.loser, ns.Utils.PlayerKey("Dampa Lee"), "opponent from the request")
+        T.eq(duel.loserLevel, 31, "their level, seen during the fight")
+        T.noErrors()
+    end)
+
+    T.case("forever: a declined challenge, or combat long after it, is no duel", function()
+        local ns = H.Boot({ client = "forever" })
+        SilentDuel(ns, { combat = false })
+        T.eq(ns.Duels:Count(), 0, "declined: no fight")
+        H.Fire("DUEL_REQUESTED", "Dampa Lee") -- never answered, no DUEL_FINISHED
+        H.Advance(ns.Duels.PENDING + 10)
+        H.Fire("PLAYER_REGEN_DISABLED")
+        H.Advance(15)
+        H.Fire("DUEL_FINISHED")
+        H.Advance(ns.Duels.RESULT_WAIT)
+        T.eq(ns.Duels:Count(), 0, "a stale challenge does not turn a later fight into a duel")
+        T.noErrors()
+    end)
+
+    -- In game, 2026-09-24: DUEL_FINISHED, then "Rot has defeated Dampa in a duel" with
+    -- given names only; our health never read 1, so the health judgement named us wrongly
+    T.case("forever: the result line after DUEL_FINISHED decides, given names matched", function()
+        local ns = H.Boot({ client = "forever" })
+        H.units.target = { name = "Dampa", realm = "Lee", level = 31, class = "PALADIN", race = "Human",
+            faction = "Alliance", isPlayer = true, health = 900 }
+        _G.StartDuel("target")
+        for i = 3, 1, -1 do H.Fire("CHAT_MSG_SYSTEM", "Duel starting: " .. i) end
+        H.Advance(20)
+        H.Fire("DUEL_FINISHED")
+        T.eq(ns.Duels:Count(), 0, "waits for the result line")
+        H.Fire("CHAT_MSG_SYSTEM", "Dampa has defeated Vati in a duel")
+        H.Advance(ns.Duels.RESULT_WAIT)
+        T.eq(ns.Duels:Count(), 1, "one duel")
+        local _, duel = next(ns.db.duels)
+        T.eq(duel.winner, ns.Utils.PlayerKey("Dampa Lee"), "they won, as the line says")
+        T.eq(duel.loser, ns.Utils.UnitKey("player"), "we lost")
+        T.noErrors()
+    end)
+
+    T.case("forever: a witness matches given names to a single nearby player", function()
+        local ns = H.Boot({ client = "forever" })
+        H.units.target = { name = "Dampa", realm = "Lee", level = 31, class = "PALADIN", race = "Human",
+            faction = "Alliance", isPlayer = true }
+        H.units.mouseover = { name = "Rot", realm = "Ribution", level = 29, class = "WARRIOR", race = "Orc",
+            faction = "Horde", isPlayer = true }
+        H.Fire("CHAT_MSG_SYSTEM", "Rot has defeated Dampa in a duel")
+        local _, duel = next(ns.db.duels)
+        T.eq(duel and duel.winner, ns.Utils.PlayerKey("Rot Ribution"), "winner")
+        T.eq(duel.loser, ns.Utils.PlayerKey("Dampa Lee"), "loser")
+        H.units.target = nil
+        H.serverTime = H.serverTime + 120
+        H.Fire("CHAT_MSG_SYSTEM", "Rot has defeated Stranger in a duel")
+        T.eq(ns.Duels:Count(), 1, "an unknown given name is not guessed")
         T.noErrors()
     end)
 
@@ -201,6 +303,7 @@ return function(T, H)
         H.Fire("UNIT_HEALTH", "target")
         H.Fire("CHAT_MSG_SYSTEM", "Vati has defeated Bob in a duel")
         H.Fire("DUEL_FINISHED")
+        H.Advance(ns.Duels.RESULT_WAIT)
         T.eq(ns.Duels:Count(), 1, "one duel")
         T.noErrors()
     end)
@@ -306,7 +409,7 @@ return function(T, H)
         T.eq(HN.RankOf({ duels = 5, rating = 1250 }), "deadeye", "deadeye")
     end)
 
-    T.case("two lists, best first; the #1 of each is the Top Gun", function()
+    T.case("two lists, best first, from the first duel; the best non-Greenhorn is the Top Gun", function()
         local ns = H.Boot({ client = "era" })
         Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 6)
         Duels(ns, "Bob-Firemaw", "Cid-Firemaw", 5, "Alliance", 10000)
@@ -315,35 +418,37 @@ return function(T, H)
         Settle()
         local HN = ns.HighNoon
         local alliance = HN:List("Alliance")
-        T.eq(#alliance, 3, "Alliance: Vati, Bob, Cid (New has one duel)")
+        T.eq(#alliance, 4, "Alliance: Vati, Bob, Cid and New (one duel is enough)")
         T.eq(alliance[1].key, "Vati-Firemaw", "best first")
         T.eq(alliance[1].topGun, true, "Top Gun")
         T.eq(alliance[2].position, 2, "position")
         T.eq(#HN:List("Horde"), 2, "Horde list")
         T.eq(HN:List("Horde")[1].key, "Grom-Firemaw", "Horde Top Gun")
         T.ok(HN.Title(HN:Get("Vati-Firemaw")):find("Top Gun", 1, true) ~= nil, "Top Gun title")
-        T.ok(HN.Title(HN:Get("Cid-Firemaw")):find("#3", 1, true) ~= nil, "title with position")
+        T.ok(HN.Title(HN:Get("Cid-Firemaw")):find("#" .. HN:Get("Cid-Firemaw").position, 1, true) ~= nil, "title with position")
+        T.eq(HN:Get("New-Firemaw").topGun, nil, "a Greenhorn is never the Top Gun")
         T.eq(HN.Title(HN:Get("New-Firemaw")), "Greenhorn (1 duels)", "greenhorn title")
 
         H.Slash("duels")
-        T.ok(H.Printed("High Noon, Alliance: 3 duelists"), "/hh duels header")
+        T.ok(H.Printed("Duels, Alliance: 4 duelists"), "/hh duels header")
         T.ok(H.Printed("You: .*Top Gun"), "/hh duels: where we stand")
         T.noErrors()
     end)
 
-    T.case("/hh debug duels 1 lists players after one duel; off restores 5", function()
+    T.case("/hh debug duels 1: no Greenhorn after one duel; off restores 5", function()
         local ns = H.Boot({ client = "era" })
         Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 1)
         Settle()
-        T.eq(#ns.HighNoon:List("Alliance"), 0, "not listed after one duel")
+        T.eq(#ns.HighNoon:List("Alliance"), 2, "listed after one duel")
+        T.eq(ns.HighNoon:Get("Bob-Firemaw").rank, "greenhorn", "a Greenhorn")
         H.Slash("debug duels 1")
         T.eq(#ns.HighNoon:List("Alliance"), 2, "listed after one duel")
         T.eq(ns.HighNoon:Get("Bob-Firemaw").rank, "quickdraw", "no Greenhorn")
-        T.ok(H.Printed("listed after 1 duel"), "said so")
+        T.ok(H.Printed("Greenhorn below 1 duel"), "said so")
         H.Slash("debug duels 9")
         T.ok(H.Printed("Usage: /hh debug duels"), "usage")
         H.Slash("debug duels off")
-        T.eq(#ns.HighNoon:List("Alliance"), 0, "back to 5")
+        T.eq(ns.HighNoon:Get("Bob-Firemaw").rank, "greenhorn", "back to 5")
         T.noErrors()
     end)
 
@@ -384,7 +489,7 @@ return function(T, H)
             isPlayer = true, guid = "Player-1-0000B0B" }
         H.ShowUnitTooltip("mouseover", 2)
         T.eq(#H.tooltipLines, 1, "one line")
-        T.ok(H.tooltipLines[1]:find("High Noon:", 1, true) ~= nil, "High Noon line")
+        T.ok(H.tooltipLines[1]:find("Duels:", 1, true) ~= nil, "Duels line")
         T.ok(H.tooltipLines[1]:find("Top Gun", 1, true) ~= nil, "title")
 
         H.units.mouseover = { name = "Nobody", level = 40, class = "MAGE", race = "Gnome", faction = "Alliance",
