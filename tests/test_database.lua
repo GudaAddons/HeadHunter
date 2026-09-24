@@ -33,6 +33,26 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("remembers the character played last and the client, for the sync app", function()
+        local ns = H.Boot({ client = "era" })
+        local player = ns.db.meta.player
+        T.eq(ns.db.meta.client, "era", "client")
+        T.eq(player.key, ns.Utils.UnitKey("player"), "key")
+        T.eq(player.realm, ns.Utils.PlayerRealm(), "realm on Era")
+        T.eq(player.class, "ROGUE", "class")
+        T.eq(player.race, "Human", "race")
+        T.eq(player.faction, "Alliance", "faction")
+        T.eq(player.level, 30, "level")
+        H.units.player.level = 31
+        H.Fire("PLAYER_LOGOUT")
+        T.eq(ns.db.meta.player.level, 31, "refreshed at logout")
+
+        local forever = H.Boot({ client = "forever" })
+        T.eq(forever.db.meta.client, "forever", "Forever client")
+        T.eq(forever.db.meta.player.realm, nil, "no realm on Forever")
+        T.noErrors()
+    end)
+
     T.case("restored partial database keeps values and gains defaults", function()
         local saved = { settings = { alerts = { range = "continent" } }, meta = { loadCount = 4 } }
         local ns = H.Boot({ client = "era", savedDB = saved })

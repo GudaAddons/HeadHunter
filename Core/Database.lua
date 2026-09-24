@@ -69,8 +69,9 @@ function DB:Initialize()
     if db.meta.createdAt == 0 then db.meta.createdAt = now end
     db.meta.lastLoadAt = now
     db.meta.loadCount = db.meta.loadCount + 1
-    -- For the desktop sync app: which region this data belongs to
+    -- For the desktop sync app: which region and game this data belongs to
     db.meta.region = Utils.Region() or db.meta.region
+    db.meta.client = ns.Expansion.ClientKey
 
     -- Lets /hh status and the probe report whether this client loaded SavedVariables
     self.restoredFromDisk = restored
@@ -150,7 +151,27 @@ end
 function DB:OnLogout()
     if not ns.db then return end
     self:Prune()
+    self:RememberPlayer()
     ns.db.meta.savedAt = ns.Utils.ServerTime()
+end
+
+-- For the desktop sync app: the saved data is account-wide and written at logout, so
+-- meta.player names the character played last (their own deaths, catches and bounty).
+function DB:RememberPlayer()
+    local U = ns.Utils
+    local key = U.UnitKey("player")
+    if not (ns.db and key) then return end
+    local race = U.UnitRace("player")
+    ns.db.meta.player = {
+        key = key,
+        realm = not ns.Features.RealmlessNames and U.PlayerRealm() or nil,
+        class = U.UnitClass("player"),
+        race = race,
+        sex = U.UnitSex("player"),
+        level = U.UnitLevel("player"),
+        faction = U.UnitFaction("player") or U.RaceFaction(race),
+        guild = U.UnitGuild("player"),
+    }
 end
 
 -------------------------------------------------

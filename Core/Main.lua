@@ -18,6 +18,7 @@ end, "Main")
 Events:Register("PLAYER_LOGIN", function()
     Events:Unregister("PLAYER_LOGIN", "Main")
     if not ns.IsSupported then return end
+    ns.Database:RememberPlayer()
     ns:Print(string.format(L.LOADED, ns.version))
     if ns.Database:ResetsOnReload() then
         ns:Print(L.FOREVER_SAVED_VARS)
