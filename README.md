@@ -8,6 +8,8 @@
 
 For **Classic Era** and **WoW: Forever**.
 
+See the WANTED board, the best duelists and the top hunters on **[headhunterwow.com](https://headhunterwow.com)**.
+
 ![The WANTED list: outlaws of both factions with their rank, kills, last kill and badges](Assets/1.png)
 
 ## How it works
@@ -17,6 +19,7 @@ For **Classic Era** and **WoW: Forever**.
 3. **Gankers become WANTED.** An enemy who kills 4 players within 20 minutes gets a WANTED poster. Every HeadHunter sees the same list.
 4. **Hunt them down.** You get an alert when a WANTED outlaw kills someone near you. Join the posse and go after them.
 5. **Justice served.** When a HeadHunter, or anyone in their group, kills a WANTED outlaw, the outlaw is no longer WANTED for everyone.
+6. **See it all on the website.** With the free **HeadHunter Sync** app, your reports go to [headhunterwow.com](https://headhunterwow.com), and the website's lists come back into your game.
 
 ## Features
 
@@ -75,6 +78,11 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 ### Catch-up
 When you log in, HeadHunter asks other HeadHunters what you missed while you were offline, so your WANTED list is up to date.
 
+### Who is online
+The window shows how many HeadHunters are online right now. Hover it to see how many are Alliance and how many are Horde, or type `/hh online`.
+- **WoW Forever:** everyone in your region, both factions.
+- **Classic Era:** only your guild and group. The game does not let addons count further.
+
 ### Duels
 - Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon. WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.
 - Only duels between players of level 10 or higher, at most 5 levels apart, count. Beating lowbies does not help.
@@ -83,6 +91,23 @@ When you log in, HeadHunter asks other HeadHunters what you missed while you wer
 - Ranks by net wins: **Quickdraw**, **Sharpshooter** (+5), **Deadeye** (+15) and **Legend** (+30); **Greenhorn** under 5 duels. The #1 of each faction is the **Top Gun**, if they won more than they lost.
 
 ![Duels: the Horde list with its Top Gun and records](Assets/2.jpg)
+
+## Website and the HeadHunter Sync app
+
+**[headhunterwow.com](https://headhunterwow.com)** is the bounty board of every HeadHunter player: WANTED posters, the best duelists and the top hunters, for each game and realm. Sign in with Battle.net, Discord, Google or email to see your own characters.
+
+A WoW addon cannot use the internet. That is why there is a small, free desktop app: **HeadHunter Sync**. It connects the game and the website.
+
+1. **Download** HeadHunter Sync for Windows or Mac from [GitHub](https://github.com/GudaAddons/headhunter-sync/releases/latest) and sign in with your website account.
+2. **Play as usual.** When the game saves (logout, `/reload` or quit), the app sends your deaths, catches, duels and bounty to the website. It runs quietly in the tray.
+3. **Get the website's lists back.** The app also writes the website's WANTED list, duel lists and your own records into the game, as a small extra addon called **HeadHunter Data**. You see them after your next login or `/reload`.
+4. **WoW Forever:** when your lists reset (see *Good to know*), the app brings your own deaths, duels and bounty back.
+
+Good to know about the app:
+- The app only reads HeadHunter's saved data and only talks to headhunterwow.com. Nothing else on your PC is touched.
+- It updates itself.
+- The first time, Windows may say "Windows protected your PC". Click **More info**, then **Run anyway**. On a Mac, right-click the app and choose **Open**.
+- The addon works fine without the app. The app only adds the website.
 
 ## Commands
 
@@ -102,6 +127,7 @@ When you log in, HeadHunter asks other HeadHunters what you missed while you wer
 | `/hh tooltip on/off` | WANTED line on enemy tooltips |
 | `/hh minimap` | Show or hide the minimap button |
 | `/hh catchup` | Ask other HeadHunters what you missed |
+| `/hh online` | How many HeadHunters are online, per faction |
 
 All settings are also on the options page: **Esc > Options > AddOns > HeadHunter**.
 
@@ -110,6 +136,6 @@ All settings are also on the options page: **Esc > Options > AddOns > HeadHunter
 - **Classic Era:** reports go to your guild and group automatically. To reach every HeadHunter on the realm, click **Report** after a death (or type `/hh report`). The same goes for **Announce** after you bring down an outlaw (`/hh justice`). The game only allows these realm-wide messages after a click.
 - **Classic Era** has no map waypoints, so HeadHunter tells you the coordinates in chat instead.
 - **WoW: Forever** shares everything automatically.
-- **WoW: Forever is in testing mode.** The Forever client does not load saved data back (a known client issue, not a HeadHunter bug), so your lists and settings reset on every reload or login. Catch-up handles it: when you log in, other HeadHunters send back what you missed, so your lists refill from the realm. HeadHunter tells you this in chat when you log in on Forever.
+- **WoW: Forever is in testing mode.** The Forever client does not load saved data back (a known client issue, not a HeadHunter bug), so your lists and settings reset on every reload or login. Catch-up handles it: when you log in, other HeadHunters send back what you missed, so your lists refill from the realm. The HeadHunter Sync app also brings your own records back from the website. HeadHunter tells you this in chat when you log in on Forever.
 - HeadHunter is off in dungeons, raids and battlegrounds. Duels never count as PvP kills.
 - The more players use HeadHunter, the better it works. Tell your guild!
