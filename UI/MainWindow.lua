@@ -557,7 +557,12 @@ function MainWindow:Refresh()
     if current.tab == "marks" then
         frame.count:SetText(string.format(L.MARKS_STATUS, ns.Marks.RankNameByIndex(ns.Marks:RankIndex()), ns.Marks:Total()))
     else
-        frame.count:SetText(string.format(L.WINDOW_COUNT, #rows))
+        local count = string.format(L.WINDOW_COUNT, #rows)
+        local siteAt = (current.tab == "wanted" or current.tab == "duels") and ns.SiteData:GeneratedAt()
+        if siteAt then
+            count = count .. string.format(L.WINDOW_SITE_DATA, ns.Utils.Ago(math.max(0, ns.Utils.ServerTime() - siteAt)))
+        end
+        frame.count:SetText(count)
     end
     frame.empty:SetText(#rows == 0 and L["EMPTY_" .. current.tab:upper()] or "")
     if current.tab == "duels" then

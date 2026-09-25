@@ -207,6 +207,7 @@ L.CATCHUP_BUTTON = "Catch up"
 -- Main window (HH-060)
 L.WINDOW_TITLE = "HeadHunter"
 L.WINDOW_COUNT = "%d shown"
+L.WINDOW_SITE_DATA = " · with the website list from %s"
 L.WINDOW_ROW_HINT = "|cff00ff00Click: open the poster|r"
 L.TIP_WANTED = "|cffff2020WANTED|r · %s · %d kills"
 L.TIP_NOT_WANTED = "|cffaaaaaaNot WANTED|r"

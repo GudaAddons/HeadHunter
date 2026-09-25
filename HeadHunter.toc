@@ -4,6 +4,7 @@
 ## Author: Vati
 ## Version: 0.1.6
 ## SavedVariables: HeadHunter_DB
+## OptionalDeps: HeadHunter_Data
 ## IconTexture: Interface\Icons\INV_Misc_Head_Human_01
 ## X-Category: PvP
 
@@ -40,6 +41,7 @@ Sync\ReportPrompt.lua
 Sync\Justice.lua
 Sync\CatchUp.lua
 Sync\Duels.lua
+Sync\SiteData.lua
 
 # Rules (M3)
 Rules\Engine.lua

@@ -142,6 +142,7 @@ function H.Install(opts)
     _G.GetGameTime = function() return H.gameTime[1], H.gameTime[2] end
 
     _G.HeadHunter_DB = opts.savedDB
+    _G.HeadHunter_SiteData = opts.siteData
     _G.SLASH_HEADHUNTER1, _G.SLASH_HEADHUNTER2 = nil, nil
     _G.SlashCmdList = {}
     _G.UISpecialFrames = {}

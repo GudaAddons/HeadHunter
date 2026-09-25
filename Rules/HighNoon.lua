@@ -97,6 +97,39 @@ function HighNoon.Compute(duels)
     return players
 end
 
+-- HH-082: the website's records (Sync/SiteData.lua) with ours. A player the website
+-- lists keeps its record plus our duels newer than the website's list; anyone else
+-- keeps the record from our duels.
+-- site: key -> { key, faction, wins, losses, duels, lastT, class, race, sex }
+function HighNoon.Merge(site, duels, since)
+    local ours = HighNoon.Compute(duels)
+    local newer = {}
+    for _, duel in ipairs(duels) do
+        if (tonumber(duel.t) or 0) > since then newer[#newer + 1] = duel end
+    end
+    local fresh = HighNoon.Compute(newer)
+    local players = {}
+    for key, theirs in pairs(site) do
+        local p = {}
+        for k, v in pairs(theirs) do p[k] = v end
+        local f = fresh[key]
+        if f then
+            p.wins, p.losses, p.duels = p.wins + f.wins, p.losses + f.losses, p.duels + f.duels
+            if not p.lastT or f.lastT > p.lastT then
+                p.lastT = f.lastT
+                p.class, p.race, p.sex = f.class or p.class, f.race or p.race, f.sex or p.sex
+            end
+        end
+        p.net = p.wins - p.losses
+        p.rank = HighNoon.RankOf(p)
+        players[key] = p
+    end
+    for key, p in pairs(ours) do
+        if not players[key] then players[key] = p end
+    end
+    return players
+end
+
 -------------------------------------------------
 -- Runtime
 -------------------------------------------------
@@ -108,7 +141,12 @@ local scheduled = false
 function HighNoon:Recompute()
     local duels = {}
     for _, duel in ns.Duels:All() do duels[#duels + 1] = duel end
-    players = HighNoon.Compute(duels)
+    local site = ns.SiteData:Duelists()
+    if site then
+        players = HighNoon.Merge(site, duels, ns.SiteData:GeneratedAt() or 0)
+    else
+        players = HighNoon.Compute(duels)
+    end
     lists = {}
     for _, p in pairs(players) do
         if p.faction and p.duels >= 1 then

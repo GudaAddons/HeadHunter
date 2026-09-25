@@ -130,13 +130,47 @@ function Wanted.TestThreshold()
     return nil
 end
 
+local function LastKillAt(entry)
+    return entry.lastKill and entry.lastKill.t or 0
+end
+
+-- HH-082: the website's WANTED entries (Sync/SiteData.lua) next to ours. Theirs count
+-- while their time runs, unless a catch we know of came after their last kill; when we
+-- both have the outlaw WANTED, the one with the newer kill wins.
+-- entries: id -> entry (changed in place); site: id -> entry; catches: id -> { t... }
+function Wanted.MergeSite(entries, site, catches, now)
+    for id, theirs in pairs(site or {}) do
+        local caughtAfter = false
+        for _, t in ipairs(catches[id] or {}) do
+            if t > LastKillAt(theirs) then caughtAfter = true end
+        end
+        local ours = entries[id]
+        if theirs.wantedUntil > now and not caughtAfter then
+            if not ours or not ours.wanted or LastKillAt(theirs) > LastKillAt(ours) then
+                local merged = {}
+                for k, v in pairs(theirs) do merged[k] = v end
+                if ours then
+                    merged.guid = ours.guid
+                    merged.killCount = math.max(merged.killCount or 0, ours.killCount or 0)
+                    merged.cowardKills = math.max(merged.cowardKills or 0, ours.cowardKills or 0)
+                end
+                entries[id] = merged
+            end
+        end
+    end
+    return entries
+end
+
 -- Synchronous recompute (tests, and the coroutine body)
 function Wanted:ComputeNow(yield)
     local reports = {}
     for _, report in ns.Reports:All() do reports[#reports + 1] = report end
-    local result = ns.RulesEngine.Compute(reports, ns.Utils.ServerTime(),
-        { serialWindow = SerialWindow(), wantedKills = Wanted.TestThreshold(), catches = ns.Justice:CatchesByOutlaw() },
+    local now = ns.Utils.ServerTime()
+    local catches = ns.Justice:CatchesByOutlaw()
+    local result = ns.RulesEngine.Compute(reports, now,
+        { serialWindow = SerialWindow(), wantedKills = Wanted.TestThreshold(), catches = catches },
         yield)
+    Wanted.MergeSite(result, ns.SiteData:Wanted(), catches, now)
     Publish(result)
     return result
 end
