@@ -302,6 +302,8 @@ function Transport:Flush()
                 groupDone = false
                 break
             end
+            -- HH-110: the others heard from us, so the next presence repeat can wait
+            if typeCode ~= ns.Protocol.TYPES.PRESENCE then self.lastBroadcastAt = ns.Utils.Now() end
             self.stats.records = self.stats.records + consumed[m]
             sentUpTo = sentUpTo + consumed[m]
         end
@@ -448,14 +450,17 @@ function Transport:Receive(message, chatType, sender)
         return
     end
     -- Other-faction traffic can share a custom channel; it is never ours to trust,
-    -- except duel records (High Noon lists both factions; they never touch WANTED)
-    -- and pings (the manual test, HH-100: does anything cross factions?)
+    -- except duel records (High Noon lists both factions; they never touch WANTED),
+    -- pings (the manual test, HH-100: does anything cross factions?) and presence
+    -- (HH-110: the online count per faction)
     local TYPES = ns.Protocol.TYPES
+    -- HH-110: any message shows its sender is online, not only a presence one
+    ns.Presence:Heard(sender, faction, typeCode == TYPES.PRESENCE and records[1] or nil)
     if faction ~= ns.Utils.UnitFaction("player") then
         self.stats.crossFaction = (self.stats.crossFaction or 0) + 1
         ns:Debug("Other faction (" .. faction .. ") message from", tostring(sender), "via", tostring(chatType),
             "type", tostring(typeCode))
-        if typeCode ~= TYPES.DUEL and typeCode ~= TYPES.PING then
+        if typeCode ~= TYPES.DUEL and typeCode ~= TYPES.PING and typeCode ~= TYPES.PRESENCE then
             self.diag.lastIgnored = "other faction (" .. faction .. ") from " .. tostring(sender)
             return
         end

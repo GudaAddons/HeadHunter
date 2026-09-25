@@ -29,6 +29,7 @@ Protocol.TYPES = {
     DUEL = "U",    -- High Noon: a duel someone saw (HH-091); also accepted from the other faction
     TOURNAMENT = "V", -- Gurubashi Tournament: announce, entrants, requests (HH-101)
     PING = "T", -- /hh sync ping: manual connectivity test
+    PRESENCE = "N", -- HH-110: "here" with our version, counts who is online; both factions
 }
 
 local FACTION_CODE = { Alliance = "A", Horde = "H" }

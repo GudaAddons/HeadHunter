@@ -42,6 +42,7 @@ Sync\Justice.lua
 Sync\CatchUp.lua
 Sync\Duels.lua
 Sync\SiteData.lua
+Sync\Presence.lua
 
 # Rules (M3)
 Rules\Engine.lua

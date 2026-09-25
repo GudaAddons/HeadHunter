@@ -330,6 +330,12 @@ L.DUEL_TOOLTIP = "|cffffd100Duels:|r %s"
 L.DUELS_HEADER = "Duels, %s: %d duelists"
 L.DUELS_YOU = "You: %s · %d wins, %d losses"
 L.HELP_DUELS = "|cffffff00/hh duels|r: Duels, the best duelists of your faction"
+L.HELP_ONLINE = "|cffffff00/hh online|r: HeadHunters online now, per faction, and their addon versions"
+L.ONLINE_REGION = "HeadHunters online: %d (Alliance %d, Horde %d), you included"
+L.ONLINE_GROUP = "HeadHunters online in your guild and group: %d, you included (Classic Era cannot count further)"
+L.ONLINE_VERSIONS = "Addon versions: %s"
+L.ONLINE_SHORT = "%d online"
+L.ONLINE_SHORT_GROUP = "%d online in guild/group"
 
 -- Gurubashi Tournament (M9)
 L.HELP_ARENA = "|cffffff00/hh arena|r: Are you at a tournament venue (Gurubashi Arena, the capital gates)? Shows your position"
