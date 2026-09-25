@@ -42,9 +42,9 @@ Cowards are listed in the **Hall of Shame**.
 
 ### Alerts
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
-- **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**. Only players close to the outlaw's level get this popup, the others get a chat line.
+- **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**. Only players close to the outlaw's level get this popup, the others get a chat line. If the victim is on another layer and died again within 15 minutes, joining also asks them for a group invite.
 - **Justice served**: a message when a WANTED outlaw is brought down.
-- **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you.
+- **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
 
 ### World map
 - A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 20 minutes after the last fight.
@@ -87,6 +87,7 @@ The window shows how many HeadHunters are online right now. Hover it to see how 
 - Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon. WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.
 - Only duels between players of level 10 or higher, at most 5 levels apart, count. Beating lowbies does not help.
 - Duels are shared like death reports, and never make anyone WANTED.
+- Click a player of your own faction in the Duels list to whisper them.
 - Ranked by record: wins minus losses first, then fewer losses. 1-0 is ahead of 1-4. You are listed from your first duel.
 - Ranks by net wins: **Quickdraw**, **Sharpshooter** (+5), **Deadeye** (+15) and **Legend** (+30); **Greenhorn** under 5 duels. The #1 of each faction is the **Top Gun**, if they won more than they lost.
 

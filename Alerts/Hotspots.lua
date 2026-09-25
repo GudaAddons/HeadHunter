@@ -43,7 +43,7 @@ local lastPing = 0
 local function Zone(mapID)
     local zone = ns.Zones.ZoneOf(mapID)
     if not zone then return nil end
-    zones[zone] = zones[zone] or { fighters = {}, enemies = {}, deaths = {} }
+    zones[zone] = zones[zone] or { fighters = {}, enemies = {}, deaths = {}, names = {} }
     return zone, zones[zone]
 end
 
@@ -57,14 +57,47 @@ end
 -- Inputs
 -------------------------------------------------
 
-function Hotspots:AddFighter(mapID, who, t, x, y, enemyIds)
+-- who: compact name (the key); extra: { sender = name to whisper, layer, enemies =
+-- { { name, class, level } } } from 0.1.8 pings (HH-111)
+function Hotspots:AddFighter(mapID, who, t, x, y, enemyIds, extra)
     local zone, data = Zone(mapID)
     if not zone or not who then return nil end
-    data.fighters[who] = { t = t, x = x, y = y }
+    extra = extra or {}
+    data.fighters[who] = { t = t, x = x, y = y, sender = extra.sender, layer = extra.layer }
     for _, id in ipairs(enemyIds or {}) do
         if not data.enemies[id] or data.enemies[id] < t then data.enemies[id] = t end
     end
+    for _, enemy in ipairs(extra.enemies or {}) do
+        if enemy.name then
+            data.names[enemy.name] = { t = t, name = enemy.name, class = enemy.class, level = enemy.level }
+        end
+    end
     return zone
+end
+
+-- "Grimtusk (34 Rogue), Dusk (?? Mage)": up to MAX_PING_NAMES enemies seen fighting
+-- in the zone within the window, newest first; nil when no names are known
+function Hotspots:EnemyNames(zone, now)
+    local data = zones[zone]
+    if not data then return nil end
+    local since = (now or ns.Utils.ServerTime()) - self.WINDOW
+    local list = {}
+    for key, enemy in pairs(data.names) do
+        if enemy.t >= since then list[#list + 1] = enemy else data.names[key] = nil end
+    end
+    if #list == 0 then return nil end
+    table.sort(list, function(a, b) return a.t > b.t end)
+    local parts = {}
+    for i = 1, math.min(#list, ns.Protocol.MAX_PING_NAMES) do
+        local e = list[i]
+        local class = e.class and ((LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[e.class])
+            or e.class:sub(1, 1) .. e.class:sub(2):lower())
+        local about = {}
+        if e.level then about[#about + 1] = e.level == -1 and "??" or tostring(e.level) end
+        if class then about[#about + 1] = class end
+        parts[i] = #about > 0 and string.format("%s (%s)", e.name, table.concat(about, " ")) or e.name
+    end
+    return table.concat(parts, ", ")
 end
 
 function Hotspots:AddDeath(report)
@@ -245,14 +278,60 @@ end
 
 -- [Help]: a waypoint to the newest fight where the client allows it (Classic Era does
 -- not), and chat always says where it is. title: "Battle", ...
+-- HH-111: the players fighting there get a quiet "help on the way" note (an addon
+-- message, never chat). When the newest fighter is on another layer, one whisper asks
+-- them for a group invite, like the posse (alerts.whisperInvite). Runs inside the
+-- popup click, which allows the whisper.
 function Hotspots:Help(zone, title)
     local data = zones[zone]
     local x, y
     -- Not "data and LastPosition(data)": `and` would keep only the first return value
     if data then x, y = LastPosition(data) end
     local zoneName = ns.Utils.MapName(zone) or L.UNKNOWN_ZONE
-    return ns.MapMarkers.GuideAndTell(zone, x, y, string.format(L.GUIDE_HOTSPOT, title, zoneName),
+    local how = ns.MapMarkers.GuideAndTell(zone, x, y, string.format(L.GUIDE_HOTSPOT, title, zoneName),
         string.format(L.HOTSPOT_WAYPOINT, zoneName))
+
+    local U = ns.Utils
+    ns.Transport:Queue(ns.Protocol.TYPES.HELP, ns.Protocol.EncodeHelp(zone, U.ServerTime()),
+        ns.Transport.PRIORITY.alert, "B:" .. zone)
+
+    local target = data and self.InviteTarget(data, U.CompactName(U.UnitKey("player")))
+    if target and ns.Layer:Compare(target.layer, zone) == "different" and ns.db.settings.alerts.whisperInvite then
+        local ok = pcall(SendChatMessage, string.format(L.HOTSPOT_WHISPER, zoneName), "WHISPER", nil, target.sender)
+        if ok then ns:Print(string.format(L.POSSE_WHISPERED, U.DisplayName(U.PlayerKey(target.sender)) or target.sender)) end
+    end
+    return how
+end
+
+-- The newest other fighter who said which layer they are on and can be whispered
+function Hotspots.InviteTarget(data, me)
+    local best
+    for who, fighter in pairs(data.fighters) do
+        if who ~= me and fighter.sender and fighter.layer and (not best or fighter.t > best.t) then best = fighter end
+    end
+    return best
+end
+
+-- Someone clicked [Help] for a zone: tell us if we are fighting there
+Hotspots.HELP_NOTE_THROTTLE = 60
+function Hotspots:OnHelp(record, sender)
+    local mapID, t = ns.Protocol.DecodeHelp(record)
+    if not mapID or not t then return end
+    local U = ns.Utils
+    local now = U.ServerTime()
+    if t > now + self.MAX_SKEW or now - t > self.WINDOW then return end
+    local zone = ns.Zones.ZoneOf(mapID)
+    local data = zone and zones[zone]
+    local mine = data and data.fighters[U.CompactName(U.UnitKey("player"))]
+    if not mine or now - mine.t > self.FIGHT_RECENT * 4 then return end
+    local name = U.DisplayName(U.PlayerKey(sender)) or tostring(sender)
+    ns.Alerts:Show({
+        key = "help:" .. tostring(U.CompactName(sender)),
+        throttle = self.HELP_NOTE_THROTTLE,
+        chat = string.format(L.HOTSPOT_HELP_COMING, name, U.MapName(zone) or L.UNKNOWN_ZONE),
+        combat = true,
+    })
+    ns.Events:Fire("HH_HELP_COMING", zone, sender)
 end
 
 function Hotspots:Evaluate(zone)
@@ -280,6 +359,8 @@ function Hotspots:Evaluate(zone)
     local zoneName = ns.Utils.MapName(zone) or L.UNKNOWN_ZONE
     local title = L["HOTSPOT_LEVEL_" .. level]
     local line = string.format(L.HOTSPOT_LINE, Fire(level), title, zoneName, Hotspots.Describe(a, e, d))
+    local names = self:EnemyNames(zone, now)
+    if names then line = line .. string.format(L.HOTSPOT_NAMES, names) end
     local alert = {
         key = "hot:" .. zone .. ":" .. level,
         throttle = self.LEVEL_THROTTLE,
@@ -315,29 +396,39 @@ function Hotspots:Tick()
     if not U.SafeCall(UnitAffectingCombat, "player") then return end
     local guids = ns.EnemyCache:RecentGUIDs(self.FIGHT_RECENT)
     if #guids == 0 then return end
-    local ids = {}
-    for i, guid in ipairs(guids) do ids[i] = Hotspots.ShortId(guid) end
+    local ids, enemies = {}, {}
+    for i, guid in ipairs(guids) do
+        ids[i] = Hotspots.ShortId(guid)
+        local record = ns.EnemyCache:ByGUID(guid)
+        local name = record and (U.DisplayName(record.key) or record.name)
+        if name and #enemies < ns.Protocol.MAX_PING_NAMES then
+            enemies[#enemies + 1] = { name = name, class = record.class, level = record.level }
+        end
+    end
     -- Pings carry the zone, so the position must be on the zone map too (not a cave's)
     local mapID = U.PlayerMapID()
     local _, x, y = ns.Zones.ToZone(mapID, U.PlayerPosition(mapID))
     local now = U.ServerTime()
-    local zone = self:AddFighter(mapID, U.CompactName(U.UnitKey("player")), now, x, y, ids)
+    local layer = ns.Layer:Current()
+    local zone = self:AddFighter(mapID, U.CompactName(U.UnitKey("player")), now, x, y, ids,
+        { enemies = enemies, layer = layer })
     if not zone then return end
     if now - lastPing >= self.PING_INTERVAL then
         lastPing = now
         local Protocol, Transport = ns.Protocol, ns.Transport
-        Transport:Queue(Protocol.TYPES.HOTSPOT, Protocol.EncodeHotspot(zone, now, x, y, ids),
+        Transport:Queue(Protocol.TYPES.HOTSPOT, Protocol.EncodeHotspot(zone, now, x, y, ids, enemies, layer),
             Transport.PRIORITY.hotspot, "P:" .. zone)
     end
     self:Evaluate(zone)
 end
 
 function Hotspots:OnPeerPing(record, sender)
-    local mapID, t, x, y, ids = ns.Protocol.DecodeHotspot(record)
+    local mapID, t, x, y, ids, enemies, layer = ns.Protocol.DecodeHotspot(record)
     if not mapID then return end
     local now = ns.Utils.ServerTime()
     if t > now + self.MAX_SKEW or now - t > self.WINDOW then return end
-    local zone = self:AddFighter(mapID, ns.Utils.CompactName(sender), t, x, y, ids)
+    local zone = self:AddFighter(mapID, ns.Utils.CompactName(sender), t, x, y, ids,
+        { sender = sender, layer = layer, enemies = enemies })
     if zone then self:Evaluate(zone) end
 end
 
@@ -365,6 +456,7 @@ end
 
 ns.Events:Register("HH_INITIALIZED", function()
     ns.Transport:RegisterHandler(ns.Protocol.TYPES.HOTSPOT, function(record, sender) Hotspots:OnPeerPing(record, sender) end)
+    ns.Transport:RegisterHandler(ns.Protocol.TYPES.HELP, function(record, sender) Hotspots:OnHelp(record, sender) end)
     ns.Events:Register("HH_REPORT_ADDED", function(_, report)
         local zone = Hotspots:AddDeath(report)
         if zone then ScheduleDeathCheck(zone) end

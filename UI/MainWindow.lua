@@ -205,12 +205,23 @@ local function ShameRows(now)
 end
 
 -- High Noon (HH-093): the listed duelists of one faction, best first
+-- HH-112: players of our own faction can be whispered from the list (not ourselves)
+function MainWindow.CanWhisper(key, faction)
+    local U = ns.Utils
+    return key ~= nil and faction ~= nil and faction == U.UnitFaction("player")
+        and not U.SameCharacter(key, U.UnitKey("player"))
+end
+
 local function DuelRows(faction, now)
     local HighNoon = ns.HighNoon
     local rows = {}
     for _, p in ipairs(HighNoon:List(faction)) do
         local name = Named(ns.Utils.DisplayName(p.key) or p.key, p)
         local lastDuel = p.lastT and ns.Utils.Ago(math.max(0, now - p.lastT)) or "-"
+        local whisper = MainWindow.CanWhisper(p.key, p.faction) and p.key or nil
+        local tooltip = { name, string.format(L.DUEL_TOOLTIP, HighNoon.Title(p)),
+            string.format(L.TIP_DUEL, p.wins, p.losses, lastDuel) }
+        if whisper then tooltip[#tooltip + 1] = L.WINDOW_ROW_WHISPER end
         rows[#rows + 1] = {
             position = tostring(p.position),
             name = name,
@@ -218,8 +229,8 @@ local function DuelRows(faction, now)
             record = p.wins .. "-" .. p.losses,
             net = HighNoon.NetText(p.net),
             lastDuel = lastDuel,
-            tooltip = { name, string.format(L.DUEL_TOOLTIP, HighNoon.Title(p)),
-                string.format(L.TIP_DUEL, p.wins, p.losses, lastDuel) },
+            whisper = whisper,
+            tooltip = tooltip,
         }
     end
     return rows
@@ -673,6 +684,8 @@ function MainWindow:OnRowClick(data)
     if data and data.tour then
         current.selected = data.id
         self:Refresh()
+    elseif data and data.whisper then
+        ns.Utils.OpenWhisper(data.whisper)
     elseif data and data.id then
         ns.Poster:Show(data.id)
     end

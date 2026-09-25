@@ -261,6 +261,23 @@ function Utils.SameCharacter(a, b)
     return ca ~= nil and ca == Utils.CompactName(b)
 end
 
+-- HH-112: open the chat box with a whisper to a player (same faction only: the game
+-- does not let the factions whisper each other). key: player key; on our own realm the
+-- realm is dropped.
+function Utils.OpenWhisper(key)
+    local target = key and Utils.DisplayName(key)
+    if not target or target == "" then return false end
+    if _G.ChatFrame_SendTell then
+        SafeCall(_G.ChatFrame_SendTell, target)
+        return true
+    end
+    if _G.ChatFrame_OpenChat then
+        SafeCall(_G.ChatFrame_OpenChat, "/w " .. target .. " ")
+        return true
+    end
+    return false
+end
+
 -- Short form for display: drops the realm when it is the player's own
 function Utils.DisplayName(key)
     if not key or ns.Features.RealmlessNames then return key end

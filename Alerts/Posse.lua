@@ -97,6 +97,23 @@ local function Broadcast(outlawId, mapID, t, layer, hunterRank)
     end
 end
 
+Posse.WHISPER_REPEAT = 900   -- a second death of the same victim within 15 minutes
+
+-- Did the victim of this report die another time within WHISPER_REPEAT?
+function Posse.DiedAgain(report)
+    local victim = report and report.victim and report.victim.key
+    local t = report and tonumber(report.t)
+    if not victim or not t then return false end
+    local U = ns.Utils
+    for _, other in ns.Reports:All() do
+        if other.id ~= report.id and other.victim and U.SameCharacter(other.victim.key, victim)
+                and math.abs((tonumber(other.t) or 0) - t) <= Posse.WHISPER_REPEAT then
+            return true
+        end
+    end
+    return false
+end
+
 function Posse:Join(entry, report)
     local U = ns.Utils
     local name = entry.key and U.DisplayName(entry.key) or entry.name
@@ -115,11 +132,12 @@ function Posse:Join(entry, report)
     AddMember(entry.id, U.UnitKey("player") or "me", now, U.PlayerMapID(), true, myLayer, myRank)
     Broadcast(entry.id, U.PlayerMapID(), now, myLayer, myRank)
 
-    -- Another layer: ask the victim for a group invite (moves us to their layer).
-    -- report.sender is the name the game gave us, so it is always a valid target.
-    -- Runs inside the popup click, which allows sending a whisper.
+    -- Another layer: ask the victim for a group invite (moves us to their layer), but
+    -- only when they died again within WHISPER_REPEAT (a single death is not worth a
+    -- whisper; being camped is). report.sender is the name the game gave us, so it is
+    -- always a valid target. Runs inside the popup click, which allows the whisper.
     if ns.Layer:Compare(report.layer, report.mapID) == "different"
-            and ns.db.settings.alerts.whisperInvite and report.sender then
+            and ns.db.settings.alerts.whisperInvite and report.sender and Posse.DiedAgain(report) then
         local ok = pcall(SendChatMessage, string.format(L.POSSE_WHISPER, name), "WHISPER", nil, report.sender)
         if ok then ns:Print(string.format(L.POSSE_WHISPERED, U.DisplayName(U.PlayerKey(report.sender)) or report.sender)) end
     end

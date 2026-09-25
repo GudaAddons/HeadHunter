@@ -30,6 +30,7 @@ Protocol.TYPES = {
     TOURNAMENT = "V", -- Gurubashi Tournament: announce, entrants, requests (HH-101)
     PING = "T", -- /hh sync ping: manual connectivity test
     PRESENCE = "N", -- HH-110: "here" with our version, counts who is online; both factions
+    HELP = "B",     -- HH-111: "help on the way" to a Battle hotspot
 }
 
 local FACTION_CODE = { Alliance = "A", Horde = "H" }
@@ -349,26 +350,45 @@ end
 
 -------------------------------------------------
 -- Hotspot ping: mapID ; time ; x ; y ; enemyIds (comma separated short ids)
+--   [ ; names ; layer ]  (0.1.8+) names: up to MAX_PING_NAMES "name/classCode/level",
+--   comma separated, so a Battle popup can say who is fighting; layer: ours, for
+--   the [Help] invite whisper. Older clients accept only the first 5 fields.
 -- The sender is the HeadHunter in PvP combat there.
 -------------------------------------------------
 
 Protocol.MAX_PING_ENEMIES = 12
+Protocol.MAX_PING_NAMES = 3
 
-function Protocol.EncodeHotspot(mapID, t, x, y, enemyIds)
+-- enemies: optional list of { name, class, level }; layer: optional number
+function Protocol.EncodeHotspot(mapID, t, x, y, enemyIds, enemies, layer)
     local ids = {}
     for i = 1, math.min(#enemyIds, Protocol.MAX_PING_ENEMIES) do
         local id = tostring(enemyIds[i]):gsub("[^%w]", "")
         ids[#ids + 1] = id
     end
-    return table.concat({ Protocol.ToB36(mapID), Protocol.ToB36(t), EncodeCoord(x), EncodeCoord(y),
-        table.concat(ids, ",") }, ";")
+    local fields = { Protocol.ToB36(mapID), Protocol.ToB36(t), EncodeCoord(x), EncodeCoord(y), table.concat(ids, ",") }
+    if (enemies and #enemies > 0) or layer then
+        local names = {}
+        for i = 1, math.min(#(enemies or {}), Protocol.MAX_PING_NAMES) do
+            local e = enemies[i]
+            local name = tostring(e.name or ""):gsub("[;,~/|:%c]", "")
+            if name ~= "" then
+                local level = tonumber(e.level)
+                names[#names + 1] = table.concat({ name, CLASS_CODE[e.class or ""] or "",
+                    level and (level == -1 and "s" or tostring(level)) or "" }, "/")
+            end
+        end
+        fields[6] = table.concat(names, ",")
+        fields[7] = layer and Protocol.ToB36(layer) or ""
+    end
+    return table.concat(fields, ";")
 end
 
--- Returns mapID, time, x, y, enemyIds
+-- Returns mapID, time, x, y, enemyIds, enemies ({ name, class, level }), layer
 function Protocol.DecodeHotspot(s)
     if type(s) ~= "string" then return nil end
     local f = Split(s, ";")
-    if #f ~= 5 then return nil end
+    if #f ~= 5 and #f ~= 7 then return nil end
     local mapID, t = Protocol.FromB36(f[1]), Protocol.FromB36(f[2])
     if not mapID or not t then return nil end
     local ids = {}
@@ -377,7 +397,33 @@ function Protocol.DecodeHotspot(s)
             if #ids < Protocol.MAX_PING_ENEMIES and id:match("^%w+$") then ids[#ids + 1] = id end
         end
     end
-    return mapID, t, DecodeCoord(f[3]), DecodeCoord(f[4]), ids
+    local enemies, layer = {}, nil
+    if #f == 7 then
+        for part in (f[6] or ""):gmatch("[^,]+") do
+            local name, class, level = part:match("^([^/]+)/(%u?)/(%w*)$")
+            if name and #enemies < Protocol.MAX_PING_NAMES then
+                enemies[#enemies + 1] = { name = name, class = CLASS_NAME[class],
+                    level = level == "s" and -1 or tonumber(level) }
+            end
+        end
+        layer = f[7] ~= "" and Protocol.FromB36(f[7]) or nil
+    end
+    return mapID, t, DecodeCoord(f[3]), DecodeCoord(f[4]), ids, enemies, layer
+end
+
+-------------------------------------------------
+-- Help on the way (HH-111): mapID ; time. The sender clicked [Help] on a Battle
+-- popup for that zone; players fighting there get a quiet note.
+-------------------------------------------------
+
+function Protocol.EncodeHelp(mapID, t)
+    return Protocol.ToB36(mapID) .. ";" .. Protocol.ToB36(t)
+end
+
+function Protocol.DecodeHelp(s)
+    if type(s) ~= "string" then return nil end
+    local mapID, t = s:match("^(%w+);(%w+)$")
+    return mapID and Protocol.FromB36(mapID), t and Protocol.FromB36(t)
 end
 
 -------------------------------------------------

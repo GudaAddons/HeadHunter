@@ -103,6 +103,23 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("the invite whisper waits for the victim's second death within 15 minutes", function()
+        local ns = H.Boot({ client = "era" })
+        local function Report(id, t)
+            return { id = id, t = t, victim = { key = "Tessa-Firemaw", level = 30 },
+                killer = { key = "Gank-Firemaw", name = "Gank-Firemaw", level = 40 }, assists = {},
+                mapID = 1429, confidence = "exact" }
+        end
+        local first = Report("Tessa-Firemaw:1", H.serverTime - 1200)
+        ns.Reports:Add(first, "peer", "Tessa-Firemaw")
+        T.ok(not ns.Posse.DiedAgain(first), "one death: no whisper")
+        ns.Reports:Add(Report("Tessa-Firemaw:2", H.serverTime - 1200 - ns.Posse.WHISPER_REPEAT - 60), "peer", "Tessa-Firemaw")
+        T.ok(not ns.Posse.DiedAgain(first), "a death longer ago does not count")
+        ns.Reports:Add(Report("Tessa-Firemaw:3", H.serverTime - 600), "peer", "Tessa-Firemaw")
+        T.ok(ns.Posse.DiedAgain(first), "died again within 15 minutes: whisper")
+        T.noErrors()
+    end)
+
     T.case("the invite whisper can be turned off", function()
         local _, dialog = Scenario(900, false)
         dialog.OnAccept()
