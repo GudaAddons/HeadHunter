@@ -234,6 +234,30 @@ local function AddDuels(faction, me, now)
         }
         if ns.Duels:Add(duel, "sim") then added = added + 1 end
     end
+
+    -- A shared #1 has no Top Gun: the leader wins one more until they stand alone
+    local byKey = {}
+    for _, p in ipairs(players) do byKey[p.key] = p end
+    for extra = 1, 5 do
+        local duels = {}
+        for _, duel in ns.Duels:All() do
+            if duel.faction == faction then duels[#duels + 1] = duel end
+        end
+        local list = {}
+        for _, p in pairs(ns.HighNoon.Compute(duels)) do list[#list + 1] = p end
+        table.sort(list, ns.HighNoon.Better)
+        if not (list[2] and ns.HighNoon.Tied(list[1], list[2])) then break end
+        local winner, loser = byKey[list[1].key], byKey[list[#list].key]
+        if not (winner and loser) then break end
+        ns.Duels:Add({
+            winner = winner.key, loser = loser.key, t = now - 20 * MINUTE + extra * 120,
+            mapID = Spot(), faction = faction,
+            winnerClass = winner.class, winnerRace = winner.race, winnerSex = winner.sex, winnerLevel = winner.level,
+            loserClass = loser.class, loserRace = loser.race, loserSex = loser.sex, loserLevel = loser.level,
+            demo = true,
+        }, "sim")
+        added = added + 1
+    end
     return added
 end
 

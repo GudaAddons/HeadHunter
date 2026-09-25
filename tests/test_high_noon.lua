@@ -423,30 +423,43 @@ return function(T, H)
     -- HH-092 rating and ranks
     -------------------------------------------------
 
-    T.case("Elo: equal players move 16 points; upsets move more", function()
+    T.case("records: net wins decide the rank; Greenhorn is only a label", function()
         local ns = H.Boot({ client = "era" })
         local HN = ns.HighNoon
         local players = HN.Compute({ { winner = "A", loser = "B", t = 1, faction = "Alliance" } })
-        T.eq(players.A.rating, 1016, "winner")
-        T.eq(players.B.rating, 984, "loser")
+        T.eq(players.A.net, 1, "winner +1")
+        T.eq(players.B.net, -1, "loser -1")
         T.eq(players.A.rank, "greenhorn", "under 5 duels")
 
         local duels = {}
         for i = 1, 10 do duels[#duels + 1] = { winner = "A", loser = "B", t = i, faction = "Alliance" } end
         duels[#duels + 1] = { winner = "B", loser = "A", t = 11, faction = "Alliance" }
         players = HN.Compute(duels)
-        T.eq(players.A.wins, 10, "wins")
-        T.eq(players.A.losses, 1, "losses")
-        -- Wins over a weaker player are worth less each time; the late upset costs more
-        T.eq(players.A.rating, 1085, "rating")
-        T.eq(players.A.rank, "quickdraw", "under 1100")
-        T.eq(players.B.rank, "quickdraw", "low rating")
-        T.eq(players.A.rating + players.B.rating, 2000, "points are only moved")
-        T.eq(HN.RankOf({ duels = 5, rating = 1300 }), "legend", "legend")
-        T.eq(HN.RankOf({ duels = 5, rating = 1250 }), "deadeye", "deadeye")
+        T.eq(players.A.wins .. "-" .. players.A.losses, "10-1", "record")
+        T.eq(players.A.net, 9, "net")
+        T.eq(players.A.rank, "sharpshooter", "+5 or more")
+        T.eq(players.B.rank, "quickdraw", "a losing record")
+        T.eq(HN.RankOf({ duels = 40, net = 30 }), "legend", "legend")
+        T.eq(HN.RankOf({ duels = 20, net = 15 }), "deadeye", "deadeye")
+        T.eq(HN.NetText(3) .. HN.NetText(0) .. HN.NetText(-2), "+30-2", "net text")
     end)
 
-    T.case("two lists, best first, from the first duel; the best non-Greenhorn is the Top Gun", function()
+    T.case("best first by net, then fewer losses: 1-0 beats 1-4", function()
+        local HN = H.Boot({ client = "era" }).HighNoon
+        local list = {
+            { key = "Grinder", wins = 30, losses = 40, net = -10 },
+            { key = "Lucky", wins = 1, losses = 0, net = 1 },
+            { key = "Unlucky", wins = 1, losses = 4, net = -3 },
+            { key = "Even", wins = 10, losses = 9, net = 1 },
+            { key = "Solid", wins = 6, losses = 0, net = 6 },
+        }
+        table.sort(list, HN.Better)
+        local order = {}
+        for _, p in ipairs(list) do order[#order + 1] = p.key end
+        T.eq(table.concat(order, " "), "Solid Lucky Even Unlucky Grinder", "order")
+    end)
+
+    T.case("two lists, best first, from the first duel; the #1 with a winning record is the Top Gun", function()
         local ns = H.Boot({ client = "era" })
         Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 6)
         Duels(ns, "Bob-Firemaw", "Cid-Firemaw", 5, "Alliance", 10000)
@@ -456,19 +469,52 @@ return function(T, H)
         local HN = ns.HighNoon
         local alliance = HN:List("Alliance")
         T.eq(#alliance, 4, "Alliance: Vati, Bob, Cid and New (one duel is enough)")
-        T.eq(alliance[1].key, "Vati-Firemaw", "best first")
+        T.eq(alliance[1].key, "Vati-Firemaw", "best first (+6)")
         T.eq(alliance[1].topGun, true, "Top Gun")
+        T.eq(alliance[2].key, "New-Firemaw", "1-0 comes before losing records")
         T.eq(alliance[2].position, 2, "position")
         T.eq(#HN:List("Horde"), 2, "Horde list")
         T.eq(HN:List("Horde")[1].key, "Grom-Firemaw", "Horde Top Gun")
         T.ok(HN.Title(HN:Get("Vati-Firemaw")):find("Top Gun", 1, true) ~= nil, "Top Gun title")
+        T.ok(HN.Title(HN:Get("Vati-Firemaw")):find("+6", 1, true) ~= nil, "net in the title")
         T.ok(HN.Title(HN:Get("Cid-Firemaw")):find("#" .. HN:Get("Cid-Firemaw").position, 1, true) ~= nil, "title with position")
-        T.eq(HN:Get("New-Firemaw").topGun, nil, "a Greenhorn is never the Top Gun")
+        T.eq(HN:Get("New-Firemaw").topGun, nil, "only the #1 is the Top Gun")
         T.eq(HN.Title(HN:Get("New-Firemaw")), "Greenhorn (1 duels)", "greenhorn title")
 
         H.Slash("duels")
         T.ok(H.Printed("Duels, Alliance: 4 duelists"), "/hh duels header")
         T.ok(H.Printed("You: .*Top Gun"), "/hh duels: where we stand")
+        T.noErrors()
+    end)
+
+    T.case("the same record shares a place; a shared #1 is no Top Gun", function()
+        local ns = H.Boot({ client = "era" })
+        Duels(ns, "Argo-Firemaw", "Chad-Firemaw", 1, "Horde")
+        Duels(ns, "Heavy-Firemaw", "Alex-Firemaw", 1, "Horde", 10000)
+        Duels(ns, "Mornin-Firemaw", "Dampa-Firemaw", 1, "Horde", 20000)
+        Settle()
+        local list = ns.HighNoon:List("Horde")
+        T.eq(list[1].position .. list[2].position .. list[3].position, "111", "three 1-0 share #1")
+        T.eq(list[4].position, 4, "the next record is #4")
+        for _, p in ipairs(list) do T.eq(p.topGun, nil, p.key .. " is no Top Gun") end
+
+        Duels(ns, "Heavy-Firemaw", "Chad-Firemaw", 1, "Horde", 30000)
+        Settle()
+        list = ns.HighNoon:List("Horde")
+        T.eq(list[1].key, "Heavy-Firemaw", "2-0 pulls ahead")
+        T.eq(list[1].topGun, true, "the sole leader is the Top Gun")
+        T.eq(list[2].position, 2, "the 1-0s share #2")
+        T.noErrors()
+    end)
+
+    T.case("no Top Gun without a winning record", function()
+        local ns = H.Boot({ client = "era" })
+        Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 1)
+        Duels(ns, "Bob-Firemaw", "Vati-Firemaw", 1, "Alliance", 10000)
+        Settle()
+        local list = ns.HighNoon:List("Alliance")
+        T.eq(list[1].net, 0, "even")
+        T.eq(list[1].topGun, nil, "no Top Gun at 1-1")
         T.noErrors()
     end)
 

@@ -1,10 +1,13 @@
--- HH-092: High Noon ratings and ranks (docs/addon/features.md section 10).
+-- HH-092: High Noon records and ranks (docs/addon/features.md section 10).
 --
--- Elo per player, computed from the duel set (Sync/Duels.lua) in time order, so every
--- client gets the same numbers. Start 1000, K = 32; a retreat is a loss.
--- Listed from the first duel (author, 2026-09-24). Ranks: Greenhorn (under MIN_DUELS),
--- then by rating Quickdraw, Sharpshooter (1100), Deadeye (1200), Legend (1300). The best
--- non-Greenhorn of each faction is the Top Gun. Two lists: Alliance and Horde (duels stay inside a faction).
+-- Wins and losses per player from the duel set (Sync/Duels.lua); a retreat is a loss.
+-- Order by net (wins minus losses), then fewer losses, then more wins (author,
+-- 2026-09-25: no rating, 1-0 is better than 1-4). Listed from the first duel.
+-- Ranks by net: Quickdraw, Sharpshooter (+5), Deadeye (+15), Legend (+30); under
+-- MIN_DUELS a player is a Greenhorn (a label only, not a lower place). The same record
+-- shares a place. The sole #1 of each faction is the Top Gun when they won more than
+-- they lost; a shared #1 means no Top Gun yet. Two lists: Alliance and
+-- Horde (duels stay inside a faction). The website ranks the same way.
 --
 --   HighNoon.Compute(duels) -> key -> player   (pure, tested offline)
 --   HighNoon:Get(key), HighNoon:List(faction)  (listed players, best first, with .position)
@@ -17,24 +20,17 @@ local HighNoon = ns:RegisterModule("HighNoon", {})
 
 local OWNER = "HighNoon"
 
-HighNoon.START = 1000
-HighNoon.K = 32
 HighNoon.MIN_DUELS = 5
 HighNoon.DEBOUNCE = 1
--- Highest first
+-- Highest first, by net wins
 HighNoon.RANKS = {
-    { min = 1300, id = "legend" },
-    { min = 1200, id = "deadeye" },
-    { min = 1100, id = "sharpshooter" },
+    { min = 30, id = "legend" },
+    { min = 15, id = "deadeye" },
+    { min = 5, id = "sharpshooter" },
     { min = -math.huge, id = "quickdraw" },
 }
 
--- Chance that a player rated `a` beats one rated `b`
-function HighNoon.Expected(a, b)
-    return 1 / (1 + 10 ^ ((b - a) / 400))
-end
-
--- Duels needed to be listed; /hh debug duels <n> lowers it for testing
+-- Duels needed to lose the Greenhorn label; /hh debug duels <n> lowers it for testing
 function HighNoon.MinDuels()
     local test = ns.db and ns.db.settings.testDuelMin
     return test or HighNoon.MIN_DUELS
@@ -43,44 +39,59 @@ end
 function HighNoon.RankOf(player)
     if player.duels < HighNoon.MinDuels() then return "greenhorn" end
     for _, rank in ipairs(HighNoon.RANKS) do
-        if player.rating >= rank.min then return rank.id end
+        if player.net >= rank.min then return rank.id end
     end
     return "quickdraw"
 end
 
--- duels: array. Returns key -> { key, faction, rating, wins, losses, duels, lastT, class, race }
+-- The same record: they share a place
+function HighNoon.Tied(a, b)
+    return a.net == b.net and a.losses == b.losses and a.wins == b.wins
+end
+
+-- Best first: net, then fewer losses, then more wins (by name within a shared place)
+function HighNoon.Better(a, b)
+    if not HighNoon.Tied(a, b) then
+        if a.net ~= b.net then return a.net > b.net end
+        if a.losses ~= b.losses then return a.losses < b.losses end
+        return a.wins > b.wins
+    end
+    return a.key < b.key
+end
+
+-- "+3", "0", "-2"
+function HighNoon.NetText(net)
+    return net > 0 and ("+" .. net) or tostring(net)
+end
+
+-- duels: array. Returns key -> { key, faction, wins, losses, duels, net, rank, lastT, class, race, sex }
 function HighNoon.Compute(duels)
-    local list = {}
-    for _, duel in ipairs(duels) do list[#list + 1] = duel end
-    table.sort(list, function(a, b)
-        if a.t ~= b.t then return a.t < b.t end
-        return (a.id or "") < (b.id or "")
-    end)
     local players = {}
-    local function Player(key, faction, class, race, sex)
+    local function Player(key, faction, class, race, sex, t)
         local p = players[key]
         if not p then
-            p = { key = key, rating = HighNoon.START, wins = 0, losses = 0, duels = 0 }
+            p = { key = key, wins = 0, losses = 0, duels = 0 }
             players[key] = p
         end
-        p.faction = faction or p.faction
-        p.class = class or p.class
-        p.race = race or p.race
-        p.sex = sex or p.sex
+        -- The newest duel tells the current class, race and faction
+        if not p.lastT or t >= p.lastT then
+            p.faction = faction or p.faction
+            p.class = class or p.class
+            p.race = race or p.race
+            p.sex = sex or p.sex
+            p.lastT = t
+        end
         return p
     end
-    for _, duel in ipairs(list) do
-        local w = Player(duel.winner, duel.faction, duel.winnerClass, duel.winnerRace, duel.winnerSex)
-        local l = Player(duel.loser, duel.faction, duel.loserClass, duel.loserRace, duel.loserSex)
-        local expected = HighNoon.Expected(w.rating, l.rating)
-        local change = HighNoon.K * (1 - expected)
-        w.rating, l.rating = w.rating + change, l.rating - change
+    for _, duel in ipairs(duels) do
+        local t = tonumber(duel.t) or 0
+        local w = Player(duel.winner, duel.faction, duel.winnerClass, duel.winnerRace, duel.winnerSex, t)
+        local l = Player(duel.loser, duel.faction, duel.loserClass, duel.loserRace, duel.loserSex, t)
         w.wins, l.losses = w.wins + 1, l.losses + 1
         w.duels, l.duels = w.duels + 1, l.duels + 1
-        w.lastT, l.lastT = duel.t, duel.t
     end
     for _, p in pairs(players) do
-        p.rating = math.floor(p.rating + 0.5)
+        p.net = p.wins - p.losses
         p.rank = HighNoon.RankOf(p)
     end
     return players
@@ -106,21 +117,15 @@ function HighNoon:Recompute()
         end
     end
     for _, list in pairs(lists) do
-        table.sort(list, function(a, b)
-            if a.rating ~= b.rating then return a.rating > b.rating end
-            if a.wins ~= b.wins then return a.wins > b.wins end
-            return a.key < b.key
-        end)
-        -- Top Gun: the best of those past Greenhorn, so one lucky first duel is not enough
-        local topGun
+        table.sort(list, HighNoon.Better)
         for i, p in ipairs(list) do
-            p.position = i
-            p.topGun = nil
-            if not topGun and p.rank ~= "greenhorn" then
-                topGun = p
-                p.topGun = true
-            end
+            local previous = list[i - 1]
+            p.position = previous and HighNoon.Tied(previous, p) and previous.position or i
         end
+        -- Top Gun: the faction's sole leader, with a winning record (a shared #1 has none)
+        local first, second = list[1], list[2]
+        for _, p in ipairs(list) do p.topGun = nil end
+        if first and first.net > 0 and not (second and second.position == 1) then first.topGun = true end
     end
     ns.Events:Fire("HH_HIGHNOON_UPDATED")
 end
@@ -147,14 +152,15 @@ function HighNoon.RankName(rank)
     return L["DUEL_RANK_" .. tostring(rank):upper()]
 end
 
--- "Deadeye #3 (1450)", "Top Gun (1500)", "Greenhorn (2 duels)"
+-- "Deadeye #3 (+16)", "Top Gun (+20)", "Greenhorn (2 duels)"
 function HighNoon.Title(player)
     if not player then return nil end
+    if player.topGun then return string.format(L.DUEL_TITLE_TOPGUN, HighNoon.NetText(player.net)) end
     if player.duels < HighNoon.MinDuels() then
         return string.format(L.DUEL_TITLE_GREENHORN, HighNoon.RankName("greenhorn"), player.duels)
     end
-    if player.topGun then return string.format(L.DUEL_TITLE_TOPGUN, player.rating) end
-    return string.format(L.DUEL_TITLE, HighNoon.RankName(player.rank), player.position or 0, player.rating)
+    return string.format(L.DUEL_TITLE, HighNoon.RankName(player.rank), player.position or 0,
+        HighNoon.NetText(player.net))
 end
 
 ns.Events:Register("HH_INITIALIZED", function()
@@ -170,8 +176,8 @@ ns.SlashCommands:Register("duels", function()
     ns:Print(string.format(L.DUELS_HEADER, faction or "?", #list))
     for i = 1, math.min(10, #list) do
         local p = list[i]
-        print(string.format("  #%d  %s  %s  %d  (%d-%d)", i, U.DisplayName(p.key) or p.key,
-            HighNoon.RankName(p.rank), p.rating, p.wins, p.losses))
+        print(string.format("  #%d  %s  %s  %s  (%d-%d)", i, U.DisplayName(p.key) or p.key,
+            HighNoon.RankName(p.rank), HighNoon.NetText(p.net), p.wins, p.losses))
     end
     local me = HighNoon:Get(U.UnitKey("player"))
     if me then ns:Print(string.format(L.DUELS_YOU, HighNoon.Title(me), me.wins, me.losses)) end

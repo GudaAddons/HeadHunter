@@ -79,10 +79,10 @@ When you log in, HeadHunter asks other HeadHunters what you missed while you wer
 - Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon. WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.
 - Only duels between players of level 10 or higher, at most 5 levels apart, count. Beating lowbies does not help.
 - Duels are shared like death reports, and never make anyone WANTED.
-- A rating for every duelist (starts at 1000). You are listed from your first duel.
-- Ranks: **Greenhorn** (under 5 duels), **Quickdraw**, **Sharpshooter**, **Deadeye** and **Legend**. The best duelist of each faction with 5 or more duels is the **Top Gun**.
+- Ranked by record: wins minus losses first, then fewer losses. 1-0 is ahead of 1-4. You are listed from your first duel.
+- Ranks by net wins: **Quickdraw**, **Sharpshooter** (+5), **Deadeye** (+15) and **Legend** (+30); **Greenhorn** under 5 duels. The #1 of each faction is the **Top Gun**, if they won more than they lost.
 
-![Duels: the Horde list with its Top Gun, ratings and records](Assets/2.jpg)
+![Duels: the Horde list with its Top Gun and records](Assets/2.jpg)
 
 ## Commands
 
