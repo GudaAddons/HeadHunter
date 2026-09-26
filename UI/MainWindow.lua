@@ -1,7 +1,8 @@
 -- HH-060: the main window. /hh (no arguments) or the minimap button toggles it.
 --
 -- Tabs:
---   WANTED         who is WANTED now; sort by rank, kills or last kill
+--   WANTED         who is WANTED now; sort by rank, kills or last kill; Alliance or Horde
+--                  (the switch top left, the enemy faction first)
 --   Hall of Shame  every enemy with the Coward badge (killed lowbies), WANTED or not
 --   High Noon      the best duelists (HH-093), Alliance or Horde (the switch top left)
 --   My deaths      our own PvP deaths, newest first
@@ -150,8 +151,24 @@ local SORTS = {
     end,
 }
 
-local function WantedRows(sortKey, now)
-    local list = ns.Wanted:List()
+function MainWindow.EnemyFaction()
+    local mine = ns.Utils.UnitFaction("player")
+    if mine == "Horde" then return "Alliance" end
+    if mine == "Alliance" then return "Horde" end
+    return nil
+end
+
+-- The website's WANTED list holds both factions. Entries without a race come from our
+-- own reports (Forever given-name-only killers), and those are always enemies.
+function MainWindow.EntryFaction(entry)
+    return ns.Utils.RaceFaction(entry.race) or MainWindow.EnemyFaction()
+end
+
+local function WantedRows(sortKey, now, faction)
+    local list = {}
+    for _, entry in ipairs(ns.Wanted:List()) do
+        if not faction or MainWindow.EntryFaction(entry) == faction then list[#list + 1] = entry end
+    end
     table.sort(list, SORTS[sortKey] or SORTS.rank)
     local rows = {}
     for _, entry in ipairs(list) do
@@ -338,7 +355,7 @@ function MainWindow.TourActions(t)
     }
 end
 
--- tab: one of TABS; sortKey (WANTED): "rank" | "kills" | "last"; faction (High Noon): "Alliance" | "Horde"
+-- tab: one of TABS; sortKey (WANTED): "rank" | "kills" | "last"; faction (WANTED, High Noon): "Alliance" | "Horde"
 function MainWindow.Rows(tab, sortKey, now, faction)
     now = now or ns.Utils.ServerTime()
     local rows
@@ -353,7 +370,7 @@ function MainWindow.Rows(tab, sortKey, now, faction)
     elseif tab == "deaths" then
         rows = DeathRows(now)
     else
-        rows = WantedRows(sortKey, now)
+        rows = WantedRows(sortKey, now, faction)
     end
     for i = #rows, MainWindow.MAX_ROWS + 1, -1 do rows[i] = nil end
     return rows
@@ -364,7 +381,8 @@ end
 -------------------------------------------------
 
 local frame
-local current = { tab = "wanted", sort = "rank", faction = nil } -- faction: High Noon list
+-- faction: High Noon list, wantedFaction: WANTED list (nil = the default of each tab)
+local current = { tab = "wanted", sort = "rank", faction = nil, wantedFaction = nil }
 local rowFrames = {}
 local sinceRefresh = 0
 
@@ -413,7 +431,7 @@ local function CreateMainFrame()
     end)
     f.online:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
 
-    -- High Noon: switch between the Alliance and Horde lists
+    -- WANTED and High Noon: switch between the Alliance and Horde lists
     f.faction = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     f.faction:SetSize(110, 20)
     f.faction:SetPoint("TOPLEFT", 14, -6)
@@ -557,7 +575,7 @@ function MainWindow:Refresh()
     local columns = self.COLUMNS[current.tab]
     frame.tabs:Select(current.tab)
     LayoutHeaders(columns)
-    local rows = self.Rows(current.tab, current.sort, nil, self:DuelFaction())
+    local rows = self.Rows(current.tab, current.sort, nil, self:ListFaction())
     for i, data in ipairs(rows) do
         local row = RowFrame(i)
         row.data = data
@@ -594,8 +612,8 @@ function MainWindow:Refresh()
     frame.online.text:SetText(string.format(online.scope == "group" and L.ONLINE_SHORT_GROUP or L.ONLINE_SHORT,
         online.total))
     frame.empty:SetText(#rows == 0 and L["EMPTY_" .. current.tab:upper()] or "")
-    if current.tab == "duels" then
-        frame.faction:SetText(string.format(L.DUEL_FACTION_BUTTON, self:DuelFaction() or "?"))
+    if current.tab == "duels" or current.tab == "wanted" then
+        frame.faction:SetText(string.format(L.FACTION_BUTTON, self:ListFaction() or "?"))
         frame.faction:Show()
     else
         frame.faction:Hide()
@@ -670,8 +688,24 @@ function MainWindow:DuelFaction()
     return current.faction or ns.Utils.UnitFaction("player")
 end
 
+-- The WANTED list on show: the one picked with the switch, else the enemy faction's
+function MainWindow:WantedFaction()
+    return current.wantedFaction or self.EnemyFaction()
+end
+
+-- The faction list of the tab on show (WANTED or High Noon), nil on the other tabs
+function MainWindow:ListFaction()
+    if current.tab == "wanted" then return self:WantedFaction() end
+    if current.tab == "duels" then return self:DuelFaction() end
+    return nil
+end
+
 function MainWindow:SwitchFaction()
-    current.faction = self:DuelFaction() == "Horde" and "Alliance" or "Horde"
+    if current.tab == "wanted" then
+        current.wantedFaction = self:WantedFaction() == "Horde" and "Alliance" or "Horde"
+    else
+        current.faction = self:DuelFaction() == "Horde" and "Alliance" or "Horde"
+    end
     self:Refresh()
 end
 

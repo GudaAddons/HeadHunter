@@ -54,7 +54,7 @@ Cowards are listed in the **Hall of Shame**.
 
 ### HeadHunter window
 Type `/hh` or click the minimap button:
-- **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill.
+- **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill, with a switch between the Alliance and Horde lists (the enemy list opens first).
 - **Hall of Shame**: every known coward.
 - **Duels**: the best duelists, with a switch between the Alliance and Horde lists.
 - **My deaths**: who killed you, when and where.

@@ -11,7 +11,7 @@ return function(T, H)
             local victim = "Victim" .. serial .. "-Firemaw"
             local t = H.serverTime - (opts.ago or 0) - (n - i + 1) * 30
             ns.Reports:Add({ id = victim .. ":" .. t, t = t, victim = { key = victim, level = opts.victimLevel or 58 },
-                killer = { key = killer, name = killer, level = 60, class = opts.class or "ROGUE", race = "Orc" },
+                killer = { key = killer, name = killer, level = 60, class = opts.class or "ROGUE", race = opts.race ~= false and (opts.race or "Orc") or nil },
                 assists = {}, mapID = opts.mapID or 1436, x = 0.5, y = 0.5, confidence = "exact" }, "peer", victim)
         end
     end
@@ -149,6 +149,40 @@ return function(T, H)
         H.Slash("")
         T.ok(not M:IsShown(), "closed")
         T.noErrors()
+    end)
+
+    T.case("WANTED tab: one list per faction, no race counts as the enemy", function()
+        local ns = H.Boot({ client = "era" })
+        Spree(ns, "Grubnak-Stonespine", 4)
+        Spree(ns, "Brenna-Stonespine", 4, { race = "Dwarf" })
+        Spree(ns, "Nameless-Stonespine", 4, { race = false })
+        Settle()
+        local M = ns.MainWindow
+        T.eq(Names(M.Rows("wanted", "rank", nil, "Horde")), "Nameless,Grubnak", "Horde list, newest kill first")
+        T.eq(Names(M.Rows("wanted", "rank", nil, "Alliance")), "Brenna", "Alliance list")
+        T.eq(#M.Rows("wanted", "rank"), 3, "no faction: everyone")
+    end)
+
+    T.case("WANTED tab opens on the enemy faction; its switch leaves the Duels one alone", function()
+        local ns = H.Boot({ client = "era" })
+        local M = ns.MainWindow
+        M:Toggle()
+        T.eq(M:ListFaction(), "Horde", "Alliance player: the Horde list first")
+        M:SwitchFaction()
+        T.eq(M:WantedFaction(), "Alliance", "switched")
+        T.eq(M:DuelFaction(), "Alliance", "Duels keeps our faction")
+        M:SelectTab("duels")
+        T.eq(M:ListFaction(), "Alliance", "Duels list")
+        M:SwitchFaction()
+        T.eq(M:DuelFaction(), "Horde", "Duels switched")
+        T.eq(M:WantedFaction(), "Alliance", "WANTED unchanged")
+        M:SelectTab("shame")
+        T.eq(M:ListFaction(), nil, "no list on other tabs")
+        T.noErrors()
+
+        local horde = H.Boot({ client = "era" })
+        H.units.player.race, H.units.player.faction = "Orc", "Horde"
+        T.eq(horde.MainWindow:WantedFaction(), "Alliance", "Horde player: the Alliance list first")
     end)
 
     T.case("race icons: atlas per client, gender, Undead's atlas name, unknown race", function()
