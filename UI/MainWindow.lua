@@ -608,9 +608,7 @@ function MainWindow:Refresh()
         end
         frame.count:SetText(count)
     end
-    local online = ns.Presence:Count()
-    frame.online.text:SetText(string.format(online.scope == "group" and L.ONLINE_SHORT_GROUP or L.ONLINE_SHORT,
-        online.total))
+    frame.online.text:SetText(ns.Presence.Short(ns.Presence:Count()))
     frame.empty:SetText(#rows == 0 and L["EMPTY_" .. current.tab:upper()] or "")
     if current.tab == "duels" or current.tab == "wanted" then
         frame.faction:SetText(string.format(L.FACTION_BUTTON, self:ListFaction() or "?"))

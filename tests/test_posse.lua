@@ -228,6 +228,19 @@ return function(T, H)
         T.eq(AlertPopups(), popups + 1, "an outlaw in our own zone still asks")
     end)
 
+    T.case("a posse of more than 10 hears no more join messages", function()
+        local ns = H.Boot({ client = "forever" })
+        for i = 1, 11 do H.Deliver(JoinMessage(ns, "Grim Reaper"), "Rider Number" .. i) end
+        T.eq(ns.Posse:Full("Grim Reaper"), true, "full")
+        local dialog = WantedPopup(ns, '"Grim Reaper"')
+        dialog.OnAccept()
+        T.eq(ns.Posse:IsMember("Grim Reaper"), true, "we are in")
+        H.Advance(3)
+        for _, m in ipairs(H.sent) do
+            T.ok(not m.message:find("^1AJ:"), "no join message")
+        end
+    end)
+
     T.case("/hh posse lists active posses", function()
         local ns = H.Boot({ client = "era" })
         H.Deliver(JoinMessage(ns, "Gank-Stonespine"), "Alpha-Firemaw")

@@ -13,6 +13,8 @@
 --     (Rules/Wanted.lua MergeSite, Rules/HighNoon.lua Merge)
 --   * restores our own deaths, duels, catches and bounty events at login, marked
 --     origin "website" so the sync app never uploads them again
+--   * tells us at login when we are on the website's WANTED list ourselves: the other
+--     faction's reports never reach our addon, so this is the only way to learn it
 --
 --   SiteData:Wanted() -> id -> WANTED entry     SiteData:Duelists() -> key -> player
 --   SiteData:GeneratedAt()                      nil when there is no data for our world
@@ -322,6 +324,35 @@ function SiteData:Restore()
     return added
 end
 
+-- Our own entry in the website's WANTED list, while it runs
+function SiteData:SelfWanted(now)
+    local me = ns.Utils.UnitKey("player")
+    if not me then return nil end
+    now = now or ns.Utils.ServerTime()
+    for _, entry in pairs(wanted or {}) do
+        if ns.Utils.SameCharacter(entry.key, me) and entry.wantedUntil > now then return entry end
+    end
+    return nil
+end
+
+SiteData.SELF_WANTED_DELAY = 10  -- after login, once the chat is up
+
+function SiteData:TellSelfWanted()
+    local entry = self:SelfWanted()
+    if not entry then return false end
+    local L, U = ns.L, ns.Utils
+    local enemies = U.UnitFaction("player") == "Horde" and "Alliance" or "Horde"
+    local rank = ns.Wanted.RankName(entry.rank)
+    local age = U.Ago(math.max(0, U.ServerTime() - (self:GeneratedAt() or U.ServerTime())))
+    return ns.Alerts:Show({
+        key = "self-wanted",
+        throttle = 0,
+        text = L.SELF_WANTED_CENTER,
+        chat = string.format(L.SELF_WANTED, enemies, rank, math.floor(entry.kills or 0), age),
+        sound = "soft",
+    }) ~= false
+end
+
 ns.Events:Register("HH_INITIALIZED", function()
     SiteData:Load()
 end, OWNER)
@@ -334,4 +365,5 @@ ns.Events:Register("PLAYER_LOGIN", function()
     if added > 0 then ns:Debug("Website data restored", added, "records") end
     ns.Wanted:RequestRecompute()
     ns.HighNoon:RequestRecompute()
+    C_Timer.After(SiteData.SELF_WANTED_DELAY, function() SiteData:TellSelfWanted() end)
 end, OWNER)

@@ -79,7 +79,8 @@ local function PlayAlertSound(kind)
     else
         kit = SOUNDKIT and SOUNDKIT.RAID_WARNING or Alerts.SOUND
     end
-    pcall(PlaySound, kit, "Master")
+    -- The effects channel: players who turned sound effects off hear nothing (HH-116)
+    pcall(PlaySound, kit, "SFX")
 end
 
 local popupHandlers = {}   -- dialog name -> { accept, decline }

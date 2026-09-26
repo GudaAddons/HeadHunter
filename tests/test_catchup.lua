@@ -138,6 +138,35 @@ return function(T, H)
         T.eq(ns.CatchUp.Since(), H.serverTime - 7200 - 600, "from the last logout")
     end)
 
+    T.case("no automatic hello after a /reload or with fresh website data; website data narrows since", function()
+        local saved = { meta = { savedAt = H.serverTime - 60, createdAt = 1, loadCount = 3 } }
+        local ns = H.Boot({ client = "era", savedDB = saved })
+        H.inGuild = true
+        Run(25)
+        T.eq(#Sent("^1AQ:h"), 0, "reload: no hello")
+        T.eq(ns.CatchUp.last.skipped, "reload", "said why")
+        H.Slash("catchup")
+        Run(4)
+        T.eq(#Sent("^1AQ:h", "GUILD"), 1, "/hh catchup still asks")
+
+        local site = { format_version = 1, generated_at = H.serverTime - 120, characters = {},
+            worlds = { ["era|eu|Firemaw"] = { generated_at = H.serverTime - 120, wanted = {},
+                duels = { alliance = {}, horde = {} } } } }
+        ns = H.Boot({ client = "era", siteData = site })
+        H.inGuild = true
+        Run(25)
+        T.eq(#Sent("^1AQ:h"), 0, "fresh website data: no hello")
+        T.eq(ns.CatchUp.last.skipped, "website", "said why")
+
+        site.generated_at = H.serverTime - 7200
+        site.worlds["era|eu|Firemaw"].generated_at = H.serverTime - 7200
+        ns = H.Boot({ client = "era", siteData = site })
+        H.inGuild = true
+        Run(25)
+        T.eq(#Sent("^1AQ:h", "GUILD"), 1, "older website data: hello")
+        T.eq(ns.CatchUp.Since(), H.serverTime - 7200 - 600, "only what is newer than the website data")
+    end)
+
     T.case("after login: hello, then the pull goes to the peer with the most records", function()
         local ns = H.Boot({ client = "era" })
         H.inGuild = true

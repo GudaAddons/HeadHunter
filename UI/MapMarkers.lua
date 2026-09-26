@@ -31,6 +31,8 @@ MapMarkers.WANTED_SIZE = 16
 MapMarkers.HUNTED_SIZE = 20                -- an outlaw our posse is hunting
 MapMarkers.REFRESH = 10                    -- seconds, while the map is shown (timers, cooling)
 MapMarkers.FRAME_LEVEL = 2000              -- above the map's own pins
+MapMarkers.MAX_PER_KIND = 10               -- PvP areas and skulls each, per map (author,
+                                           -- 2026-09-26): the hottest and highest ranked
 
 -------------------------------------------------
 -- Pin data
@@ -145,11 +147,31 @@ function MapMarkers:PinsFor(mapID, now)
     if not mapID then return {} end
     now = now or ns.Utils.ServerTime()
     local pins = {}
+    local shown = 0
+    -- Active() is hottest first
     for _, spot in ipairs(ns.Hotspots:Active(now)) do
-        pins[#pins + 1] = HotspotPin(spot, mapID, now)
+        if shown >= MapMarkers.MAX_PER_KIND then break end
+        local pin = HotspotPin(spot, mapID, now)
+        if pin then
+            pins[#pins + 1] = pin
+            shown = shown + 1
+        end
     end
+    -- List() is highest rank first; an outlaw our posse hunts goes first
+    local outlaws, others = {}, {}
     for _, entry in ipairs(ns.Wanted:List()) do
-        pins[#pins + 1] = WantedPin(entry, mapID, now)
+        local list = ns.Posse:IsMember(entry.id) and outlaws or others
+        list[#list + 1] = entry
+    end
+    for _, entry in ipairs(others) do outlaws[#outlaws + 1] = entry end
+    shown = 0
+    for _, entry in ipairs(outlaws) do
+        if shown >= MapMarkers.MAX_PER_KIND then break end
+        local pin = WantedPin(entry, mapID, now)
+        if pin then
+            pins[#pins + 1] = pin
+            shown = shown + 1
+        end
     end
     return pins
 end

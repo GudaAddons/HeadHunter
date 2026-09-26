@@ -44,11 +44,12 @@ Cowards are listed in the **Hall of Shame**.
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
 - **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**. HeadHunter shows at most one popup every 3 minutes. After a Decline, or a popup you let close by itself, you get no more of these popups for 20 minutes, only chat lines. While you ride with a posse, other outlaws only ask when they are in your zone. Only players close to the outlaw's level get this popup, the others get a chat line. If the victim is on another layer and died again within 15 minutes, joining also asks them for a group invite.
 - **Justice served**: a message when a WANTED outlaw is brought down.
+- **You are WANTED**: with the HeadHunter Sync app, HeadHunter tells you at login when the other faction has you on its WANTED list.
 - **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
 
 ### World map
 - A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 20 minutes after the last fight.
-- A **skull** shows where a WANTED outlaw made their last kill (for 10 minutes).
+- A **skull** shows where a WANTED outlaw made their last kill (for 10 minutes). The map shows the 10 biggest fights and the 10 highest ranked outlaws.
 
 ![A PvP area on the world map](Assets/screenshot-map.png)
 
@@ -82,6 +83,7 @@ When you log in, HeadHunter asks other HeadHunters what you missed while you wer
 The window shows how many HeadHunters are online right now. Hover it to see how many are Alliance and how many are Horde, or type `/hh online`.
 - **WoW Forever:** everyone in your region, both factions.
 - **Classic Era:** only your guild and group. The game does not let addons count further.
+- With more than 500 online, the window shows **500+ online**.
 
 ### Duels
 - Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon. WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.

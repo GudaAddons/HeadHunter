@@ -56,6 +56,23 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("on the website's WANTED list ourselves: told once at login", function()
+        local data = EraData()
+        table.insert(data.worlds["era|eu|Firemaw"].wanted, Outlaw("Vati", { faction = "alliance", race = "human",
+            rank = "ganker", kills = 5 }))
+        local ns = H.Boot({ client = "era", siteData = data })
+        Settle()
+        H.Advance(ns.SiteData.SELF_WANTED_DELAY)
+        T.ok(H.Printed("You are WANTED.* by the Horde: .*Ganker.*, 5 kills"), "chat line")
+        T.eq(H.centerTexts[#H.centerTexts], "You are WANTED!", "center text")
+
+        ns = H.Boot({ client = "era", siteData = EraData() })
+        Settle()
+        H.Advance(ns.SiteData.SELF_WANTED_DELAY)
+        T.ok(not H.Printed("You are WANTED"), "not on the list: nothing")
+        T.noErrors()
+    end)
+
     T.case("an unknown format is ignored", function()
         local ns = H.Boot({ client = "era", siteData = { format_version = 99, worlds = {} } })
         Settle()

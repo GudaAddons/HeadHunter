@@ -212,6 +212,8 @@ L.CATCHUP_BUTTON = "Catch up"
 L.WINDOW_TITLE = "HeadHunter"
 L.WINDOW_COUNT = "%d shown"
 L.WINDOW_SITE_DATA = " · with the website list from %s"
+L.SELF_WANTED_CENTER = "You are WANTED!"
+L.SELF_WANTED = "|cffff4040You are WANTED|r by the %s: %s, %d kills (website list from %s). HeadHunters of the other faction will hunt you."
 L.WINDOW_ROW_HINT = "|cff00ff00Click: open the poster|r"
 L.WINDOW_ROW_WHISPER = "|cff00ff00Click: whisper|r"
 L.TIP_WANTED = "|cffff2020WANTED|r · %s · %d kills"
@@ -341,6 +343,8 @@ L.ONLINE_GROUP = "HeadHunters online in your guild and group: %d, you included (
 L.ONLINE_VERSIONS = "Addon versions: %s"
 L.ONLINE_SHORT = "%d online"
 L.ONLINE_SHORT_GROUP = "%d online in guild/group"
+L.ONLINE_SHORT_CAPPED = "%d+ online"
+L.ONLINE_CAPPED = "More than %d HeadHunters online. The count is off on such a busy region, to save traffic."
 
 -- Gurubashi Tournament (M9)
 L.HELP_ARENA = "|cffffff00/hh arena|r: Are you at a tournament venue (Gurubashi Arena, the capital gates)? Shows your position"

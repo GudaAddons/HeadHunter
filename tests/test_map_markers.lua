@@ -208,6 +208,36 @@ return function(T, H)
         T.eq(#ns.MapMarkers:PinsFor(1417), 1, "back on the map at the new kill")
     end)
 
+    T.case("at most 10 skulls on a map, the highest ranked; the outlaw we hunt always", function()
+        local ns = H.Boot({ client = "era" })
+        for n = 1, 12 do
+            local killer = "Gank" .. string.char(64 + n) .. "-Stonespine"
+            for i = 1, 4 + n do Kill(ns, 1436, i * 10, killer) end
+        end
+        for i = 1, 4 do Kill(ns, 1436, 300 + i * 10, "Lowly-Stonespine") end
+        Settle()
+        T.eq(#ns.Wanted:List(), 13, "13 WANTED")
+        -- Skulls only (so many kills also make a PvP area)
+        local function Skulls()
+            local skulls = {}
+            for _, pin in ipairs(ns.MapMarkers:PinsFor(1436)) do
+                if pin.kind == "wanted" then skulls[#skulls + 1] = pin end
+            end
+            return skulls
+        end
+        local pins = Skulls()
+        T.eq(#pins, 10, "10 skulls")
+        local names = {}
+        for _, pin in ipairs(pins) do names[#names + 1] = pin.id end
+        T.ok(table.concat(names, ","):find("GankL", 1, true) ~= nil, "the most kills is shown")
+        T.ok(table.concat(names, ","):find("GankA", 1, true) == nil, "the fewest is not")
+
+        ns.Posse:Join(ns.Wanted:ByKey("Lowly-Stonespine"), { mapID = 1436, x = 0.5, y = 0.25 })
+        pins = Skulls()
+        T.eq(#pins, 10, "still 10")
+        T.eq(pins[1].id, "wanted:Lowly-Stonespine", "the one we hunt first")
+    end)
+
     T.case("the outlaw our posse hunts is marked and shows the posse", function()
         local ns = H.Boot({ client = "era" })
         for i = 1, 4 do Kill(ns, 1436, i * 30) end

@@ -22,6 +22,7 @@ local OWNER = "Posse"
 Posse.TTL = 1800        -- a join counts for 30 minutes
 Posse.MAX_SKEW = 300
 Posse.SHOWN_NAMES = 3   -- names shown in popups, then "+N"
+Posse.QUIET_SIZE = 10   -- above this many members we join without telling the others (HH-116)
 
 local posses = {}        -- outlawId -> compact member -> { name, t, mapID, self }
 
@@ -96,8 +97,14 @@ local function Guide(report)
     return ns.MapMarkers.Guide(report.mapID, report.x, report.y)
 end
 
+-- A big posse needs no more join messages: the "+N" already says enough
+function Posse:Full(outlawId)
+    return #self:Members(outlawId) > self.QUIET_SIZE
+end
+
 -- Runs inside the popup click (a hardware event): Era may send channel text here
 local function Broadcast(outlawId, mapID, t, layer, hunterRank)
+    if Posse:Full(outlawId) then return end
     local Protocol, Transport = ns.Protocol, ns.Transport
     local record = Protocol.EncodePosse(outlawId, mapID, t, layer, hunterRank)
     Transport:Queue(Protocol.TYPES.POSSE, record, Transport.PRIORITY.posse, "J:" .. outlawId)
@@ -178,6 +185,7 @@ function Posse:Refresh(entry, report)
     local myLayer = ns.Layer:Current()
     local myRank = ns.Marks:RankIndex()
     AddMember(entry.id, U.UnitKey("player") or "me", now, U.PlayerMapID(), true, myLayer, myRank)
+    if self:Full(entry.id) then return end
     local Protocol, Transport = ns.Protocol, ns.Transport
     Transport:Queue(Protocol.TYPES.POSSE, Protocol.EncodePosse(entry.id, U.PlayerMapID(), now, myLayer, myRank),
         Transport.PRIORITY.posse, "J:" .. entry.id)

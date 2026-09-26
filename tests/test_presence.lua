@@ -89,6 +89,41 @@ return function(T, H)
         T.eq(ns.Presence:Count().total, 52, "the newcomer still counts")
     end)
 
+    T.case("above 500 online the count switches off for the session: 500+ online, nothing sent", function()
+        local ns = H.Boot({ client = "forever" })
+        for i = 1, 500 do ns.Presence:Heard("Rider Number" .. i, i % 2 == 0 and "Alliance" or "Horde") end
+        T.eq(ns.Presence:Count().total, 501, "counted, us included")
+        T.eq(ns.Presence:Capped(), true, "switched off")
+        T.eq(ns.Presence.Short(ns.Presence:Count()), "500+ online", "window line")
+        H.Slash("online")
+        T.ok(H.Printed("More than 500 HeadHunters online"), "/hh online says why")
+        local before = SentPresence(ns)
+        H.Deliver(Here(ns, "A"), "Fresh Face")
+        for _ = 1, 3 do H.Advance(ns.Presence.INTERVAL) end
+        T.eq(SentPresence(ns), before, "no answers, no repeats")
+        T.noErrors()
+    end)
+
+    T.case("the totals follow a player who changes faction and drop the ones not heard", function()
+        local ns = H.Boot({ client = "forever" })
+        ns.Presence:Heard("Iron Maple", "Alliance")
+        ns.Presence:Heard("Iron Maple", "Horde")
+        local count = ns.Presence:Count()
+        T.eq(count.Horde, 1, "moved")
+        T.eq(count.Alliance, 1, "only us")
+        H.Advance(ns.Presence.WINDOW + ns.Presence.PRUNE_EVERY)
+        T.eq(ns.Presence:Count().total, 1, "dropped after the window")
+    end)
+
+    T.case("no separate here at login when the catch-up hello already went out", function()
+        local ns = H.Boot({ client = "forever" })
+        for _ = 1, 40 do H.Advance(1) end
+        local hello = 0
+        for _, m in ipairs(H.sent) do if m.message:find("^%d%aQ:h") then hello = hello + 1 end end
+        T.eq(hello, 1, "the hello went out")
+        T.eq(SentPresence(ns), 0, "no here: the hello told everyone we are online")
+    end)
+
     T.case("the repeat waits while we broadcast anything else", function()
         local ns = H.Boot({ client = "forever" })
         local now = ns.Utils.Now()

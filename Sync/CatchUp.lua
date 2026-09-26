@@ -40,6 +40,7 @@ CatchUp.MAX_DUELS = 100      -- High Noon duels on top of that (HH-091)
 CatchUp.ANSWER_COOLDOWN = 300 -- one answer per requester per 5 minutes
 CatchUp.OFFER_TARGET = 5     -- about this many peers offer, however many are online
 CatchUp.PROMPT_AWAY = 900    -- Era: offer the realm-wide catch-up after 15 min away
+CatchUp.FRESH = 300          -- no automatic hello when our data is newer than this (HH-116)
 
 local state = "idle"         -- idle | asking | pulling | done
 local since
@@ -55,14 +56,31 @@ CatchUp.last = nil           -- summary of the last catch-up (tests, /hh sync)
 local function B36(n) return ns.Protocol.ToB36(n) end
 local function FromB36(s) return ns.Protocol.FromB36(s) end
 
--- Last logout minus a margin, or the whole report lifetime without saved data
+-- Last logout minus a margin, or the whole report lifetime without saved data. The
+-- website's lists from the sync app (HH-082) cover what came before their time, so
+-- with them we only ask for what is newer (HH-116).
 function CatchUp.Since(now)
     now = now or ns.Utils.ServerTime()
     local meta = ns.db and ns.db.meta
     local savedAt = meta and tonumber(meta.savedAt) or 0
-    local oldest = now - ns.Reports.MAX_AGE
-    if not ns.Database.restoredFromDisk or savedAt <= 0 then return oldest end
-    return math.max(oldest, savedAt - CatchUp.MARGIN)
+    local since = now - ns.Reports.MAX_AGE
+    if ns.Database.restoredFromDisk and savedAt > 0 then
+        since = math.max(since, savedAt - CatchUp.MARGIN)
+    end
+    local site = ns.SiteData:GeneratedAt()
+    if site then since = math.max(since, site - CatchUp.MARGIN) end
+    return since
+end
+
+-- Why the automatic hello at login is not needed, or nil (HH-116): a /reload with our
+-- saved data, or website data from the sync app, newer than FRESH
+function CatchUp.SkipReason(now)
+    now = now or ns.Utils.ServerTime()
+    local away = CatchUp.AwayFor(now)
+    if away and away < CatchUp.FRESH then return "reload" end
+    local site = ns.SiteData:GeneratedAt()
+    if site and now - site < CatchUp.FRESH then return "website" end
+    return nil
 end
 
 function CatchUp:State()
@@ -195,10 +213,11 @@ function CatchUp:OnQuery(record, sender)
     local Transport, TYPES = ns.Transport, ns.Protocol.TYPES
     if kind == "h" then
         if RecentlyAnswered(sender) then return end
-        local count = #CatchUp.Records(value)
-        if count == 0 then return end
+        -- The chance first: building the records scans and encodes up to MAX_RECORDS
         local online = ns.Presence:Count()[ns.Utils.UnitFaction("player") or ""]
         if math.random() >= CatchUp.OfferChance(online) then return end
+        local count = #CatchUp.Records(value)
+        if count == 0 then return end
         -- Random delay: the requester collects offers for a few seconds anyway
         C_Timer.After(math.random() * self.OFFER_DELAY, function()
             Transport:SendDirect(TYPES.OFFER, { B36(count) }, sender)
@@ -249,6 +268,15 @@ end
 
 -- Wait for a route (channel joined, guild known), then ask once
 local function TryStart()
+    if attempt == 0 then
+        local reason = CatchUp.SkipReason()
+        if reason then
+            state = "done"
+            CatchUp.last = { reports = 0, catches = 0, skipped = reason }
+            ns:Debug("Catch-up: not needed (" .. reason .. ")")
+            return
+        end
+    end
     attempt = attempt + 1
     if CatchUp:Start() then return end
     if attempt * CatchUp.RETRY < CatchUp.MAX_WAIT then
