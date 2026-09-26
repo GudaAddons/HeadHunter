@@ -30,11 +30,13 @@ See the WANTED board, the best duelists and the top hunters on **[headhunterwow.
 ### Badges
 Badges show *how* someone kills, not only how much:
 - **Coward**: killed a player 10 or more levels lower, or a grey level player.
-- **Duo**: killed a player together with one other enemy (2 vs 1).
-- **Gang**: killed a player in a group of 3 or more.
+- **Duo**: killed a lone player together with one other enemy (2 vs 1).
+- **Gang**: killed a lone player in a group of 3 or more.
 - **Serial Killer**: 5 different victims in separate fights within a short time.
 - **Gunslinger**: most kills were fair, one on one, at a similar level.
 - **Giant Slayer**: killed higher level players alone.
+
+If your own group was in the fight, the kill shows as a **group fight** (for example 4 vs 3) and gives no Duo or Gang badge. It still counts toward WANTED.
 
 Cowards are listed in the **Hall of Shame**.
 
@@ -70,7 +72,7 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 
 ### Posse and hunter ranks
 - Join a posse to hunt an outlaw together. Posse members see each other.
-- Collect **bounty**: +1 for joining a posse, and +3 to +20 when you or your group bring down a WANTED outlaw (the higher their rank, the bigger the bounty). Declining costs 1.
+- Collect **bounty**: +1 for joining a posse, and +3 to +20 when you or your group bring down a WANTED outlaw (the higher their rank, the bigger the bounty). Declining costs 1; a popup that closes by itself costs nothing.
 - No bounty for hunting players 10 or more levels below you. Hunting down is ganking too.
 - Hunter ranks: **Tracker**, **Bounty Hunter**, **Manhunter**, **Headhunter** and **Reaper**.
 
@@ -86,7 +88,7 @@ The window shows how many HeadHunters are online right now. Hover it to see how 
 - With more than 500 online, the window shows **500+ online**.
 
 ### Duels
-- Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon. WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.
+- Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon, as long as HeadHunter knows both levels (target or mouse over the duelists). WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.
 - Only duels between players of level 10 or higher, at most 5 levels apart, count. Beating lowbies does not help.
 - Duels are shared like death reports, and never make anyone WANTED.
 - Click a player of your own faction in the Duels list to whisper them.
