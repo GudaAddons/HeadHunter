@@ -116,12 +116,12 @@ function Justice.Encode(record)
     return ns.Protocol.EncodeJustice(record.outlaw, record.t, record.mapID, record.killer)
 end
 
--- An enemy player died by our hand or our group's: a catch if WANTED right now
+-- An enemy player died by our hand or our group's: a catch if WANTED right now, or at large
 function Justice:OnEnemyKilled(key, guid, how, killer)
     if not ns.Guards:IsActive() then return nil end
     local Wanted = ns.Wanted
     local entry = (key and Wanted:ByKey(key)) or (guid and Wanted:Get("guid:" .. guid))
-    if not (entry and entry.wanted) then return nil end
+    if not Wanted.Hunted(entry) then return nil end
     -- Every HeadHunter who saw it earns marks (Rules/Marks.lua), even when a
     -- groupmate's catch record got stored first
     ns.Events:Fire("HH_CATCH_WITNESSED", entry, how)

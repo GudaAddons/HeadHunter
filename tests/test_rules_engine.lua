@@ -304,4 +304,28 @@ return function(T, H)
         T.eq(forward.wantedUntil, backward.wantedUntil, "timer")
         T.eq(forward.badges.serialkiller, backward.badges.serialkiller, "badge")
     end)
+
+    -- At large (author, 2026-09-26): shown and catchable, the WANTED rule itself unchanged
+    T.case("at large: WANTED ran out without a catch; a later catch or a new WANTED ends it", function()
+        local DAYS8 = 8 * 24 * 60
+        local e = Compute(Spree(0, 10), DAYS8)
+        T.eq(e.wanted, false, "7 days without a kill: no longer WANTED")
+        T.eq(e.atLarge, true, "at large")
+        T.eq(e.lastRank, "outlaw", "the rank it had")
+
+        e = Compute(Join(Spree(0, 10), { Report(DAYS8, "Late") }), DAYS8 + 1)
+        T.eq(e.atLarge, true, "a single kill after it ran out: still at large")
+
+        e = Compute(Spree(0, 10), DAYS8 + 10, Caught(DAYS8))
+        T.eq(e.atLarge, nil, "caught while at large")
+        T.eq(e.caughtAtLarge, T0 + DAYS8 * MIN, "when")
+        T.eq(e.timesCaught, 0, "not a WANTED catch")
+
+        e = Compute(Spree(0, 4), 10, Caught(5))
+        T.eq(e.atLarge, nil, "caught while WANTED: never at large")
+
+        e = Compute(Join(Spree(0, 4), Spree(DAYS8, 4, "W")), DAYS8 + 5)
+        T.eq(e.wanted, true, "WANTED again")
+        T.eq(e.atLarge, nil, "not at large")
+    end)
 end

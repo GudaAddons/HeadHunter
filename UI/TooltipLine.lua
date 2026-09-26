@@ -31,6 +31,10 @@ function TooltipLine.Lines(entry)
         if posse then lines[2] = { posse, 0.6, 0.8, 1 } end
         return lines
     end
+    if entry.atLarge then
+        local line = string.format(L.TOOLTIP_AT_LARGE, Wanted.RankName(entry.lastRank), entry.killCount or 0)
+        return { { line .. suffix, 1, 0.75, 0.5 } }
+    end
     if (entry.killCount or 0) == 0 then return {} end
     local line = string.format(L.TOOLTIP_KNOWN, entry.killCount)
     if (entry.timesCaught or 0) > 0 then line = line .. string.format(L.TOOLTIP_CAUGHT, entry.timesCaught) end

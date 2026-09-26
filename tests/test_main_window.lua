@@ -163,6 +163,28 @@ return function(T, H)
         T.eq(#M.Rows("wanted", "rank"), 3, "no faction: everyone")
     end)
 
+    T.case("WANTED tab: WANTED first, then outlaws at large until the list has 25 rows", function()
+        local ns = H.Boot({ client = "era" })
+        local DAY = 86400
+        Spree(ns, "Fresh-Stonespine", 4)
+        Spree(ns, "Older-Stonespine", 4, { ago = 9 * DAY })
+        Spree(ns, "Oldest-Stonespine", 4, { ago = 12 * DAY })
+        Settle()
+        local M = ns.MainWindow
+        local rows = M.Rows("wanted", "rank", nil, "Horde")
+        T.eq(Names(rows), "Fresh,Older,Oldest", "WANTED first, then at large newest first")
+        T.ok(rows[2].rank:find("At large", 1, true) ~= nil, "marked at large")
+        T.eq(rows[2].atLarge, true, "row flag")
+        T.ok(rows[2].tooltip[3]:find("never caught", 1, true) ~= nil, "tooltip: " .. rows[2].tooltip[3])
+
+        M.BOARD_MIN = 2
+        T.eq(Names(M.Rows("wanted", "rank", nil, "Horde")), "Fresh,Older", "filled up to the minimum only")
+        M.BOARD_MIN = 1
+        Spree(ns, "Second-Stonespine", 4)
+        Settle()
+        T.eq(#M.Rows("wanted", "rank", nil, "Horde"), 2, "more WANTED than the minimum: all of them, no at large")
+    end)
+
     T.case("WANTED tab opens on the enemy faction; its switch leaves the Duels one alone", function()
         local ns = H.Boot({ client = "era" })
         local M = ns.MainWindow

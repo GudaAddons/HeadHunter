@@ -100,6 +100,26 @@ function Hotspots:EnemyNames(zone, now)
     return table.concat(parts, ", ")
 end
 
+-- HeadHunters of our faction fighting in the zone, newest first (not us): "Brakka, Zulgar"
+function Hotspots:FighterNames(zone, now)
+    local data = zones[zone]
+    if not data then return nil end
+    local U = ns.Utils
+    local since = (now or U.ServerTime()) - self.WINDOW
+    local me = U.CompactName(U.UnitKey("player"))
+    local list = {}
+    for who, fighter in pairs(data.fighters) do
+        if who ~= me and fighter.sender and fighter.t >= since then list[#list + 1] = fighter end
+    end
+    if #list == 0 then return nil end
+    table.sort(list, function(a, b) return a.t > b.t end)
+    local parts = {}
+    for i = 1, math.min(#list, ns.Protocol.MAX_PING_NAMES) do
+        parts[i] = U.DisplayName(U.PlayerKey(list[i].sender)) or list[i].sender
+    end
+    return table.concat(parts, ", ")
+end
+
 function Hotspots:AddDeath(report)
     local zone, data = Zone(report.mapID)
     if not zone or not report.id then return nil end
@@ -361,6 +381,8 @@ function Hotspots:Evaluate(zone)
     local line = string.format(L.HOTSPOT_LINE, Fire(level), title, zoneName, Hotspots.Describe(a, e, d))
     local names = self:EnemyNames(zone, now)
     if names then line = line .. string.format(L.HOTSPOT_NAMES, names) end
+    local fighters = self:FighterNames(zone, now)
+    if fighters then line = line .. string.format(L.HOTSPOT_FIGHTING, fighters) end
     local alert = {
         key = "hot:" .. zone .. ":" .. level,
         throttle = self.LEVEL_THROTTLE,

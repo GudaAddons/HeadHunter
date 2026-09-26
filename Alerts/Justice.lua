@@ -20,8 +20,8 @@ function JusticeAlerts:OnCaught(entry, before)
     if not record then return end
     local U, Wanted = ns.Utils, ns.Wanted
     local outlaw = entry.key and U.DisplayName(entry.key) or entry.name
-    local rank = Wanted.RankName(before.rank)
-    local kills = math.floor(before.kills or 0)
+    local rank = Wanted.RankName(Wanted.CurrentRank(before))
+    local kills = math.floor(before.wanted and before.kills or before.killCount or 0)
     local zone = U.MapName(record.mapID) or L.UNKNOWN_ZONE
     local byMe = U.SameCharacter(record.killer, U.UnitKey("player"))
     local line = string.format(L.JUSTICE_LINE, rank, outlaw, kills, byMe and L.POSSE_YOU or Name(record.killer), zone)

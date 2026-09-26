@@ -74,6 +74,27 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("an outlaw at large can still be caught: off the list, bounty of the last rank", function()
+        local ns = H.Boot({ client = "era" })
+        Spree(ns, "Gank-Stonespine", 4)
+        Settle()
+        H.serverTime = H.serverTime + 8 * 86400
+        H.Advance(61)
+        Settle()
+        local entry = ns.Wanted:ByKey("Gank-Stonespine")
+        T.eq(entry.wanted, false, "WANTED ran out")
+        T.eq(entry.atLarge, true, "at large")
+        local total = ns.Marks:Total()
+
+        PartyKill("Gank-Stonespine")
+        Settle()
+        T.eq(ns.Wanted:ByKey("Gank-Stonespine").atLarge, nil, "no longer at large")
+        T.eq(#ns.Wanted:AtLarge(), 0, "off the list")
+        T.eq(ns.Marks:Total(), total + 3, "Ganker bounty")
+        T.ok(H.Printed("Justice served!.*Ganker.*Gank%-Stonespine.*%(4 kills%)"), "chat line")
+        T.noErrors()
+    end)
+
     T.case("era: [Announce] sends the catch realm-wide; guild gets it automatically", function()
         local ns = H.Boot({ client = "era" })
         H.inGuild = true

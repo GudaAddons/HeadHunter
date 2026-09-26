@@ -45,7 +45,7 @@ Cowards are listed in the **Hall of Shame**.
 - **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**. HeadHunter shows at most one popup every 3 minutes. After a Decline, or a popup you let close by itself, you get no more of these popups for 20 minutes, only chat lines. While you ride with a posse, other outlaws only ask when they are in your zone. Only players close to the outlaw's level get this popup, the others get a chat line. If the victim is on another layer and died again within 15 minutes, joining also asks them for a group invite.
 - **Justice served**: a message when a WANTED outlaw is brought down.
 - **You are WANTED**: with the HeadHunter Sync app, HeadHunter tells you at login when the other faction has you on its WANTED list.
-- **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
+- **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight and the HeadHunters of your side fighting there. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
 
 ### World map
 - A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 20 minutes after the last fight.
@@ -55,7 +55,7 @@ Cowards are listed in the **Hall of Shame**.
 
 ### HeadHunter window
 Type `/hh` or click the minimap button:
-- **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill, with a switch between the Alliance and Horde lists (the enemy list opens first).
+- **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill, with a switch between the Alliance and Horde lists (the enemy list opens first). While few outlaws are WANTED, the list fills up to 25 with outlaws **at large**: their WANTED time ran out, but nobody caught them. You get the same alert when you meet one, and catching one still pays their bounty.
 - **Hall of Shame**: every known coward.
 - **Duels**: the best duelists, with a switch between the Alliance and Horde lists.
 - **My deaths**: who killed you, when and where.

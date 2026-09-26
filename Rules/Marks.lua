@@ -160,7 +160,8 @@ function Marks:OnCatch(entry)
     if lastCatch[entry.id] and now - lastCatch[entry.id] < self.CATCH_COOLDOWN then return nil end
     lastCatch[entry.id] = now
     if Marks.HuntingDown(entry) then return self:Add(0, "skip", OutlawName(entry)) end
-    return self:Add(self.CATCH[entry.rank] or self.CATCH.ganker, "catch", OutlawName(entry), entry.rank)
+    local rank = ns.Wanted.CurrentRank(entry)
+    return self:Add(self.CATCH[rank] or self.CATCH.ganker, "catch", OutlawName(entry), rank)
 end
 
 -- Eligible to be penalised: out of combat, in the open world, not AFK

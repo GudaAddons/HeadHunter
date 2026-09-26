@@ -86,6 +86,14 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("the alert names the HeadHunters of our side in the fight", function()
+        local ns = H.Boot({ client = "era" })
+        Ping(ns, 1436, "Alpha-Firemaw", Ids(1, 5))
+        Ping(ns, 1436, "Bravo-Firemaw", Ids(6, 10))
+        local text = _G.StaticPopupDialogs.HEADHUNTER_HOTSPOT.text
+        T.ok(text:find("Fighting: Bravo, Alpha", 1, true) ~= nil, "newest first: " .. text)
+    end)
+
     T.case("a lone WANTED outlaw's kills: Battle heat, but a chat line only", function()
         local ns = H.Boot({ client = "era" })
         for i = 1, 5 do Death(ns, 1436, i * 30, "Gank-Stonespine") end -- heat 10, WANTED ganker

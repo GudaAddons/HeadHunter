@@ -23,10 +23,10 @@ Sighting.THROTTLE = 120
 function Sighting.WantedEntry(record)
     local Wanted = ns.Wanted
     local entry = record.key and Wanted:ByKey(record.key)
-    if (not entry or not entry.wanted) and record.guid then
+    if not Wanted.Hunted(entry) and record.guid then
         entry = Wanted:Get("guid:" .. record.guid)
     end
-    return entry and entry.wanted and entry or nil
+    return Wanted.Hunted(entry) and entry or nil
 end
 
 -- "60 Night Elf Hunter" (skull icon for a skull level)
@@ -43,9 +43,17 @@ function Sighting:OnEnemySeen(record, source)
     local name = ns.Utils.DisplayName(record.key) or entry.name
     local badges = Wanted.BadgeNames(entry)
     local suffix = badges ~= "" and (" · " .. badges) or ""
-    local text = string.format(L.SIGHTING_TEXT, Wanted.RankName(entry.rank), name)
-    local chat = string.format(L.SIGHTING_CHAT, Wanted.RankName(entry.rank), name, Describe(record),
-        math.floor(entry.kills)) .. suffix
+    -- The chat line stays with us (nothing is sent to other HeadHunters)
+    local text, chat
+    if entry.wanted then
+        text = string.format(L.SIGHTING_TEXT, Wanted.RankName(entry.rank), name)
+        chat = string.format(L.SIGHTING_CHAT, Wanted.RankName(entry.rank), name, Describe(record),
+            math.floor(entry.kills)) .. suffix
+    else
+        text = string.format(L.SIGHTING_AT_LARGE, name)
+        chat = string.format(L.SIGHTING_CHAT_AT_LARGE, name, Describe(record),
+            Wanted.RankName(entry.lastRank), entry.killCount or 0) .. suffix
+    end
 
     ns.Alerts:Show({
         key = "seen:" .. entry.id,

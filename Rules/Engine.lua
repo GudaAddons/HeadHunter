@@ -181,6 +181,9 @@ function Engine.Evaluate(kills, now, opts, catches)
     local exact, partial = 0, 0
     local nextCatch, timesCaught, lastCaught = 1, 0, nil
     local ranOut = false -- the last WANTED ended by 7 days without a kill
+    -- At large (author, 2026-09-26): the last WANTED ran out without a catch; a catch
+    -- later still ends it. Display and catches only, the WANTED rule is unchanged.
+    local atLarge, lastRank, caughtAtLarge = false, nil, nil
 
     -- A catch at time t, before kill number `nextKill`: WANTED ends and the count
     -- restarts; the kills before it never count toward a new WANTED
@@ -190,7 +193,11 @@ function Engine.Evaluate(kills, now, opts, catches)
             lastCaught = t
         elseif wanted then
             ranOut = true -- it had already run out before this catch
+            caughtAtLarge = t
+        elseif atLarge then
+            caughtAtLarge = t
         end
+        atLarge = false
         wanted, count = false, 0
         windowStart, windowSum = nextKill, 0
     end
@@ -217,6 +224,7 @@ function Engine.Evaluate(kills, now, opts, catches)
 
         if wanted and kill.t > wantedUntil then
             wanted, count = false, 0 -- 7 days without a kill before this one
+            atLarge = true
         end
         if wanted then
             count = count + kill.weight
@@ -224,10 +232,12 @@ function Engine.Evaluate(kills, now, opts, catches)
             wanted, count, wantedSince = true, windowSum, kill.t
             timesWanted = timesWanted + 1
             ranOut = false
+            atLarge = false
         end
         if wanted then
             wantedUntil = kill.t + Engine.WANTED_IDLE
             local rank = Engine.Rank(count) or "ganker"
+            lastRank = rank
             if rank and (not peakRank or RANK_ORDER[rank] > RANK_ORDER[peakRank]) then
                 peakRank = rank
             end
@@ -242,8 +252,12 @@ function Engine.Evaluate(kills, now, opts, catches)
 
     local last = kills[#kills]
     local active = wanted and now <= wantedUntil
+    if wanted and not active then atLarge = true end
     return {
         wanted = active,
+        atLarge = (atLarge and not active) or nil,
+        lastRank = lastRank,          -- the rank when WANTED last ended (or now)
+        caughtAtLarge = caughtAtLarge, -- a catch after WANTED ran out
         expired = (wanted and not active) or ranOut, -- ended by 7 days without a kill
         timesCaught = timesCaught,
         lastCaught = lastCaught,

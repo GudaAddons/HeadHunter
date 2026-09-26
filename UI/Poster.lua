@@ -68,6 +68,8 @@ function Poster.Content(id, now)
     }
     if entry.wanted then
         c.status = string.format(L.TIP_WANTED, Wanted.RankName(entry.rank), math.floor(entry.kills))
+    elseif entry.atLarge then
+        c.status = string.format(L.TIP_AT_LARGE, Wanted.RankName(entry.lastRank))
     else
         c.status = L.TIP_NOT_WANTED
     end
@@ -86,7 +88,7 @@ function Poster.Content(id, now)
     end
     -- Join needs a kill to go to (and WANTED status); not twice
     c.newestReport = kills[1] and kills[1].report
-    c.canJoin = entry.wanted and c.newestReport ~= nil and not ns.Posse:IsMember(entry.id)
+    c.canJoin = Wanted.Hunted(entry) and c.newestReport ~= nil and not ns.Posse:IsMember(entry.id)
     return c
 end
 

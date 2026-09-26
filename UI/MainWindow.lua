@@ -26,6 +26,7 @@ MainWindow.WIDTH = 620
 MainWindow.HEIGHT = 440
 MainWindow.ROW_HEIGHT = 18
 MainWindow.MAX_ROWS = 300
+MainWindow.BOARD_MIN = 25    -- the WANTED tab fills up to this many rows with outlaws at large
 MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 
 MainWindow.TABS = { "wanted", "shame", "duels", "deaths", "marks", "tours" }
@@ -112,6 +113,8 @@ function MainWindow.EntryTooltip(entry, now)
     }
     if entry.wanted then
         lines[#lines + 1] = string.format(L.TIP_WANTED, Wanted.RankName(entry.rank), math.floor(entry.kills))
+    elseif entry.atLarge then
+        lines[#lines + 1] = string.format(L.TIP_AT_LARGE, Wanted.RankName(entry.lastRank))
     else
         lines[#lines + 1] = L.TIP_NOT_WANTED
     end
@@ -164,12 +167,19 @@ function MainWindow.EntryFaction(entry)
     return ns.Utils.RaceFaction(entry.race) or MainWindow.EnemyFaction()
 end
 
+-- Every outlaw WANTED now, sorted; then (author, 2026-09-26) outlaws at large, newest
+-- first, until the list has BOARD_MIN rows. A busy realm fills it with WANTED alone.
 local function WantedRows(sortKey, now, faction)
+    local function Ours(entry) return not faction or MainWindow.EntryFaction(entry) == faction end
     local list = {}
     for _, entry in ipairs(ns.Wanted:List()) do
-        if not faction or MainWindow.EntryFaction(entry) == faction then list[#list + 1] = entry end
+        if Ours(entry) then list[#list + 1] = entry end
     end
     table.sort(list, SORTS[sortKey] or SORTS.rank)
+    for _, entry in ipairs(ns.Wanted:AtLarge()) do
+        if #list >= MainWindow.BOARD_MIN then break end
+        if Ours(entry) then list[#list + 1] = entry end
+    end
     local rows = {}
     for _, entry in ipairs(list) do
         local kill = entry.lastKill
@@ -177,11 +187,13 @@ local function WantedRows(sortKey, now, faction)
         if kill then
             lastKill = ns.Utils.Ago(math.max(0, now - kill.t)) .. " · " .. (ns.Utils.MapName(kill.mapID) or L.UNKNOWN_ZONE)
         end
+        local rank = entry.wanted and ns.Wanted.RankName(entry.rank) or L.AT_LARGE
         rows[#rows + 1] = {
             id = entry.id,
-            rank = ns.Wanted.RankName(entry.rank),
+            atLarge = entry.atLarge or nil,
+            rank = rank,
             name = Named(OutlawName(entry), entry),
-            kills = tostring(math.floor(entry.kills)),
+            kills = entry.wanted and tostring(math.floor(entry.kills)) or ("|cff999999" .. (entry.killCount or 0) .. "|r"),
             lastKill = lastKill,
             badges = ns.Wanted.BadgeNames(entry),
             tooltip = MainWindow.EntryTooltip(entry, now),

@@ -7,7 +7,8 @@
 --   HH_WANTED_ADDED(entry)            an enemy became WANTED
 --   HH_WANTED_RANK(entry, oldRank)    rank went up
 --   HH_WANTED_EXPIRED(entry)          7 days without a kill
---   HH_WANTED_CAUGHT(entry, before)   killed by a HeadHunter or their group (HH-048)
+--   HH_WANTED_CAUGHT(entry, before)   killed by a HeadHunter or their group (HH-048),
+--                                     WANTED or at large (before.atLarge)
 --   HH_WANTED_UPDATED()               the list changed in any way
 --
 --   Wanted:Get(id), Wanted:ByKey(key), Wanted:List() (WANTED only, sorted),
@@ -43,6 +44,28 @@ end
 
 local function RankOrder(entry)
     return entry.rank and ns.RulesEngine.RANK_ORDER[entry.rank] or 0
+end
+
+-- At large (author, 2026-09-26): WANTED ran out without a catch, newest last kill first
+function Wanted:AtLarge()
+    local list = {}
+    for _, entry in pairs(entries) do
+        if entry.atLarge then list[#list + 1] = entry end
+    end
+    table.sort(list, function(a, b)
+        return (a.lastKill and a.lastKill.t or 0) > (b.lastKill and b.lastKill.t or 0)
+    end)
+    return list
+end
+
+-- WANTED now, or at large: an outlaw a catch still ends
+function Wanted.Hunted(entry)
+    return entry ~= nil and (entry.wanted or entry.atLarge) and true or false
+end
+
+-- The rank to show and pay for: the current one, or the last one while at large
+function Wanted.CurrentRank(entry)
+    return entry and (entry.rank or (entry.atLarge and entry.lastRank)) or nil
 end
 
 -- Currently WANTED, highest rank first, then most kills, then most recent
@@ -86,7 +109,12 @@ local function Publish(newEntries)
             else
                 ns.Events:Fire("HH_WANTED_EXPIRED", entry)
             end
-        elseif not before or (entry.wanted and entry.kills ~= before.kills) then
+        elseif before and before.atLarge and not entry.atLarge and not entry.wanted
+                and entry.caughtAtLarge and entry.caughtAtLarge ~= before.caughtAtLarge then
+            changed = true
+            ns.Events:Fire("HH_WANTED_CAUGHT", entry, before)
+        elseif not before or (entry.wanted and entry.kills ~= before.kills)
+                or (entry.atLarge or false) ~= (before.atLarge or false) then
             changed = true
         end
     end
