@@ -42,7 +42,7 @@ Cowards are listed in the **Hall of Shame**.
 
 ### Alerts
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
-- **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**. Only players close to the outlaw's level get this popup, the others get a chat line. If the victim is on another layer and died again within 15 minutes, joining also asks them for a group invite.
+- **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**. After a Decline you get no more of these popups for 20 minutes, only chat lines. Only players close to the outlaw's level get this popup, the others get a chat line. If the victim is on another layer and died again within 15 minutes, joining also asks them for a group invite.
 - **Justice served**: a message when a WANTED outlaw is brought down.
 - **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
 

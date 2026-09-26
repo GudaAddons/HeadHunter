@@ -144,18 +144,18 @@ function Posse:Join(entry, report)
     ns.Events:Fire("HH_POSSE_JOINED", entry, report)
 end
 
--- Decline: no popup about this outlaw for DECLINE_QUIET seconds (chat lines only)
-Posse.DECLINE_QUIET = 900
-local declined = {}   -- outlawId -> GetTime() of the decline
+-- Decline (author, 2026-09-26): no WANTED popup about any outlaw for DECLINE_QUIET
+-- seconds, chat lines only
+Posse.DECLINE_QUIET = 1200
+local lastDecline     -- GetTime() of our last decline
 
 function Posse:Decline(entry, report)
-    declined[entry.id] = ns.Utils.Now()
+    lastDecline = ns.Utils.Now()
     ns.Events:Fire("HH_POSSE_DECLINED", entry, report)
 end
 
-function Posse:RecentlyDeclined(outlawId)
-    local at = declined[outlawId]
-    return at ~= nil and ns.Utils.Now() - at < self.DECLINE_QUIET
+function Posse:RecentlyDeclined()
+    return lastDecline ~= nil and ns.Utils.Now() - lastDecline < self.DECLINE_QUIET
 end
 
 -- A new kill by an outlaw we are hunting (author, 2026-09-23): the waypoint follows

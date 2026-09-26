@@ -12,6 +12,7 @@
 --   - farther away on the same continent: one chat line only
 --   - other continents: nothing
 --   - one popup per outlaw per THROTTLE seconds (Alerts framework), queued in combat
+--   - after a Decline: no popup about any outlaw for 20 min, chat lines only (Posse)
 -- Level window: deferred on purpose (author, 2026-09-23), see tickets HH-043.
 
 local addonName, ns = ...
@@ -85,10 +86,10 @@ function Activity:Check(report)
                 })
                 ns.Posse:Refresh(entry, report)
             end
-        elseif ns.Posse:RecentlyDeclined(entry.id) then
-            -- Declined recently: chat line only
+        elseif ns.Posse:RecentlyDeclined() then
+            -- We declined a posse lately (any outlaw): chat line only
             if distance then
-                ns.Alerts:Show({ key = "declined:" .. entry.id .. ":" .. tostring(report.id), throttle = 0, chat = headline })
+                ns.Alerts:Show({ key = "declined:" .. entry.id, throttle = self.THROTTLE, chat = headline })
             end
         elseif inRange and not Wanted.InLevelWindow(entry) then
             -- HH-047: not a fight for our level (either way): a chat line, no popup

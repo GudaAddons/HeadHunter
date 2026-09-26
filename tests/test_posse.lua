@@ -159,20 +159,29 @@ return function(T, H)
         T.eq(#H.centerTexts, texts, "nothing")
     end)
 
-    T.case("after Decline: chat lines only for 15 minutes, then popups again", function()
+    T.case("after Decline: no popup about any outlaw for 20 minutes, chat lines only", function()
         local ns = H.Boot({ client = "era" })
         local dialog = WantedPopup(ns, "Gank")
         dialog.OnCancel()
         local popups = AlertPopups()
-        H.clock = H.clock + 180
-        H.serverTime = H.serverTime + 180
+        local function Wait(seconds)
+            H.clock = H.clock + seconds
+            H.serverTime = H.serverTime + seconds
+        end
+        Wait(180)
         NewKill(ns, 1429)
         T.eq(AlertPopups(), popups, "no popup after decline")
         T.ok(H.Printed("killed Late"), "chat line")
-        H.clock = H.clock + 900
-        H.serverTime = H.serverTime + 900
+        H.Slash("spree Rakkar 4 60")
+        Flow()
+        T.eq(AlertPopups(), popups, "another outlaw: no popup either")
+        T.ok(H.Printed("Rakkar"), "its chat line")
+        Wait(900)
         NewKill(ns, 1429)
-        T.eq(AlertPopups(), popups + 1, "popup again after 15 min")
+        T.eq(AlertPopups(), popups, "still quiet after 18 min")
+        Wait(150)
+        NewKill(ns, 1429)
+        T.eq(AlertPopups(), popups + 1, "popup again after 20 min")
     end)
 
     T.case("/hh posse lists active posses", function()
