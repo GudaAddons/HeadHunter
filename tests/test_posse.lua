@@ -184,6 +184,50 @@ return function(T, H)
         T.eq(AlertPopups(), popups + 1, "popup again after 20 min")
     end)
 
+    T.case("a popup that times out holds popups like a Decline, without the bounty penalty", function()
+        local ns = H.Boot({ client = "era" })
+        local dialog = WantedPopup(ns, "Gank")
+        local total = ns.Marks:Total()
+        dialog.OnCancel(nil, nil, "timeout")
+        T.eq(ns.Marks:Total(), total, "no penalty")
+        T.eq(ns.Posse:RecentlyDeclined(), true, "held")
+        local popups = AlertPopups()
+        H.clock = H.clock + 200
+        H.serverTime = H.serverTime + 200
+        NewKill(ns, 1429)
+        T.eq(AlertPopups(), popups, "no popup")
+    end)
+
+    T.case("in a posse: other outlaws nearby are chat lines, one in our own zone still asks", function()
+        local ns = H.Boot({ client = "era" })
+        WantedPopup(ns, "Gank").OnAccept()
+        T.eq(ns.Posse:Hunting(), true, "hunting")
+        local popups = AlertPopups()
+        -- Four peer kills by one outlaw in mapID, the newest now
+        local function Spree(killer, mapID)
+            for i = 1, 4 do
+                extra = extra + 1
+                local victim = "Late" .. extra .. "-Firemaw"
+                local t = H.serverTime - (4 - i) * 60
+                ns.Reports:Add({
+                    id = victim .. ":" .. t, t = t, victim = { key = victim, level = 40 },
+                    killer = { key = killer, name = killer, level = 40, class = "ROGUE", race = "Orc" },
+                    assists = {}, mapID = mapID, x = 0.3, y = 0.3, confidence = "exact",
+                }, "peer", victim)
+            end
+            Flow()
+        end
+        H.clock = H.clock + 200
+        H.serverTime = H.serverTime + 200
+        Spree("Rakkar-Firemaw", 1436)       -- Westfall, next to Elwynn
+        T.eq(AlertPopups(), popups, "no popup for another outlaw next door")
+        T.ok(H.Printed("Rakkar"), "a chat line")
+        H.clock = H.clock + 200
+        H.serverTime = H.serverTime + 200
+        Spree("Tuskar-Firemaw", 1429)       -- Elwynn, our zone
+        T.eq(AlertPopups(), popups + 1, "an outlaw in our own zone still asks")
+    end)
+
     T.case("/hh posse lists active posses", function()
         local ns = H.Boot({ client = "era" })
         H.Deliver(JoinMessage(ns, "Gank-Stonespine"), "Alpha-Firemaw")

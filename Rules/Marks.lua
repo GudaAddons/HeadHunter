@@ -172,9 +172,9 @@ function Marks.DeclineCounts()
     return true
 end
 
-function Marks:OnDecline(entry)
-    -- Outside the level window (HH-047) a decline never costs anything
-    if not Marks.DeclineCounts() or Marks.HuntingDown(entry) or not ns.Wanted.InLevelWindow(entry) then
+function Marks:OnDecline(entry, reason)
+    -- A popup that timed out, or one outside the level window (HH-047), never costs anything
+    if reason == "timeout" or not Marks.DeclineCounts() or Marks.HuntingDown(entry) or not ns.Wanted.InLevelWindow(entry) then
         return nil
     end
     local now = ns.Utils.Now()
@@ -186,7 +186,7 @@ end
 ns.Events:Register("HH_INITIALIZED", function()
     local Events = ns.Events
     Events:Register("HH_POSSE_JOINED", function(_, entry) Marks:OnJoin(entry) end, OWNER)
-    Events:Register("HH_POSSE_DECLINED", function(_, entry) Marks:OnDecline(entry) end, OWNER)
+    Events:Register("HH_POSSE_DECLINED", function(_, entry, _, reason) Marks:OnDecline(entry, reason) end, OWNER)
     Events:Register("HH_CATCH_WITNESSED", function(_, entry) Marks:OnCatch(entry) end, OWNER)
 end, OWNER)
 

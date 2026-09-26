@@ -12,7 +12,10 @@
 --   - farther away on the same continent: one chat line only
 --   - other continents: nothing
 --   - one popup per outlaw per THROTTLE seconds (Alerts framework), queued in combat
---   - after a Decline: no popup about any outlaw for 20 min, chat lines only (Posse)
+--   - after a Decline or a timed-out popup: no popup about any outlaw for 20 min, chat
+--     lines only (Posse)
+--   - while in a posse: no popup about other outlaws unless they are in our zone
+--   - at most one WANTED or hotspot popup per 3 min (Alerts.POPUP_GAP)
 -- Level window: deferred on purpose (author, 2026-09-23), see tickets HH-043.
 
 local addonName, ns = ...
@@ -91,6 +94,9 @@ function Activity:Check(report)
             if distance then
                 ns.Alerts:Show({ key = "declined:" .. entry.id, throttle = self.THROTTLE, chat = headline })
             end
+        elseif inRange and distance ~= "zone" and ns.Posse:Hunting() then
+            -- Busy with another outlaw's posse: a chat line, unless this one is right here
+            ns.Alerts:Show({ key = "hunting:" .. entry.id, throttle = self.THROTTLE, chat = headline })
         elseif inRange and not Wanted.InLevelWindow(entry) then
             -- HH-047: not a fight for our level (either way): a chat line, no popup
             ns.Alerts:Show({ key = "activity-level:" .. entry.id, throttle = self.THROTTLE,
@@ -107,7 +113,7 @@ function Activity:Check(report)
                     accept = L.POSSE_JOIN,
                     decline = L.POSSE_DECLINE,
                     onAccept = function() ns.Posse:Join(entry, report) end,
-                    onDecline = function() ns.Posse:Decline(entry, report) end,
+                    onDecline = function(reason) ns.Posse:Decline(entry, report, reason) end,
                 },
             })
         elseif distance == "continent" then

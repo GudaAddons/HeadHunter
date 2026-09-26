@@ -8,7 +8,8 @@
 -- Received joins (protocol type J, "outlawId;mapID;time;layer;hunterRank", the sender
 -- is the member) keep a member list per outlaw for TTL seconds. Shown in the activity
 -- popup ("Posse: A, B") and by /hh posse (with each member's hunter rank, HH-050).
--- Decline: HH_POSSE_DECLINED(entry, report), counted by marks (Rules/Marks.lua).
+-- Decline: HH_POSSE_DECLINED(entry, report, reason), counted by marks (Rules/Marks.lua)
+-- unless the popup only timed out (reason "timeout").
 -- Events: HH_POSSE_JOINED(entry, report), HH_POSSE_CHANGED(outlawId).
 
 local addonName, ns = ...
@@ -56,6 +57,14 @@ function Posse:Members(outlawId)
         return a.t < b.t
     end)
     return list
+end
+
+-- In any posse right now (author, 2026-09-26: no popups about other outlaws then)
+function Posse:Hunting()
+    for outlawId in pairs(posses) do
+        if self:IsMember(outlawId) then return true end
+    end
+    return false
 end
 
 function Posse:IsMember(outlawId)
@@ -145,13 +154,14 @@ function Posse:Join(entry, report)
 end
 
 -- Decline (author, 2026-09-26): no WANTED popup about any outlaw for DECLINE_QUIET
--- seconds, chat lines only
+-- seconds, chat lines only. A popup that timed out holds the same way (the player did
+-- not want it), without the bounty penalty.
 Posse.DECLINE_QUIET = 1200
 local lastDecline     -- GetTime() of our last decline
 
-function Posse:Decline(entry, report)
+function Posse:Decline(entry, report, reason)
     lastDecline = ns.Utils.Now()
-    ns.Events:Fire("HH_POSSE_DECLINED", entry, report)
+    ns.Events:Fire("HH_POSSE_DECLINED", entry, report, reason)
 end
 
 function Posse:RecentlyDeclined()

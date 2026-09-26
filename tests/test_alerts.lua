@@ -101,6 +101,58 @@ return function(T, H)
         T.eq(declined, true, "decline callback")
     end)
 
+    local function PopupAlert(key, dialog)
+        return Alert(key, { popup = { dialog = dialog, text = "Join " .. key .. "?", accept = "Join", decline = "Decline" } })
+    end
+
+    local function PopupCount()
+        local n = 0
+        for _, p in ipairs(H.popups) do
+            if p.which == "HEADHUNTER_ALERT" or p.which == "HEADHUNTER_HOTSPOT" then n = n + 1 end
+        end
+        return n
+    end
+
+    T.case("popups at least 3 minutes apart; one that comes sooner is a chat line only", function()
+        local ns = H.Boot({ client = "era" })
+        ns.Alerts:Show(PopupAlert("first"))
+        T.eq(PopupCount(), 1, "first popup")
+        ns.Alerts:Show(PopupAlert("hot", ns.Alerts.HOTSPOT_POPUP))
+        T.eq(PopupCount(), 1, "a hotspot popup waits for the gap too")
+        T.ok(H.Printed("chat hot"), "its chat line")
+        T.eq(#H.centerTexts, 1, "no center text")
+        T.eq(#H.sounds, 1, "no sound")
+        H.clock = H.clock + ns.Alerts.POPUP_GAP
+        ns.Alerts:Show(PopupAlert("later"))
+        T.eq(PopupCount(), 2, "after 3 minutes")
+        ns.Alerts:Show(PopupAlert("era", ns.Alerts.JUSTICE_POPUP))
+        T.eq(H.popups[#H.popups].which, "HEADHUNTER_JUSTICE", "our own catch is not held back")
+    end)
+
+    T.case("after combat only the newest waiting popup is shown", function()
+        local ns = H.Boot({ client = "era" })
+        H.inCombat = true
+        ns.Alerts:Show(PopupAlert("older"))
+        H.clock = H.clock + 5
+        ns.Alerts:Show(PopupAlert("newer", ns.Alerts.HOTSPOT_POPUP))
+        ns.Alerts:Show(Alert("plain"))
+        H.inCombat = false
+        H.Fire("PLAYER_REGEN_ENABLED")
+        T.eq(PopupCount(), 1, "one popup")
+        T.eq(H.popups[#H.popups].which, "HEADHUNTER_HOTSPOT", "the newest")
+        T.ok(H.Printed("chat older"), "the older one as a chat line")
+        T.eq(#H.sounds, 2, "sounds: the newest popup and the plain alert")
+    end)
+
+    T.case("a popup that times out calls decline with the reason", function()
+        local ns = H.Boot({ client = "era" })
+        local reason
+        ns.Alerts:Show(Alert("t", { popup = { text = "Join?", accept = "Join", decline = "Decline",
+            onDecline = function(why) reason = why end } }))
+        _G.StaticPopupDialogs.HEADHUNTER_ALERT.OnCancel(nil, nil, "timeout")
+        T.eq(reason, "timeout", "reason passed on")
+    end)
+
     -------------------------------------------------
     -- Sighting (HH-042)
     -------------------------------------------------

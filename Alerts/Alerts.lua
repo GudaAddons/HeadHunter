@@ -16,6 +16,10 @@
 --     except alerts marked `combat` with no popup (a WANTED outlaw in sight: author,
 --     2026-09-23), which show at once
 --   - settings.alerts: enabled, sound, popups
+--   - WANTED and hotspot popups at least POPUP_GAP apart (author, 2026-09-26); one that
+--     comes sooner is shown as its chat line only (no center text, no sound)
+--   - after combat only the newest queued popup is shown; the others become chat lines
+--   - onDecline(reason) also runs when a popup times out: reason "timeout"
 -- Returns true when shown, "queued" when waiting for combat to end, false otherwise.
 
 local addonName, ns = ...
@@ -26,6 +30,7 @@ local OWNER = "Alerts"
 
 Alerts.DEFAULT_THROTTLE = 60
 Alerts.QUEUE_MAX_AGE = 60     -- seconds an alert may wait for combat to end
+Alerts.POPUP_GAP = 180        -- seconds between two WANTED or hotspot popups
 Alerts.SOUND = 8959           -- SOUNDKIT.RAID_WARNING
 Alerts.POPUP = "HEADHUNTER_ALERT"            -- WANTED activity (Join the posse)
 Alerts.HOTSPOT_POPUP = "HEADHUNTER_HOTSPOT"  -- PvP hotspots (Help / Ignore)
@@ -35,7 +40,12 @@ Alerts.TOUR_POPUP = "HEADHUNTER_TOUR"        -- Gurubashi check-in: I'm here / L
 -- One StaticPopup per kind, so a hotspot never replaces a WANTED popup on screen
 local DIALOGS = { Alerts.POPUP, Alerts.HOTSPOT_POPUP, Alerts.JUSTICE_POPUP, Alerts.CATCHUP_POPUP, Alerts.TOUR_POPUP }
 
+-- Popups that ask for our time; the others (Era Announce, catch-up, tournament
+-- check-in) follow a click of our own or a schedule we joined
+local GAPPED = { [Alerts.POPUP] = true, [Alerts.HOTSPOT_POPUP] = true }
+
 local lastShown = {}          -- key -> GetTime()
+local lastPopupAt             -- GetTime() of the last gapped popup
 local queue = {}              -- key -> { alert, queuedAt }, while in combat
 
 local function Setting(name)
@@ -88,7 +98,27 @@ end
 -- Show
 -------------------------------------------------
 
+local function IsGapped(alert)
+    return alert.popup ~= nil and GAPPED[alert.popup.dialog or Alerts.POPUP] == true
+end
+
+-- The alert as a chat line only
+local function ChatOnly(alert)
+    local copy = {}
+    for k, v in pairs(alert) do copy[k] = v end
+    copy.popup, copy.text, copy.sound = nil, nil, nil
+    return copy
+end
+
 local function Render(alert)
+    if IsGapped(alert) and Setting("popups") then
+        local now = ns.Utils.Now()
+        if lastPopupAt and now - lastPopupAt < Alerts.POPUP_GAP then
+            alert = ChatOnly(alert)
+        else
+            lastPopupAt = now
+        end
+    end
     if alert.text then ShowCenter(alert.text) end
     if alert.chat then ns:Print(alert.chat) end
     if alert.sound and Setting("sound") then PlayAlertSound(alert.sound) end
@@ -127,10 +157,18 @@ function Alerts:FlushQueue()
         queue[key] = nil
     end
     table.sort(pending, function(a, b) return a.queuedAt < b.queuedAt end)
+    local newestPopup
+    for _, item in ipairs(pending) do
+        if IsGapped(item.alert) then newestPopup = item end
+    end
     for _, item in ipairs(pending) do
         local last = lastShown[item.alert.key]
         if not last or now - last >= (item.alert.throttle or self.DEFAULT_THROTTLE) then
-            Render(item.alert)
+            if IsGapped(item.alert) and item ~= newestPopup then
+                Render(ChatOnly(item.alert))
+            else
+                Render(item.alert)
+            end
         end
     end
 end
@@ -144,6 +182,7 @@ end
 -- Forget throttles (tests, and /hh alerts reset)
 function Alerts:ResetThrottles()
     wipe(lastShown)
+    lastPopupAt = nil
 end
 
 -------------------------------------------------
@@ -160,9 +199,9 @@ ns.Events:Register("HH_INITIALIZED", function()
                 local handlers = popupHandlers[name]
                 if handlers and handlers.accept then handlers.accept() end
             end,
-            OnCancel = function()
+            OnCancel = function(_, _, reason)
                 local handlers = popupHandlers[name]
-                if handlers and handlers.decline then handlers.decline() end
+                if handlers and handlers.decline then handlers.decline(reason) end
             end,
             timeout = 30,
             whileDead = 1,

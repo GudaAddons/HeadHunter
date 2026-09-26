@@ -80,6 +80,7 @@ return function(T, H)
         T.eq(#H.centerTexts, 0, "no center text for a Battle")
         Death(ns, 1436)
         Death(ns, 1436)
+        H.clock = H.clock + ns.Alerts.POPUP_GAP -- one popup per 3 min
         Ping(ns, 1436, "Charlie-Firemaw", Ids(10, 14)) -- heat 3 + 14 + 4 = 21
         T.ok(H.centerTexts[#H.centerTexts]:find("Warzone", 1, true) ~= nil, "Warzone center text")
         T.noErrors()
@@ -107,6 +108,7 @@ return function(T, H)
         for i = 1, 4 do Death(ns, 1436, i * 30, "Gank-Stonespine") end -- heat 8
         Settle()
         T.eq(Popups(), 0, "Skirmish so far")
+        H.clock = H.clock + ns.Alerts.POPUP_GAP -- after the WANTED popup about Gank
         Ping(ns, 1436, "Alpha-Firemaw", Ids(1, 3)) -- + 1 + 3 = 12
         T.eq(Popups(), 1, "Battle popup")
     end)
