@@ -13,7 +13,7 @@ return function(T, H)
         T.eq(report.victim.level, 30, "victim level")
         T.eq(report.confidence, "sim", "confidence")
         T.ok(H.Printed("Killed by .*Grim Reaper"), "chat line")
-        T.ok(H.Printed("Coward kill"), "classification shown")
+        T.ok(H.Printed("Bully kill"), "classification shown")
         T.noErrors()
     end)
 

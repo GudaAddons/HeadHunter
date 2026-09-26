@@ -53,8 +53,8 @@ return function(T, H)
         T.eq(C.ReportLabel(Report(0)), "|cff40ff40Fair fight|r", "1 vs 1")
         T.eq(C.ReportLabel(Report(1)), "|cffcc66ffDuo|r (2 vs 1)", "same level 2 vs 1: only the group")
         T.eq(C.ReportLabel(Report(2)), "|cffcc66ffGang|r (3 vs 1)", "same level 3 vs 1")
-        T.eq(C.ReportLabel(Report(1, 60, 20)), "|cffff8000Coward kill|r · |cffcc66ffDuo|r (2 vs 1)", "lowbie + duo")
-        T.eq(C.ReportLabel(Report(3, -1)), "|cffff8000Coward kill|r · |cffcc66ffGang|r (4 vs 1)", "skull + gang")
+        T.eq(C.ReportLabel(Report(1, 60, 20)), "|cffff8000Bully kill|r · |cffcc66ffDuo|r (2 vs 1)", "lowbie + duo")
+        T.eq(C.ReportLabel(Report(3, -1)), "|cffff8000Bully kill|r · |cffcc66ffGang|r (4 vs 1)", "skull + gang")
     end)
 
     T.case("a group fight: our group members in the fight, no Duo or Gang", function()
@@ -72,7 +72,7 @@ return function(T, H)
         T.ok(not C.IsFair("fair", "group"), "not one on one")
         T.eq(C.ReportLabel(Report(3, 2)), "|cffcc66ffGroup fight|r (4 vs 3)", "4 vs 3")
         T.eq(C.ReportLabel(Report(0, 1)), "|cffcc66ffGroup fight|r (1 vs 2)", "1 vs 2")
-        T.eq(C.ReportLabel(Report(1, 1, 20)), "|cffff8000Coward kill|r · |cffcc66ffGroup fight|r (2 vs 2)",
-            "a lowbie kill stays a Coward kill")
+        T.eq(C.ReportLabel(Report(1, 1, 20)), "|cffff8000Bully kill|r · |cffcc66ffGroup fight|r (2 vs 2)",
+            "a lowbie kill stays a Bully kill")
     end)
 end

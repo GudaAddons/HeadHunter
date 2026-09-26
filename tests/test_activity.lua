@@ -88,7 +88,7 @@ return function(T, H)
         T.eq(popups, 1, "one popup for the whole spree")
         local dialog = _G.StaticPopupDialogs.HEADHUNTER_ALERT
         T.ok(dialog.text:find("Gank%-Stonespine") and dialog.text:find("Westfall"), "who and where")
-        T.ok(dialog.text:find("Coward") ~= nil, "badges")
+        T.ok(dialog.text:find("Bully") ~= nil, "badges")
         T.eq(dialog.button1, "Join the posse", "accept label")
         T.eq(dialog.button2, "Decline", "decline label")
         T.ok(H.centerTexts[#H.centerTexts]:find("is killing in Westfall") ~= nil, "center text")

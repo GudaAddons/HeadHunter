@@ -178,7 +178,7 @@ return function(T, H)
         local expected, found = "spotted (" .. ns.Utils.SKULL_TEXT .. " Orc Rogue)", false
         for _, line in ipairs(H.printed) do found = found or line:find(expected, 1, true) ~= nil end
         T.ok(found, "chat line with the skull icon (not ??), race, class")
-        T.ok(H.Printed("Coward"), "badge")
+        T.ok(H.Printed("Bully"), "badge")
         T.eq(#H.sounds, 1, "sound")
         T.noErrors()
     end)

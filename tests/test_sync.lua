@@ -411,7 +411,7 @@ return function(T, H)
         RealDeath(ns, nil, "Sacredsnack-Mograine")
         T.eq(#H.popups, 1, "prompt shown")
         T.ok(H.popups[1].text:find("Sacredsnack%-Mograine") ~= nil, "prompt names the killer")
-        T.ok(H.popups[1].text:find("Coward kill") ~= nil, "prompt shows the kill type")
+        T.ok(H.popups[1].text:find("Bully kill") ~= nil, "prompt shows the kill type")
         T.eq(_G.StaticPopupDialogs.HEADHUNTER_REPORT.whileDead, 1, "usable while dead")
 
         _G.StaticPopupDialogs.HEADHUNTER_REPORT.OnAccept()

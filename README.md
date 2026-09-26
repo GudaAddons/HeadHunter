@@ -29,18 +29,18 @@ See the WANTED board, the best duelists and the top hunters on **[headhunterwow.
 
 ### Badges
 Badges show *how* someone kills, not only how much:
-- **Coward**: killed a player 10 or more levels lower, or a grey level player.
+- **Bully**: killed a player 10 or more levels lower, or a grey level player.
 - **Duo**: killed a lone player together with one other enemy (2 vs 1).
 - **Gang**: killed a lone player in a group of 3 or more.
 - **Serial Killer**: 5 different victims in separate fights within a short time.
 - **Gunslinger**: most kills were fair, one on one, at a similar level.
-- **Giant Slayer**: killed higher level players alone.
+- **Underdog**: killed higher level players alone.
 
 If your own group was in the fight, the kill shows as a **group fight** (for example 4 vs 3) and gives no Duo or Gang badge. It still counts toward WANTED.
 
-Cowards are listed in the **Hall of Shame**.
+Bullies are listed in the **Hall of Shame**.
 
-![The Hall of Shame: every known coward, WANTED or not](Assets/5.png)
+![The Hall of Shame: every known bully, WANTED or not](Assets/5.png)
 
 ### Alerts
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
@@ -58,7 +58,7 @@ Cowards are listed in the **Hall of Shame**.
 ### HeadHunter window
 Type `/hh` or click the minimap button:
 - **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill, with a switch between the Alliance and Horde lists (the enemy list opens first). While few outlaws are WANTED, the list fills up to 25 with outlaws **at large**: their WANTED time ran out, but nobody caught them. You get the same alert when you meet one, and catching one still pays their bounty.
-- **Hall of Shame**: every known coward.
+- **Hall of Shame**: every known bully.
 - **Duels**: the best duelists, with a switch between the Alliance and Horde lists.
 - **My deaths**: who killed you, when and where.
 - **My bounty**: the bounty you collected and your hunter rank.
