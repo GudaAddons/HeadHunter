@@ -85,6 +85,31 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("a witness stays quiet when another witness shared the duel first", function()
+        local ns = H.Boot({ client = "era" })
+        H.inGuild = true
+        H.units.target = { name = "Gank", level = 31, class = "ROGUE", race = "Dwarf", faction = "Alliance", isPlayer = true }
+        H.units.mouseover = { name = "Bob", level = 29, class = "MAGE", race = "Gnome", faction = "Alliance", isPlayer = true }
+        H.Fire("CHAT_MSG_SYSTEM", "Gank has defeated Bob in a duel")
+        H.Deliver(ns.Protocol.Pack("A", "U", { ns.Protocol.EncodeDuel({ winner = "Gank-Firemaw", loser = "Bob-Firemaw",
+            t = H.serverTime, mapID = 1429, faction = "Alliance", winnerLevel = 31, loserLevel = 29 }) }), "Witness-Firemaw")
+        for _ = 1, 30 do H.Advance(1) end
+        T.eq(#Sent("^1AU:"), 0, "not shared twice")
+        T.eq(ns.Duels:Count(), 1, "stored once")
+        T.noErrors()
+    end)
+
+    T.case("our own duel is shared at once, even when a witness shares it too", function()
+        local ns = H.Boot({ client = "era" })
+        H.inGuild = true
+        H.units.target = { name = "Bob", level = 30, class = "MAGE", race = "Gnome", faction = "Alliance", isPlayer = true }
+        H.Fire("CHAT_MSG_SYSTEM", "Vati has defeated Bob in a duel")
+        H.Deliver(ns.Protocol.Pack("A", "U", { ns.Protocol.EncodeDuel({ winner = "Vati-Firemaw", loser = "Bob-Firemaw",
+            t = H.serverTime, mapID = 1429, faction = "Alliance", winnerLevel = 30, loserLevel = 30 }) }), "Witness-Firemaw")
+        for _ = 1, 30 do H.Advance(1) end
+        T.eq(#Sent("^1AU:"), 1, "shared: the duelists are the best source")
+    end)
+
     T.case("duelists the enemy cache knows are the other faction", function()
         local ns = H.Boot({ client = "era" })
         ns.EnemyCache:Upsert("Gank-Firemaw", { level = 60, class = "ROGUE" }, "test")

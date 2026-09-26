@@ -10,7 +10,8 @@
 --   4. data    peer -> us (whisper)     S "D<death>" / "K<catch>" / "U<duel>" ... then "E<count>"
 --
 -- Offers are tiny, and only one peer sends data, so a busy realm does not flood a
--- player who logs in. <since> is our last logout minus MARGIN (the SavedVariables
+-- player who logs in. With many online only about OFFER_TARGET peers offer (HH-116);
+-- a hello nobody offered to goes out once more. <since> is our last logout minus MARGIN (the SavedVariables
 -- time); without saved data it is the report lifetime (30 days). Relayed records are
 -- taken on the relaying peer's word (origin "relay"); the time checks still apply.
 -- Era: the automatic hello reaches guild and group only (its channel refuses addon
@@ -37,6 +38,7 @@ CatchUp.MARGIN = 600         -- ask from 10 min before our last logout
 CatchUp.MAX_RECORDS = 300    -- newest first, per answer
 CatchUp.MAX_DUELS = 100      -- High Noon duels on top of that (HH-091)
 CatchUp.ANSWER_COOLDOWN = 300 -- one answer per requester per 5 minutes
+CatchUp.OFFER_TARGET = 5     -- about this many peers offer, however many are online
 CatchUp.PROMPT_AWAY = 900    -- Era: offer the realm-wide catch-up after 15 min away
 
 local state = "idle"         -- idle | asking | pulling | done
@@ -46,6 +48,7 @@ local source                 -- the peer we pull from
 local received = { reports = 0, catches = 0 }
 local answered = {}          -- compact requester -> GetTime() of our last answer
 local attempt = 0
+local helloRetried = false
 
 CatchUp.last = nil           -- summary of the last catch-up (tests, /hh sync)
 
@@ -89,17 +92,25 @@ function CatchUp:Start(realmWide)
     if not auto and not canRealm then return false end
     state, offers, source = "asking", {}, nil
     received = { reports = 0, catches = 0 }
+    helloRetried = false
     if auto then Transport:Queue(ns.Protocol.TYPES.QUERY, hello, Transport.PRIORITY.alert, "Q:hello") end
     if canRealm then Transport:SendRealmWide(ns.Protocol.TYPES.QUERY, { hello }) end
     ns:Debug("Catch-up: asking for records after", since, canRealm and "(realm-wide)" or "")
     -- Hello flush + offer delay + whisper flush, with room for combat flush intervals
-    C_Timer.After(self.NO_OFFER_WAIT, function()
-        if state == "asking" and #offers == 0 then
-            state = "done"
-            CatchUp.last = { reports = 0, catches = 0, from = nil }
-            ns:Debug("Catch-up: no offers")
+    local function NoOffers()
+        if state ~= "asking" or #offers > 0 then return end
+        -- Only some peers offer on a busy realm: one more hello before giving up
+        if auto and not helloRetried then
+            helloRetried = true
+            Transport:Queue(ns.Protocol.TYPES.QUERY, hello, Transport.PRIORITY.alert, "Q:hello")
+            C_Timer.After(CatchUp.NO_OFFER_WAIT, NoOffers)
+            return
         end
-    end)
+        state = "done"
+        CatchUp.last = { reports = 0, catches = 0, from = nil }
+        ns:Debug("Catch-up: no offers")
+    end
+    C_Timer.After(self.NO_OFFER_WAIT, NoOffers)
     return true
 end
 
@@ -168,6 +179,11 @@ function CatchUp.Records(sinceTime)
     return records
 end
 
+-- The share of peers that offers: 1 while few of our faction are online
+function CatchUp.OfferChance(online)
+    return math.min(1, CatchUp.OFFER_TARGET / math.max(1, (online or 1) - 1))
+end
+
 local function RecentlyAnswered(sender)
     local at = answered[ns.Utils.CompactName(sender)]
     return at ~= nil and ns.Utils.Now() - at < CatchUp.ANSWER_COOLDOWN
@@ -181,6 +197,8 @@ function CatchUp:OnQuery(record, sender)
         if RecentlyAnswered(sender) then return end
         local count = #CatchUp.Records(value)
         if count == 0 then return end
+        local online = ns.Presence:Count()[ns.Utils.UnitFaction("player") or ""]
+        if math.random() >= CatchUp.OfferChance(online) then return end
         -- Random delay: the requester collects offers for a few seconds anyway
         C_Timer.After(math.random() * self.OFFER_DELAY, function()
             Transport:SendDirect(TYPES.OFFER, { B36(count) }, sender)

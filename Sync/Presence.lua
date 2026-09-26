@@ -5,7 +5,8 @@
 --   Era:     addon messages only reach the guild and group (custom channels refuse
 --            them), so the count says "in your guild and group".
 -- A newcomer's first "here" gets one early answer (throttled), so they see the count
--- within a minute instead of an interval.
+-- within a minute instead of an interval. With many online only about ANSWER_TARGET
+-- of us answer (HH-116): the rest reach the newcomer with their next repeat.
 --
 --   Presence:Count() -> { total, Alliance, Horde, scope = "region" | "group" }
 -- Fires HH_PRESENCE_UPDATED when the count changes.
@@ -24,6 +25,7 @@ Presence.WINDOW = 1500       -- heard within this long counts as online
 Presence.FIRST_DELAY = 30    -- after login, once the channel is joined
 Presence.ANSWER_DELAY = 20   -- early answer to a newcomer, coalesced
 Presence.ANSWER_COOLDOWN = 120
+Presence.ANSWER_TARGET = 5   -- about this many answer a newcomer, however many are online
 
 local seen = {}              -- compact name -> { t, faction, version }
 local lastAnswer = -math.huge
@@ -66,6 +68,11 @@ local function Changed()
     end
 end
 
+-- The share of us that answers a newcomer: 1 while few are online
+function Presence.AnswerChance(online)
+    return math.min(1, Presence.ANSWER_TARGET / math.max(1, (online or 1) - 1))
+end
+
 -- Called by Transport for every message received (version only from presence ones)
 function Presence:Heard(sender, faction, version)
     local name = ns.Utils.CompactName(sender)
@@ -78,7 +85,8 @@ function Presence:Heard(sender, faction, version)
         faction = faction,
         version = version and tostring(version):sub(1, 16) or (before and before.version) or "?",
     }
-    if isNew and now - lastAnswer >= self.ANSWER_COOLDOWN then
+    if isNew and now - lastAnswer >= self.ANSWER_COOLDOWN
+        and math.random() < Presence.AnswerChance(self:Count().total) then
         lastAnswer = now
         C_Timer.After(self.ANSWER_DELAY, Announce)
     end

@@ -61,6 +61,24 @@ return function(T, H)
         T.eq(#Sent("^1AO:"), 0, "nothing newer: no offer")
     end)
 
+    T.case("with many of our faction online only about 5 peers offer", function()
+        local ns = H.Boot({ client = "era" })
+        T.eq(ns.CatchUp.OfferChance(3), 1, "few online: everyone offers")
+        T.eq(ns.CatchUp.OfferChance(1001), 5 / 1000, "1000 others: 5 of them")
+        Spree(ns, "Gank-Stonespine", 3)
+        for i = 1, 40 do ns.Presence:Heard("Rider" .. i .. "-Firemaw", "Alliance") end
+        local random = math.random
+        math.random = function() return 0.5 end
+        Query(ns, "h", H.serverTime - 3600)
+        Run(8)
+        T.eq(#Sent("^1AO:"), 0, "not picked this time")
+        math.random = function() return 0.05 end
+        Query(ns, "h", H.serverTime - 3600, "Latecomer-Firemaw")
+        Run(8)
+        math.random = random
+        T.eq(#Sent("^1AO:"), 1, "picked")
+    end)
+
     T.case("a pull gets reports and catches by whisper, then an end marker; simulated ones never", function()
         local ns = H.Boot({ client = "era" })
         Spree(ns, "Gank-Stonespine", 4)
@@ -198,6 +216,9 @@ return function(T, H)
         Run(25)
         T.eq(#Sent("^1AQ:h", "CHANNEL"), 1, "hello on the channel")
         Run(40)
+        T.eq(#Sent("^1AQ:h", "CHANNEL"), 2, "one more hello: on a busy realm only some peers offer")
+        Run(40)
+        T.eq(#Sent("^1AQ:h", "CHANNEL"), 2, "not a third")
         T.eq(ns.CatchUp:State(), "done", "gave up quietly")
         T.eq(#H.printed, 2, "silent (only the load line and the Forever saved data warning)")
     end)

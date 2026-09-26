@@ -33,6 +33,7 @@ Duels.MAX_COUNT = 5000
 Duels.MAX_SKEW = 300
 Duels.SENDER_LIMIT = 30     -- duel records accepted per sender per window
 Duels.SENDER_WINDOW = 600
+Duels.WITNESS_DELAY = 10    -- a witness waits up to this long and shares only if nobody did
 Duels.LEVEL_RANGE = 5       -- the most levels apart two duelists can be
 Duels.MIN_LEVEL = 10        -- High Noon starts at level 10 (author, 2026-09-23)
 Duels.MIN_FIGHT = 2         -- seconds after the last countdown line: shorter is a cancel
@@ -44,6 +45,7 @@ Duels.RETREAT_FORMAT = "%2$s has fled from %1$s in a duel"
 
 local byPair = {}           -- "a|b" (sorted) -> array of times, for the dedupe
 local senderLog = {}
+local unshared = {}         -- "a|b" -> { t, heard }: our witnessed duels waiting to be shared
 local patterns              -- built on first use: { { pattern, order, retreat } ... }
 
 local function Store()
@@ -402,11 +404,7 @@ function Duels:Record(winner, loser, retreat)
     local added = self:Add(duel, "local")
     ns:Debug(added and "Duel recorded:" or "Duel already known:", winner, "(" .. duel.winnerLevel .. ") >",
         loser, "(" .. duel.loserLevel .. ")", duel.faction)
-    if added then
-        local Transport = ns.Transport
-        Transport:Queue(ns.Protocol.TYPES.DUEL, ns.Protocol.EncodeDuel(added), Transport.PRIORITY.bulk,
-            "U:" .. added.id)
-    end
+    if added then self:Share(added) end
     return added
 end
 
@@ -417,6 +415,38 @@ end
 local function PairKey(a, b)
     if a > b then a, b = b, a end
     return a .. "|" .. b
+end
+
+-- HH-116: a duel next to many HeadHunters would go out once per witness. The duelists
+-- share their own at once; a witness waits a random 1..WITNESS_DELAY seconds and stays
+-- quiet when another copy arrived meanwhile.
+function Duels:Share(duel)
+    local U, Transport = ns.Utils, ns.Transport
+    local function Send()
+        Transport:Queue(ns.Protocol.TYPES.DUEL, ns.Protocol.EncodeDuel(duel), Transport.PRIORITY.bulk, "U:" .. duel.id)
+    end
+    local me = U.UnitKey("player")
+    if U.SameCharacter(duel.winner, me) or U.SameCharacter(duel.loser, me) then
+        Send()
+        return
+    end
+    local key = PairKey(duel.winner, duel.loser)
+    local wait = { t = duel.t }
+    unshared[key] = wait
+    C_Timer.After(1 + math.random() * (self.WITNESS_DELAY - 1), function()
+        if unshared[key] == wait then unshared[key] = nil end
+        if wait.heard then
+            ns:Debug("Duel already shared by another witness:", duel.id)
+            return
+        end
+        Send()
+    end)
+end
+
+-- A peer's copy of a duel we are about to share
+local function HeardFromPeer(duel)
+    local wait = unshared[PairKey(duel.winner, duel.loser)]
+    if wait and math.abs(wait.t - duel.t) < Duels.DEDUPE then wait.heard = true end
 end
 
 local function SeenRecently(duel)
@@ -515,6 +545,7 @@ function Duels:OnRecord(record, sender, origin)
     local now = U.ServerTime()
     if duel.t > now + self.MAX_SKEW or duel.t < now - self.MAX_AGE then return nil end
     if origin ~= "relay" and not UnderRateLimit(sender) then return nil end
+    if origin ~= "relay" then HeardFromPeer(duel) end
     return self:Add(duel, origin or "peer", sender)
 end
 

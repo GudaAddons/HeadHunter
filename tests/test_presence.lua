@@ -71,6 +71,24 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("with many online only about 5 answer a newcomer", function()
+        local ns = H.Boot({ client = "forever" })
+        T.eq(ns.Presence.AnswerChance(4), 1, "few online: we answer")
+        T.eq(ns.Presence.AnswerChance(1001), 5 / 1000, "1000 others: 5 of them")
+        for i = 1, 50 do ns.Presence:Heard("Rider Number" .. i, "Alliance") end
+        H.Advance(ns.Presence.ANSWER_COOLDOWN + ns.Presence.ANSWER_DELAY)
+        H.Advance(ns.Transport.FLUSH_INTERVAL)
+        local before = SentPresence(ns)
+        local random = math.random
+        math.random = function() return 0.5 end
+        H.Deliver(Here(ns, "A"), "Fresh Face")
+        H.Advance(ns.Presence.ANSWER_DELAY)
+        H.Advance(ns.Transport.FLUSH_INTERVAL)
+        math.random = random
+        T.eq(SentPresence(ns), before, "not picked: no answer")
+        T.eq(ns.Presence:Count().total, 52, "the newcomer still counts")
+    end)
+
     T.case("the repeat waits while we broadcast anything else", function()
         local ns = H.Boot({ client = "forever" })
         local now = ns.Utils.Now()
