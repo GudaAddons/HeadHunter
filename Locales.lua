@@ -45,6 +45,7 @@ L.KILL_NORMAL = "Outleveled"
 L.KILL_UNKNOWN = "level unknown"
 L.KILL_DUO = "|cffcc66ffDuo|r (%d vs 1)"
 L.KILL_GANG = "|cffcc66ffGang|r (%d vs 1)"
+L.KILL_GROUP = "|cffcc66ffGroup fight|r (%d vs %d)"
 
 L.SYNC_PING_QUEUED = "Sync ping queued (sent within ~3 s). Other HeadHunter users will print it."
 L.SYNC_PING_RECEIVED = "Sync ping from %s [%s] (%s) via %s"

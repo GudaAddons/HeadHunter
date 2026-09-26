@@ -42,6 +42,8 @@ end
 -- Group size (author, 2026-09-23), judged next to the levels, never instead of them:
 --   duo   2 enemy players on one victim   -> Duo badge
 --   gang  3 or more                       -> Gang badge
+--   group the victim had group members in the fight (author, 2026-09-26): shown as
+--         "Group fight (4 vs 3)", no Duo or Gang badge; still counts toward WANTED
 -- A kill with help is never a fair fight (no Gunslinger, no Giant Slayer), but a
 -- lowbie kill stays a Coward kill with or without help. Both clients record every
 -- attacker (Era: combat log; Forever: Death Recap), so the count travels in every
@@ -54,17 +56,23 @@ function Classify.Attackers(report)
     return 1 + #(report.assists or {})
 end
 
--- nil (alone) | "duo" | "gang"
-function Classify.Group(attackers)
+-- The victim's group members who were in the fight (DeathReports.CountHelpers)
+function Classify.Helpers(report)
+    return tonumber(report.helpers) or 0
+end
+
+-- nil (alone) | "duo" | "gang" | "group"
+function Classify.Group(attackers, helpers)
+    if (helpers or 0) > 0 then return "group" end
     attackers = attackers or 1
     if attackers >= Classify.GANG then return "gang" end
     if attackers >= Classify.DUO then return "duo" end
     return nil
 end
 
--- One enemy's kill in a death that had `attackers` enemy players: level judgement, group
-function Classify.Enemy(enemyLevel, victimLevel, attackers)
-    return Classify.Kill(enemyLevel, victimLevel), Classify.Group(attackers)
+-- One enemy's kill in a death that had `attackers` enemy players and `helpers` on our side
+function Classify.Enemy(enemyLevel, victimLevel, attackers, helpers)
+    return Classify.Kill(enemyLevel, victimLevel), Classify.Group(attackers, helpers)
 end
 
 -- A whole report, as the killer's kill (the level judgement)
@@ -86,19 +94,21 @@ function Classify.IsGiant(classification, group)
     return classification == "giant" and group == nil
 end
 
--- Display text: "Fair fight", "Coward kill · Duo (2 vs 1)", "Gang (3 vs 1)", ...
--- A same-level fight with help is not fair, so then only the group is shown.
-function Classify.Label(classification, attackers)
+-- Display text: "Fair fight", "Coward kill · Duo (2 vs 1)", "Gang (3 vs 1)",
+-- "Group fight (4 vs 3)", ... A same-level fight with help is not fair, so then only
+-- the group is shown.
+function Classify.Label(classification, attackers, helpers)
     classification = classification or "unknown"
+    attackers = attackers or 1
     local L = ns.L
-    local group = Classify.Group(attackers)
+    local group = Classify.Group(attackers, helpers)
     if not group then return L["KILL_" .. classification:upper()] end
-    local groupText = string.format(L["KILL_" .. group:upper()], attackers)
+    local groupText = string.format(L["KILL_" .. group:upper()], attackers, 1 + (helpers or 0))
     if classification == "fair" or classification == "unknown" then return groupText end
     return L["KILL_" .. classification:upper()] .. " · " .. groupText
 end
 
 -- Display text for a report
 function Classify.ReportLabel(report)
-    return Classify.Label(Classify.Report(report), Classify.Attackers(report))
+    return Classify.Label(Classify.Report(report), Classify.Attackers(report), Classify.Helpers(report))
 end

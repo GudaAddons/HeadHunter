@@ -15,6 +15,7 @@
 --   assists     array of enemies
 --   mapID, x, y where it happened
 --   confidence  "exact" | "inferred" | "sim"
+--   helpers     our group members in the fight (0 = alone)
 --   classification  "coward" | "fair" | "giant" | "normal" | "unknown"
 
 local addonName, ns = ...
@@ -79,6 +80,43 @@ local function DisplayName(enemy)
 end
 DeathReports.DisplayName = DisplayName
 
+-- Group members who were in the fight with us when we died (author, 2026-09-26: a group
+-- fight is not a gank, so no Duo or Gang badge): online, in combat or dead, and in range
+-- (or on our map when the game cannot tell the range).
+function DeathReports.CountHelpers()
+    local U = ns.Utils
+    local prefix, size
+    if U.SafeCall(_G.IsInRaid) then
+        prefix, size = "raid", 40
+    elseif U.SafeCall(_G.IsInGroup) then
+        prefix, size = "party", 4
+    else
+        return 0
+    end
+    local function Flag(fn, unit)
+        return U.Accessible(U.SafeCall(fn, unit)) == true
+    end
+    local myMap = U.PlayerMapID()
+    local count = 0
+    for i = 1, size do
+        local unit = prefix .. i
+        if Flag(_G.UnitExists, unit) and not U.SafeCall(_G.UnitIsUnit, unit, "player")
+            and Flag(_G.UnitIsConnected, unit)
+            and (Flag(_G.UnitAffectingCombat, unit) or Flag(_G.UnitIsDeadOrGhost, unit)) then
+            local inRange, checked = U.SafeCall(_G.UnitInRange, unit)
+            local near
+            if U.Accessible(checked) == true then
+                near = U.Accessible(inRange) == true
+            else
+                local map = C_Map and tonumber(U.Accessible(U.SafeCall(C_Map.GetBestMapForUnit, unit)))
+                near = myMap ~= nil and map == myMap
+            end
+            if near then count = count + 1 end
+        end
+    end
+    return count
+end
+
 function DeathReports:Find(id)
     for _, report in ipairs(ns.db.deaths) do
         if report.id == id then return report end
@@ -107,6 +145,7 @@ function DeathReports:Record(report, source)
         report.x, report.y = U.PlayerPosition(report.mapID)
     end
     report.layer = report.layer or ns.Layer:Current()
+    if report.helpers == nil then report.helpers = DeathReports.CountHelpers() end
     report.confidence = report.confidence or source or "inferred"
     report.classification = ns.Classify.Report(report)
 

@@ -225,7 +225,11 @@ function H.Install(opts)
     _G.SendChatMessage = function(text, chatType, language, target)
         H.chatSent[#H.chatSent + 1] = { text = text, chatType = chatType, target = target }
     end
-    _G.UnitAffectingCombat = function() return H.inCombat end
+    _G.UnitAffectingCombat = function(unit)
+        local u = H.units[unit]
+        if u and unit ~= "player" and u.inCombat ~= nil then return u.inCombat end
+        return H.inCombat
+    end
     -- The duel challenge (unit menu, /duel); Sync/Duels.lua hooks it
     H.duelsStarted = {}
     _G.StartDuel = function(who) H.duelsStarted[#H.duelsStarted + 1] = who end
@@ -294,6 +298,15 @@ function H.Install(opts)
     _G.UnitFactionGroup = function(unit) local u = Unit(unit); if u then return u.faction, u.faction end end
     _G.UnitIsPlayer = function(unit) local u = Unit(unit); return u ~= nil and u.isPlayer == true end
     _G.UnitIsDead = function(unit) local u = Unit(unit); return u ~= nil and u.dead == true end
+    _G.UnitIsDeadOrGhost = function(unit) local u = Unit(unit); return u ~= nil and u.dead == true end
+    -- Group members: u.inCombat, u.inRange (nil = range not checked), u.map
+    _G.UnitIsUnit = function(a, b) return Unit(a) ~= nil and Unit(a) == Unit(b) end
+    _G.UnitIsConnected = function(unit) local u = Unit(unit); return u ~= nil and u.offline ~= true end
+    _G.UnitInRange = function(unit)
+        local u = Unit(unit)
+        if not u or u.inRange == nil then return false, false end
+        return u.inRange, true
+    end
     -- Pets: u.playerControlled, u.hostile, u.tooltip = { "line2", "line3" }
     _G.UnitPlayerControlled = function(unit) local u = Unit(unit); return u ~= nil and (u.playerControlled or u.isPlayer) == true end
     _G.UnitCanAttack = function(_, unit) local u = Unit(unit); return u ~= nil and (u.hostile or u.faction == "Horde") == true end
@@ -329,7 +342,11 @@ function H.Install(opts)
 
     _G.Enum = { UIMapType = { Continent = 2 } }
     _G.C_Map = {
-        GetBestMapForUnit = function() return H.playerMap end,
+        GetBestMapForUnit = function(unit)
+            local u = unit and unit ~= "player" and H.units[unit]
+            if u and u.map then return u.map end
+            return H.playerMap
+        end,
         GetMapInfo = function(id) return H.maps[id] end,
         GetPlayerMapPosition = function()
             return { GetXY = function() return H.playerX, H.playerY end }

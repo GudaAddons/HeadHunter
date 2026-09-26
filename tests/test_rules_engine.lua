@@ -213,6 +213,20 @@ return function(T, H)
         T.eq(entries["Pal-Stonespine"].badges.gang, true, "the assists too")
     end)
 
+    T.case("a group fight (the victim had group members in it): no Gang, still counts toward WANTED", function()
+        local reports = {}
+        for i = 1, 4 do
+            reports[i] = Report(i, "V" .. i, { killerLevel = 40, assists = {
+                { key = "Pal-Stonespine", level = 40 }, { key = "Buddy-Stonespine", level = 40 } } })
+            reports[i].helpers = 2
+        end
+        local e = Compute(reports, 5)
+        T.eq(e.badges.gang, nil, "not Gang")
+        T.eq(e.gangKills, 0, "no gang kills")
+        T.eq(e.badges.gunslinger, nil, "not one on one")
+        T.eq(e.wanted, true, "WANTED as before")
+    end)
+
     T.case("2 on one victim: Duo; a lowbie kill with help is still Coward", function()
         local reports = {}
         for i = 1, 3 do

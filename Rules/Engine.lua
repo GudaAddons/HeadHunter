@@ -106,8 +106,8 @@ function Engine.CollectKills(reports, yield)
                     bucket = { kills = {} }
                     byEnemy[id] = bucket
                 end
-                -- The level judgement, and the group size (duo / gang) for each attacker
-                local class, group = classify(enemy.level, victimLevel, #enemies)
+                -- The level judgement, and the group size (duo / gang / group fight) for each attacker
+                local class, group = classify(enemy.level, victimLevel, #enemies, ns.Classify.Helpers(report))
                 bucket.kills[#bucket.kills + 1] = {
                     t = report.t,
                     weight = weight,

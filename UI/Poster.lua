@@ -82,7 +82,7 @@ function Poster.Content(id, now)
         local kind = ns.Classify.Enemy(item.enemy.level, report.victim and report.victim.level, attackers)
         c.recent[#c.recent + 1] = string.format(L.POSTER_KILL, U.Ago(math.max(0, now - report.t)),
             U.DisplayName(report.victim and report.victim.key) or "?", U.MapName(report.mapID) or L.UNKNOWN_ZONE,
-            ns.Classify.Label(kind, attackers))
+            ns.Classify.Label(kind, attackers, ns.Classify.Helpers(report)))
     end
     -- Join needs a kill to go to (and WANTED status); not twice
     c.newestReport = kills[1] and kills[1].report

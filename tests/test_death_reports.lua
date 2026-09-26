@@ -89,4 +89,24 @@ return function(T, H)
         T.ok(first and second and first < second, "newest first")
         T.noErrors()
     end)
+
+    T.case("group members in the fight make it a group fight", function()
+        local ns = H.Boot({ client = "forever" })
+        H.inGroup = true
+        H.units.party1 = { name = "Brakka Stonefist", isPlayer = true, inCombat = true, inRange = true }
+        H.units.party2 = { name = "Zulgar Mossback", isPlayer = true, dead = true, inCombat = false, map = H.playerMap }
+        H.units.party3 = { name = "Thrag Ironhide", isPlayer = true, inCombat = true, inRange = false }
+        H.units.party4 = { name = "Mog Bristleback", isPlayer = true, inCombat = false, inRange = true }
+        T.eq(ns.DeathReports.CountHelpers(), 2, "in combat or dead, and near")
+        local killer = { key = "Kira Dawnblade", level = 30 }
+        local assists = { { key = "Ellis Brightwood", level = 30 }, { key = "Tobin Ashford", level = 30 },
+            { key = "Rowan Fairhill", level = 30 } }
+        local report = ns.DeathReports:Record({ t = H.serverTime, killer = killer, assists = assists }, "test")
+        T.eq(report.helpers, 2, "stored on the report")
+        T.ok(H.Printed("Group fight.* %(4 vs 3%)"), "chat line says 4 vs 3")
+
+        H.inGroup = false
+        T.eq(ns.DeathReports.CountHelpers(), 0, "no group: alone")
+        T.noErrors()
+    end)
 end

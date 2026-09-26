@@ -170,10 +170,18 @@ end
 -------------------------------------------------
 -- Death report:
 --   t ; victimKey ; victimLevel ; victimClass ; victimRace ; mapID ; x ; y ;
---   confidence ; layer ; killer ; assist ; assist ...
+--   confidence ; layer ; killer ; assist ; assist ... ; h<helpers>
+-- The last field, "h" + our group members in the fight, is only sent when there were
+-- any (0.1.9). Older clients read it as a broken assist and skip it.
 -------------------------------------------------
 
 local KILLER_FIELD = 11
+
+local function HelpersField(report)
+    local helpers = tonumber(report.helpers)
+    if not helpers or helpers < 1 then return nil end
+    return "h" .. Protocol.ToB36(math.min(math.floor(helpers), 39))
+end
 
 function Protocol.EncodeDeath(report, maxLength)
     maxLength = maxLength or (Protocol.MAX_MESSAGE - 4)
@@ -191,22 +199,29 @@ function Protocol.EncodeDeath(report, maxLength)
         report.layer and Protocol.ToB36(report.layer) or "",
         EncodeEnemy(report.killer),
     }
+    local helpers = HelpersField(report)
+    local tail = helpers and (";" .. helpers) or ""
     local base = table.concat(fields, ";")
-    if #base > maxLength then return nil end
+    if #base + #tail > maxLength then return nil end
     -- Assists are optional: add as many as fit
     local out = base
     for i = 1, math.min(#(report.assists or {}), Protocol.MAX_ASSISTS) do
         local candidate = out .. ";" .. EncodeEnemy(report.assists[i])
-        if #candidate > maxLength then break end
+        if #candidate + #tail > maxLength then break end
         out = candidate
     end
-    return out
+    return out .. tail
 end
 
 -- Returns a report table, or nil for anything malformed
 function Protocol.DecodeDeath(s)
     if type(s) ~= "string" then return nil end
     local f = Split(s, ";")
+    local helpers = #f > KILLER_FIELD and f[#f]:match("^h(%w+)$")
+    if helpers then
+        helpers = Protocol.FromB36(helpers)
+        f[#f] = nil
+    end
     if #f < KILLER_FIELD then return nil end
     local t = Protocol.FromB36(f[1])
     local victimLevel = DecodeLevel(f[3])
@@ -221,6 +236,7 @@ function Protocol.DecodeDeath(s)
         y = DecodeCoord(f[8]),
         confidence = CONFIDENCE_NAME[f[9]] or "inferred",
         layer = Protocol.FromB36(f[10]),
+        helpers = helpers or nil,
         killer = killer,
         assists = {},
     }

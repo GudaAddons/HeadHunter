@@ -141,4 +141,24 @@ return function(T, H)
         T.eq(p.Unpack("hello"), nil, "junk")
         T.eq(p.Unpack(string.rep("x", 300)), nil, "oversized")
     end)
+
+    T.case("our group members in the fight travel as the last field", function()
+        local p = P()
+        local assist = { key = "Fur Enough", name = "Fur Enough", level = 18, class = "DRUID", race = "NightElf" }
+        local record = p.EncodeDeath(Report({ assists = { assist }, helpers = 2 }))
+        T.ok(record:sub(-3) == ";h2", "last field: " .. record)
+        local r = p.DecodeDeath(record)
+        T.eq(r.helpers, 2, "helpers")
+        T.eq(#r.assists, 1, "assists unchanged")
+        T.eq(p.DecodeDeath(p.EncodeDeath(Report())).helpers, nil, "alone: no field")
+        T.eq(p.EncodeDeath(Report({ helpers = 0 })), p.EncodeDeath(Report()), "0 is not sent")
+
+        local assists = {}
+        for i = 1, 10 do
+            assists[i] = { name = "Longgivenname" .. i, nameIncomplete = true, guid = "Player-4613-00A96B3" .. i }
+        end
+        local full = p.EncodeDeath(Report({ assists = assists, helpers = 3 }))
+        T.ok(#full <= p.MAX_MESSAGE - 4, "fits with the field")
+        T.eq(p.DecodeDeath(full).helpers, 3, "kept when assists are dropped")
+    end)
 end
