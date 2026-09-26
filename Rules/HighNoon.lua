@@ -98,16 +98,24 @@ function HighNoon.Compute(duels)
 end
 
 -- HH-082: the website's records (Sync/SiteData.lua) with ours. A player the website
--- lists keeps its record plus our duels newer than the website's list; anyone else
--- keeps the record from our duels.
+-- lists keeps its record plus our duels newer than that player's last duel on the
+-- list; anyone else keeps the record from our duels. Per player, not per list: the
+-- sync app may download a list the website has not rebuilt yet after our upload, and
+-- its time would then hide our newest duels (2026-09-26: 2-4 shown instead of 6-5).
 -- site: key -> { key, faction, wins, losses, duels, lastT, class, race, sex }
 function HighNoon.Merge(site, duels, since)
     local ours = HighNoon.Compute(duels)
-    local newer = {}
-    for _, duel in ipairs(duels) do
-        if (tonumber(duel.t) or 0) > since then newer[#newer + 1] = duel end
+    local fresh = {}
+    for key, theirs in pairs(site) do
+        local cutoff = theirs.lastT or since
+        local newer = {}
+        for _, duel in ipairs(duels) do
+            if (duel.winner == key or duel.loser == key) and (tonumber(duel.t) or 0) > cutoff then
+                newer[#newer + 1] = duel
+            end
+        end
+        fresh[key] = HighNoon.Compute(newer)[key]
     end
-    local fresh = HighNoon.Compute(newer)
     local players = {}
     for key, theirs in pairs(site) do
         local p = {}

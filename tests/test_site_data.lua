@@ -171,7 +171,8 @@ return function(T, H)
         local function Duel(winner, loser, t)
             ns.Duels:Add({ winner = winner, loser = loser, t = t, faction = "Alliance", winnerLevel = 30, loserLevel = 30 }, "local")
         end
-        Duel("Ironmaple-Firemaw", "Fernwick-Firemaw", H.serverTime - 3000) -- before the list: already counted there
+        -- The website's last duel of Ironmaple is 2 h ago (Duelist last_duel_at)
+        Duel("Ironmaple-Firemaw", "Fernwick-Firemaw", H.serverTime - 8000) -- before it: already counted there
         Duel("Ironmaple-Firemaw", "Fernwick-Firemaw", H.serverTime - 60)   -- after: added
         Settle()
         local maple = ns.HighNoon:Get("Ironmaple-Firemaw")
@@ -180,6 +181,17 @@ return function(T, H)
         T.eq(maple.source, "website", "website record")
         local fern = ns.HighNoon:Get("Fernwick-Firemaw")
         T.eq(fern.losses, 2, "not on the website: all our duels count")
+        T.noErrors()
+    end)
+
+    T.case("a list the website had not rebuilt yet still gets our newer duels", function()
+        -- The list is 10 min old, but Ironmaple's last duel on it is 2 h old: the sync
+        -- app fetched it before the website counted our upload
+        local ns = H.Boot({ client = "era", siteData = EraData() })
+        ns.Duels:Add({ winner = "Ironmaple-Firemaw", loser = "Fernwick-Firemaw", t = H.serverTime - 3000,
+            faction = "Alliance", winnerLevel = 30, loserLevel = 30 }, "local")
+        Settle()
+        T.eq(ns.HighNoon:Get("Ironmaple-Firemaw").wins, 7, "counted, although older than the list")
         local list = ns.HighNoon:List("Alliance")
         T.eq(list[1].key, "Ironmaple-Firemaw", "leader")
         T.eq(list[1].topGun, true, "Top Gun")
