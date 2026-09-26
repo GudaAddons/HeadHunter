@@ -154,6 +154,54 @@ return function(T, H)
         T.eq(WantedPopups(), 1, "shown after combat")
     end)
 
+    T.case("/hh sim send: optional values in any order, a zone name places the deaths there", function()
+        local ns = H.Boot({ client = "era" })
+        local S = ns.Simulator
+        local o = S.SendOptions({ "Gank", "5", "22", "Westfall" })
+        T.eq(o.level, 22, "level")
+        T.eq(o.mapID, 1436, "zone by name")
+        o = S.SendOptions({ "Gank", "5", "westf", "MAGE", "skull", "Gnome" })
+        T.eq(o.mapID, 1436, "a unique start of the name")
+        T.eq(o.class, "MAGE", "class")
+        T.eq(o.level, -1, "skull")
+        T.eq(o.race, "Gnome", "anything else is the race")
+        T.eq(ns.Zones.FindByName("Nowhere Land"), nil, "unknown zone")
+
+        H.Slash("debug on")
+        H.Slash('sim send Gank 2 22 "Westfall"')
+        T.ok(H.Printed("Sent 2 simulated death%(s%) by Gank in Westfall"), "says where")
+        for _, report in ns.Reports:All() do
+            T.eq(report.mapID, 1436, "placed in Westfall")
+            T.eq(report.x, 0.5, "the middle of the zone")
+            T.eq(report.layer, nil, "no layer outside our zone")
+        end
+        T.noErrors()
+    end)
+
+    T.case("/hh sim clear removes simulated deaths and test catches, real ones stay", function()
+        local ns = H.Boot({ client = "era" })
+        H.Slash("debug on")
+        H.Slash("spree Gank 5 60")
+        H.Slash('sim death "Stab" 60 ROGUE Orc')
+        ns.Reports:Add({ id = "Real-Firemaw:1", t = H.serverTime - 60, victim = { key = "Real-Firemaw", level = 30 },
+            killer = { key = "Brute-Stonespine", level = 32, class = "WARRIOR", race = "Orc" },
+            assists = {}, mapID = 1429, confidence = "exact" }, "peer", "Real-Firemaw")
+        Flow()
+        T.eq(ns.Wanted:ByKey("Gank-Firemaw").wanted, true, "precondition: the spree made Gank WANTED")
+        H.Slash("catch Gank")
+        Flow()
+
+        H.Slash("sim clear")
+        Flow()
+        T.ok(H.Printed("Test data removed: 6 simulated report%(s%), 1 of your simulated death%(s%), 1 test catch"),
+            "says what went")
+        T.eq(ns.Wanted:ByKey("Gank-Firemaw"), nil, "the simulated outlaw is gone")
+        T.eq(#ns.Wanted:AtLarge(), 0, "not at large either")
+        T.ok(ns.Reports:Get("Real-Firemaw:1") ~= nil, "a real report stays")
+        T.eq(#ns.db.deaths, 0, "no simulated death left in My deaths")
+        T.noErrors()
+    end)
+
     T.case("/hh sim send: A's simulated deaths reach B, who gets the WANTED popup", function()
         -- Character A (Era) sends 3 simulated deaths
         local nsA = H.Boot({ client = "era" })

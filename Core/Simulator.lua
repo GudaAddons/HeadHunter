@@ -3,6 +3,8 @@
 --   /hh sim death "<name>" <level|skull> <CLASS> <RACE> [sex]
 --   /hh sim sighting "<name>" <level|skull> <CLASS> <RACE> [sex]
 --   /hh sim demo [clear]   every tab filled with a made-up story (Core/Demo.lua)
+--   /hh sim send ...       simulated deaths shared with other characters (debug)
+--   /hh sim clear          remove every simulated death and test catch
 --
 -- Forever names contain a space, so quote them: /hh sim death "Grim Reaper" skull ROGUE Human
 -- Simulated data goes through the same internal events as real data:
@@ -83,11 +85,34 @@ local function Describe(enemy)
     return string.format("%s %s %s", level, enemy.race, enemy.class)
 end
 
--- /hh sim send "<killer>" [kills] [level] [class] [race]
+-- /hh sim send "<killer>" [kills] [level|skull] [CLASS] [RACE] ["Zone"]
 -- Debug only. Simulated deaths OF THIS CHARACTER, sent over the real sync so a
 -- second character receives them (two-character tests of alerts and posses).
 -- Must run from the typed command: on Era the realm-wide send needs that
 -- hardware event.
+-- After the kill count the values may come in any order: a number or "skull" is the
+-- level, a class token the class, a zone name the place (its middle; default: where we
+-- stand), anything else the race.
+function Simulator.SendOptions(args)
+    local options = { level = 60, class = "ROGUE", race = "Orc" }
+    local levelSet = false
+    for i = 3, #args do
+        local value = args[i]
+        local lower = value:lower()
+        if not levelSet and (lower == "skull" or tonumber(value)) then
+            options.level = lower == "skull" and -1 or tonumber(value)
+            levelSet = true
+        elseif CLASSES[value:upper()] then
+            options.class = value:upper()
+        elseif ns.Zones.FindByName(value) then
+            options.mapID = ns.Zones.FindByName(value)
+        else
+            options.race = value
+        end
+    end
+    return options
+end
+
 function Simulator:Send(args)
     local U = ns.Utils
     if not ns.debugMode then
@@ -100,15 +125,15 @@ function Simulator:Send(args)
         ns:Print(L.SIM_SEND_USAGE)
         return
     end
-    local levelArg = args[3] and args[3]:lower()
-    local level = levelArg == "skull" and -1 or tonumber(levelArg) or 60
-    local class = (args[4] and args[4]:upper()) or "ROGUE"
-    if not CLASSES[class] then class = "ROGUE" end
-    local race = args[5] or "Orc"
+    local options = Simulator.SendOptions(args)
+    local level, class, race = options.level, options.class, options.race
 
     local victim = PlayerSnapshot()
-    local mapID = U.PlayerMapID()
-    local x, y = U.PlayerPosition(mapID)
+    local mapID, x, y = options.mapID, 0.5, 0.5
+    if not mapID then
+        mapID = U.PlayerMapID()
+        x, y = U.PlayerPosition(mapID)
+    end
     local now = U.ServerTime()
     local records = {}
     for i = 1, count do
@@ -120,7 +145,7 @@ function Simulator:Send(args)
             killer = { key = key, name = key, level = level, class = class, race = race },
             assists = {},
             mapID = mapID, x = x, y = y,
-            layer = ns.Layer:Current(),
+            layer = not options.mapID and ns.Layer:Current() or nil, -- layers compare within one zone
             confidence = "sim",
             shared = true, -- sent to other HeadHunters, so login catch-up may pass it on
         }
@@ -136,7 +161,40 @@ function Simulator:Send(args)
     if ns.Transport:RealmWideNeedsClick() and #records > 0 then
         ns.Transport:SendRealmWide(ns.Protocol.TYPES.DEATH, records)
     end
-    ns:Print(string.format(L.SIM_SENT, #records, U.DisplayName(key)))
+    ns:Print(string.format(L.SIM_SENT, #records, U.DisplayName(key), U.MapName(mapID) or L.UNKNOWN_ZONE))
+end
+
+-- /hh sim clear: removes every simulated death (our own and those other characters sent
+-- with /hh sim send or /hh spree) and our /hh catch test catches. Outlaws left with no
+-- kills drop out of WANTED, At large and the Hall of Shame with the next recompute.
+-- Each test character clears its own data; bounty earned in tests stays.
+function Simulator:Clear()
+    local db = ns.db
+    if not db then return nil end
+    local removed = { reports = 0, deaths = 0, catches = 0 }
+    for id, report in pairs(db.reports or {}) do
+        if type(report) == "table" and report.confidence == "sim" and not report.demo then
+            db.reports[id] = nil
+            removed.reports = removed.reports + 1
+        end
+    end
+    local kept = {}
+    for _, report in ipairs(db.deaths or {}) do
+        if type(report) == "table" and report.confidence == "sim" and not report.demo then
+            removed.deaths = removed.deaths + 1
+        else
+            kept[#kept + 1] = report
+        end
+    end
+    db.deaths = kept
+    for id, record in pairs(db.justice or {}) do
+        if type(record) == "table" and record.how == "sim" then
+            db.justice[id] = nil
+            removed.catches = removed.catches + 1
+        end
+    end
+    ns.Wanted:RequestRecompute()
+    return removed
 end
 
 ns.SlashCommands:Register("sim", function(args)
@@ -144,6 +202,13 @@ ns.SlashCommands:Register("sim", function(args)
     kind = kind and kind:lower()
     if kind == "send" then
         Simulator:Send(args)
+        return
+    end
+    if kind == "clear" then
+        local removed = Simulator:Clear()
+        if removed then
+            ns:Print(string.format(L.SIM_CLEARED, removed.reports, removed.deaths, removed.catches))
+        end
         return
     end
     if kind == "demo" then
@@ -154,6 +219,7 @@ ns.SlashCommands:Register("sim", function(args)
         print(L.SIM_USAGE_DEATH)
         print(L.SIM_USAGE_SIGHTING)
         print(L.SIM_USAGE_DEMO)
+        print(L.SIM_USAGE_CLEAR)
         return
     end
     local enemy, err = Simulator:ParseEnemy(args)

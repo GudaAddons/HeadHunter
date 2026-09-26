@@ -117,6 +117,24 @@ function Zones.ContinentOf(mapID)
     return zone and (CONTINENT[zone] or ns.Utils.ContinentOf(zone))
 end
 
+-- A zone by its name as the game shows it ("Silverpine Forest"), ignoring case; a
+-- unique start of a name also works ("silverpine"). nil when unknown or unclear.
+function Zones.FindByName(name)
+    if type(name) ~= "string" or name == "" then return nil end
+    local wanted = name:lower()
+    local found
+    for mapID in pairs(CONTINENT) do
+        local zoneName = ns.Utils.MapName(mapID)
+        local lower = zoneName and zoneName:lower()
+        if lower == wanted then return mapID end
+        if lower and lower:sub(1, #wanted) == wanted then
+            if found then return nil end
+            found = mapID
+        end
+    end
+    return found
+end
+
 function Zones.AreNeighbors(a, b)
     return NEIGHBORS[a] ~= nil and NEIGHBORS[a][b] == true
 end
