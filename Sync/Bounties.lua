@@ -20,7 +20,10 @@
 -- posters and lists them in the Hall of Shame (author, 2026-09-28).
 -- A claim is a catch (Sync/Justice.lua, record K) of the target by our own killing
 -- blow, within the poster's time, not 10+ levels above the target. Everyone who saw
--- it earns +5 bounty points (Rules/Marks.lua).
+-- it earns +5 bounty points (Rules/Marks.lua). The hunter gets center text; on Era the
+-- claim goes past guild and group only with [Announce] (a click), or /hh claim. The
+-- owner gets an alert when the claim arrives (at login: a chat line), and pays at the
+-- next mailbox.
 -- Fires HH_BOUNTY_UPDATED() when a poster or payment changes.
 
 local addonName, ns = ...
@@ -53,6 +56,7 @@ local STATUS_RANK = { claimed = 1, unpaid = 2, paid = 3 }
 local senderLog = {}
 local lastClaimMarks = {}            -- target id -> GetTime()
 local payQueue = {}                  -- poster ids the owner is asked to pay at this mailbox
+local toAnnounce = {}                -- Era: our claims waiting for the [Announce] click
 
 local function Posters()
     return ns.db and ns.db.posters
@@ -435,18 +439,38 @@ local function ValidPayment(pay)
     return true
 end
 
+-- Our poster was claimed: tell us who brought the target down and that we owe gold
+function Bounties:NotifyOwner(pay)
+    local poster = self:Get(pay.posterId)
+    if not (poster and pay.status == "claimed" and ns.Utils.SameCharacter(poster.owner, Me())) then return end
+    local U = ns.Utils
+    local hunter, target = U.DisplayName(pay.hunter), self.TargetName(poster.target)
+    local alert = { key = "bounty-owner:" .. poster.id, throttle = 0,
+        chat = string.format(L.BOUNTY_OWNER_CHAT, hunter, target, self.Gold(poster.gold), self.ReasonText(poster.reason)) }
+    -- Learned at login (catch-up): the chat line is enough
+    if pay.origin ~= "relay" then
+        alert.text = string.format(L.BOUNTY_OWNER_CENTER, hunter, target)
+        alert.sound = true
+    end
+    ns.Alerts:Show(alert)
+end
+
 function Bounties:OnPeerPayment(record, sender)
     local pay = ns.Protocol.DecodePayment(record)
     if not pay or not ValidPayment(pay) then return nil end
     -- Only the hunter: they are the one who gets the gold
     if not ns.Utils.SameCharacter(sender, pay.hunter) or not UnderRateLimit(sender) then return nil end
-    return self:AddPayment(pay, "peer")
+    local added = self:AddPayment(pay, "peer")
+    if added then self:NotifyOwner(added) end
+    return added
 end
 
 function Bounties:AddRelayedPayment(record)
     local pay = ns.Protocol.DecodePayment(record)
     if not pay or not ValidPayment(pay) then return nil end
-    return self:AddPayment(pay, "relay")
+    local added = self:AddPayment(pay, "relay")
+    if added then self:NotifyOwner(added) end
+    return added
 end
 
 -- Posters and payments to pass on at catch-up: "W..." and "R..." records
@@ -483,13 +507,55 @@ function Bounties:OnCatch(record)
         ns:Print(string.format(L.BOUNTY_NO_CLAIM_LEVEL, self.TargetName(record.outlaw)))
         return
     end
+    local lines, gold = {}, 0
     for _, poster in ipairs(claimed) do
         local pay = { posterId = poster.id, hunter = me, status = "claimed", claimedAt = record.t, t = now }
         if self:AddPayment(pay, "local") then
             SendPayment(pay)
-            ns:Print(string.format(L.BOUNTY_CLAIMED, self.Gold(poster.gold), U.DisplayName(poster.owner)))
+            if ns.Transport:RealmWideNeedsClick() then toAnnounce[#toAnnounce + 1] = pay.posterId end
+            lines[#lines + 1] = string.format(L.BOUNTY_CLAIMED, self.Gold(poster.gold), U.DisplayName(poster.owner))
+            gold = gold + poster.gold
         end
     end
+    if #lines == 0 then return end
+    local alert = { key = "bounty-claim:" .. record.id, throttle = 0, sound = true,
+        text = string.format(L.BOUNTY_CLAIMED_CENTER, self.Gold(gold), self.TargetName(record.outlaw)),
+        chat = table.concat(lines, "\n") }
+    -- Era: the owner may be outside our guild and group; the realm hears it only through a click
+    if #toAnnounce > 0 then
+        alert.popup = {
+            dialog = ns.Alerts.BOUNTY_POPUP,
+            text = alert.chat .. "\n\n" .. L.BOUNTY_ANNOUNCE_QUESTION,
+            accept = L.JUSTICE_ANNOUNCE,
+            decline = CLOSE or "Close",
+            onAccept = function() Bounties:Announce() end,
+            onDecline = function() Bounties:SkipAnnounce() end,
+        }
+    end
+    ns.Alerts:Show(alert)
+end
+
+function Bounties:PendingAnnounce()
+    return #toAnnounce
+end
+
+-- Era: our claims to the whole realm. Must run inside a hardware event (the popup
+-- button or a typed /hh claim).
+function Bounties:Announce()
+    local records = {}
+    for _, posterId in ipairs(toAnnounce) do
+        local pay = self:Payment(posterId)
+        if pay then records[#records + 1] = ns.Protocol.EncodePayment(pay) end
+    end
+    wipe(toAnnounce)
+    if #records == 0 then return 0 end
+    local sent = ns.Transport:SendRealmWide(ns.Protocol.TYPES.PAYMENT, records)
+    ns:Print(sent > 0 and L.BOUNTY_ANNOUNCED or L.REPORT_FAILED)
+    return sent
+end
+
+function Bounties:SkipAnnounce()
+    wipe(toAnnounce)
 end
 
 -- Everyone who saw the catch of a posted target: +5 bounty points
@@ -699,3 +765,12 @@ ns.Events:Register("HH_INITIALIZED", function()
     Bounties:CheckUnpaid()
     Ticker()
 end, OWNER)
+
+ns.SlashCommands:Register("claim", function()
+    if Bounties:PendingAnnounce() == 0 then
+        ns:Print(L.BOUNTY_ANNOUNCE_NOTHING)
+        return
+    end
+    StaticPopup_Hide(ns.Alerts.BOUNTY_POPUP)
+    Bounties:Announce()
+end, L.HELP_CLAIM)

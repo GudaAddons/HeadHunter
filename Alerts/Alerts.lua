@@ -37,8 +37,10 @@ Alerts.HOTSPOT_POPUP = "HEADHUNTER_HOTSPOT"  -- PvP hotspots (Help / Ignore)
 Alerts.JUSTICE_POPUP = "HEADHUNTER_JUSTICE"  -- our catch, Era: Announce / Close (HH-048)
 Alerts.CATCHUP_POPUP = "HEADHUNTER_CATCHUP"  -- Era, at login: Catch up / Skip (HH-023)
 Alerts.TOUR_POPUP = "HEADHUNTER_TOUR"        -- Gurubashi check-in: I'm here / Later (HH-104)
+Alerts.BOUNTY_POPUP = "HEADHUNTER_BOUNTY"    -- our bounty claim, Era: Announce / Close (HH-118)
 -- One StaticPopup per kind, so a hotspot never replaces a WANTED popup on screen
-local DIALOGS = { Alerts.POPUP, Alerts.HOTSPOT_POPUP, Alerts.JUSTICE_POPUP, Alerts.CATCHUP_POPUP, Alerts.TOUR_POPUP }
+local DIALOGS = { Alerts.POPUP, Alerts.HOTSPOT_POPUP, Alerts.JUSTICE_POPUP, Alerts.CATCHUP_POPUP, Alerts.TOUR_POPUP,
+    Alerts.BOUNTY_POPUP }
 
 -- Popups that ask for our time; the others (Era Announce, catch-up, tournament
 -- check-in) follow a click of our own or a schedule we joined

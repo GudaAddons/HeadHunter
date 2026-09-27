@@ -259,6 +259,56 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("era: our claim offers [Announce], so an owner outside our guild hears it", function()
+        local ns = H.Boot({ client = "era" })
+        Death(ns, "Tallon-Firemaw", "Grim-Stonespine", 600)
+        Settle()
+        local posterId = PeerPoster(ns, "Tallon-Firemaw", "Grim-Stonespine", 20)
+        PartyKill("Grim-Stonespine")
+        Settle()
+        local centered = false
+        for _, text in ipairs(H.centerTexts) do
+            if text:find("Bounty claimed!", 1, true) then centered = true end
+        end
+        T.ok(centered, "center text for the hunter")
+        local popup = Popup("HEADHUNTER_BOUNTY")
+        T.ok(popup ~= nil and popup.text:find("Announce your claim", 1, true) ~= nil, "announce offered")
+        _G.StaticPopupDialogs.HEADHUNTER_BOUNTY.OnAccept()
+        T.eq(#H.chatSent, 1, "one realm-wide line")
+        T.ok(H.chatSent[1].text:find("^HH1:1AR:") ~= nil, "the claim record")
+        T.ok(H.chatSent[1].text:find(posterId, 1, true) ~= nil, "for this poster")
+        T.ok(H.Printed("Claim announced to all HeadHunters"), "confirmed")
+        H.Slash("claim")
+        T.ok(H.Printed("No bounty claim waiting"), "nothing left")
+        T.noErrors()
+    end)
+
+    T.case("the owner is told when their bounty is claimed; at login only a chat line", function()
+        local ns = H.Boot({ client = "era" })
+        Death(ns, "Vati-Firemaw", "Grim-Stonespine", 600)
+        Settle()
+        local poster = ns.Bounties:Post("Grim-Stonespine", 1, 20, 3)
+        H.centerTexts = {}
+        PeerPayment(ns, poster.id, "Kestrel-Firemaw", "claimed", H.serverTime)
+        local centered = false
+        for _, text in ipairs(H.centerTexts) do
+            if text:find("Your bounty is claimed", 1, true) and text:find("Kestrel", 1, true) then centered = true end
+        end
+        T.ok(centered, "center text")
+        T.ok(H.Printed("Kestrel brought down.*Grim.*20g.*Pay at the next mailbox"), "chat line with the amount")
+
+        local fresh = H.Boot({ client = "era" })
+        Death(fresh, "Vati-Firemaw", "Grim-Stonespine", 600)
+        Settle()
+        local mine = fresh.Bounties:Post("Grim-Stonespine", 1, 20, 3)
+        H.centerTexts = {}
+        fresh.Bounties:AddRelayedPayment(fresh.Protocol.EncodePayment({ posterId = mine.id, hunter = "Kestrel-Firemaw",
+            status = "claimed", claimedAt = H.serverTime, t = H.serverTime }))
+        T.eq(#H.centerTexts, 0, "no center text for old news")
+        T.ok(H.Printed("Your bounty is claimed"), "the chat line")
+        T.noErrors()
+    end)
+
     -------------------------------------------------
     -- Paying
     -------------------------------------------------
