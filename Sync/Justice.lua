@@ -123,9 +123,14 @@ function Justice:OnEnemyKilled(key, guid, how, killer)
     local Wanted = ns.Wanted
     local entry = (key and Wanted:ByKey(key)) or (guid and Wanted:Get("guid:" .. guid))
     if not (Wanted.Hunted(entry) or ns.Bounties:ActiveOn(entry)) then
-        -- A Hall of Shame bully: bounty points only, no catch (they stay listed and
-        -- their WANTED count goes on; author, 2026-09-28)
-        if entry and entry.badges and entry.badges.coward then ns.Events:Fire("HH_BULLY_KILLED", entry, how) end
+        -- Hall of Shame: a bully, or the other faction's Deadbeat (HH-118). Bounty points
+        -- only, no catch: they stay listed and their WANTED count goes on (author, 2026-09-28)
+        local bully = entry and entry.badges and entry.badges.coward
+        if bully then
+            ns.Events:Fire("HH_SHAME_KILLED", entry, "bully")
+        elseif key and ns.Bounties:IsBlocked(key) then
+            ns.Events:Fire("HH_SHAME_KILLED", entry or { id = key, key = key }, "deadbeat")
+        end
         return nil
     end
     -- Every HeadHunter who saw it earns marks (Rules/Marks.lua), even when a

@@ -256,6 +256,33 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("forever: the other faction's Deadbeat is ours to hunt for 30 days", function()
+        local ns = H.Boot({ client = "forever" })
+        local P = ns.Protocol
+        local function Unpaid(posterId, hunter, status, at)
+            H.Deliver(P.Pack("H", "R", { P.EncodePayment({ posterId = posterId, hunter = hunter, status = status or "unpaid",
+                claimedAt = at or H.serverTime - 100, t = H.serverTime - 10 }) }), hunter)
+        end
+        Unpaid("Grunt Axe:" .. (H.serverTime - 90000), "Bow Maker", "claimed")
+        T.eq(ns.Bounties:Payment("Grunt Axe:" .. (H.serverTime - 90000)), nil, "their claims stay theirs")
+        Unpaid("Grunt Axe:" .. (H.serverTime - 90000), "Bow Maker")
+        Unpaid("Grunt Axe:" .. (H.serverTime - 80000), "Axe Thrower")
+        T.eq(ns.Bounties:IsBlocked("Grunt Axe"), true, "a Horde Deadbeat, known on our side")
+
+        local shame = ns.MainWindow.Rows("shame")
+        T.eq(shame[#shame].name, "Grunt Axe", "in our Hall of Shame")
+
+        ns.Sighting:OnEnemySeen({ key = "Grunt Axe", level = 30, class = "WARRIOR", race = "Orc" }, "nameplate")
+        T.ok(H.Printed("DEADBEAT.*Grunt Axe.*bring them down for bounty points"), "alert when seen")
+
+        ns.Justice:OnEnemyKilled("Grunt Axe", nil, "target")
+        T.eq(ns.Marks:Total(), 3, "+3 bounty points")
+        T.ok(H.Printed("brought down the Deadbeat Grunt Axe"), "said why")
+
+        T.eq(ns.Bounties:IsBlocked("Grunt Axe", H.serverTime + 30 * 86400 + 60), false, "only for 30 days")
+        T.noErrors()
+    end)
+
     T.case("Hall of Shame alerts: a Deadbeat of our faction we target", function()
         local ns = H.Boot({ client = "era" })
         Death(ns, "Tallon-Firemaw", "Grim-Stonespine", 600)

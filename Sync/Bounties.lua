@@ -17,7 +17,9 @@
 -- claim without it. A later "paid" beats "unpaid"; the earliest claim wins a poster.
 -- Blocked: an owner with unpaid claims from 2 different hunters, for 30 days from the
 -- second one turning unpaid; every client derives it the same way, ignores the owner's
--- posters and lists them in the Hall of Shame (author, 2026-09-28).
+-- posters and lists them in the Hall of Shame (author, 2026-09-28). The other faction's
+-- unpaid and paid records cross over too: their Deadbeats are listed, alerted and
+-- worth bounty points when we bring them down.
 -- A claim is a catch (Sync/Justice.lua, record K) of the target by our own killing
 -- blow, within the poster's time, not 10+ levels above the target. Everyone who saw
 -- it earns +5 bounty points (Rules/Marks.lua). The hunter gets center text; on Era the
@@ -455,11 +457,17 @@ function Bounties:NotifyOwner(pay)
     ns.Alerts:Show(alert)
 end
 
-function Bounties:OnPeerPayment(record, sender)
+-- faction: the sender's. The other faction's unpaid and paid records tell us their
+-- Deadbeats (author, 2026-09-28: ours to hunt for bounty points); their claims are
+-- none of our business.
+function Bounties:OnPeerPayment(record, sender, faction)
     local pay = ns.Protocol.DecodePayment(record)
     if not pay or not ValidPayment(pay) then return nil end
+    local theirs = faction ~= nil and faction ~= ns.Utils.UnitFaction("player")
+    if theirs and pay.status == "claimed" then return nil end
     -- Only the hunter: they are the one who gets the gold
     if not ns.Utils.SameCharacter(sender, pay.hunter) or not UnderRateLimit(sender) then return nil end
+    pay.faction = theirs and faction or nil
     local added = self:AddPayment(pay, "peer")
     if added then self:NotifyOwner(added) end
     return added
@@ -746,7 +754,9 @@ ns.Events:Register("HH_INITIALIZED", function()
     local Events, Protocol = ns.Events, ns.Protocol
     Bounties:Prune()
     ns.Transport:RegisterHandler(Protocol.TYPES.POSTER, function(record, sender) Bounties:OnPeerPoster(record, sender) end)
-    ns.Transport:RegisterHandler(Protocol.TYPES.PAYMENT, function(record, sender) Bounties:OnPeerPayment(record, sender) end)
+    ns.Transport:RegisterHandler(Protocol.TYPES.PAYMENT, function(record, sender, faction)
+        Bounties:OnPeerPayment(record, sender, faction)
+    end)
     Events:Register("HH_JUSTICE_ADDED", function(_, record) Bounties:OnCatch(record) end, OWNER)
     Events:Register("HH_CATCH_WITNESSED", function(_, entry) Bounties:OnWitnessed(entry) end, OWNER)
     Events:Register("MAIL_SHOW", function() Bounties:OnMailShow() end, OWNER)

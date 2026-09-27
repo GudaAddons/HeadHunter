@@ -67,7 +67,11 @@ function Sighting:OnEnemySeen(record, source)
     local entry = self.WantedEntry(record)
     if not entry then
         local bully = self.BullyEntry(record)
-        if bully then self:OnBullySeen(record, bully) end
+        if bully then
+            self:OnBullySeen(record, bully)
+        elseif record.key and ns.Bounties:IsBlocked(record.key) then
+            self:AlertDeadbeat(record.key, true)
+        end
         return
     end
 
@@ -109,16 +113,22 @@ function Sighting:CheckDeadbeat(unit)
     if ns.Database:GetSetting("alerts.shame") == false or not U.UnitIsPlayer(unit) or U.UnitIsEnemyPlayer(unit) then return end
     local key = U.UnitKey(unit)
     if not key or U.SameCharacter(key, U.UnitKey("player")) then return end
-    local untilT = ns.Bounties:BlockedUntil(key)
-    if not untilT then return end
+    if ns.Bounties:IsBlocked(key) then self:AlertDeadbeat(key, false) end
+end
+
+-- enemy: the other faction's Deadbeat, worth bounty points when brought down
+function Sighting:AlertDeadbeat(key, enemy)
+    local U = ns.Utils
+    if ns.Database:GetSetting("alerts.shame") == false then return end
     local _, unpaid = ns.Bounties:Standing(key)
     local name = U.DisplayName(key)
     ns.Alerts:Show({
         key = "deadbeat:" .. U.CompactName(key),
         throttle = self.BULLY_THROTTLE,
         text = string.format(L.SIGHTING_DEADBEAT, name),
-        chat = string.format(L.SIGHTING_CHAT_DEADBEAT, name, unpaid),
+        chat = string.format(enemy and L.SIGHTING_CHAT_DEADBEAT_ENEMY or L.SIGHTING_CHAT_DEADBEAT, name, unpaid),
         sound = "soft",
+        combat = enemy or nil,
     })
 end
 
