@@ -117,7 +117,8 @@ function MainWindow.EntryTooltip(entry, now)
     elseif entry.atLarge then
         lines[#lines + 1] = string.format(L.TIP_AT_LARGE, Wanted.RankName(entry.lastRank))
     else
-        lines[#lines + 1] = L.TIP_NOT_WANTED
+        local bounty = ns.Bounties:Summary(entry.id, now)
+        lines[#lines + 1] = bounty and string.format(L.TIP_BOUNTY_ONLY, ns.Bounties.Gold(bounty.gold)) or L.TIP_NOT_WANTED
     end
     local badges = Wanted.BadgeNames(entry)
     if badges ~= "" then lines[#lines + 1] = badges end

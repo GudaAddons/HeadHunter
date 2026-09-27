@@ -175,6 +175,9 @@ return function(T, H)
         end
         T.ok(found, "tooltip line")
         T.ok(ns.Poster.Content("Grim-Stonespine").bounty:find("45g", 1, true) ~= nil, "poster line")
+        T.eq(ns.Poster.Content("Grim-Stonespine").status, "|cffffd100BOUNTY|r · 45g from players (not WANTED)",
+            "the poster says bounty, not just Not WANTED")
+        T.eq(rows[1].tooltip[4], "|cffffd100BOUNTY|r · 45g from players (not WANTED)", "so does the row tooltip")
         T.noErrors()
     end)
 

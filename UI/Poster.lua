@@ -74,7 +74,9 @@ function Poster.Content(id, now)
     elseif entry.atLarge then
         c.status = string.format(L.TIP_AT_LARGE, Wanted.RankName(entry.lastRank))
     else
-        c.status = L.TIP_NOT_WANTED
+        -- HH-118: a player's bounty lists them on the WANTED tab too
+        local bounty = ns.Bounties:Summary(entry.id, now)
+        c.status = bounty and string.format(L.TIP_BOUNTY_ONLY, ns.Bounties.Gold(bounty.gold)) or L.TIP_NOT_WANTED
     end
     local kill = entry.lastKill
     if kill then
