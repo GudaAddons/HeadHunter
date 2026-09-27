@@ -122,7 +122,12 @@ function Justice:OnEnemyKilled(key, guid, how, killer)
     if not ns.Guards:IsActive() then return nil end
     local Wanted = ns.Wanted
     local entry = (key and Wanted:ByKey(key)) or (guid and Wanted:Get("guid:" .. guid))
-    if not (Wanted.Hunted(entry) or ns.Bounties:ActiveOn(entry)) then return nil end
+    if not (Wanted.Hunted(entry) or ns.Bounties:ActiveOn(entry)) then
+        -- A Hall of Shame bully: bounty points only, no catch (they stay listed and
+        -- their WANTED count goes on; author, 2026-09-28)
+        if entry and entry.badges and entry.badges.coward then ns.Events:Fire("HH_BULLY_KILLED", entry, how) end
+        return nil
+    end
     -- Every HeadHunter who saw it earns marks (Rules/Marks.lua), even when a
     -- groupmate's catch record got stored first
     ns.Events:Fire("HH_CATCH_WITNESSED", entry, how)

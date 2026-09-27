@@ -10,6 +10,8 @@
 --        instance, AFK or outside the level window (HH-047). Letting the popup time
 --        out costs nothing.
 --   +5   a catch of a player's bounty target we saw (HH-118, Sync/Bounties.lua)
+--   +3   a Hall of Shame bully brought down by us or our group, not WANTED (author,
+--        2026-09-28): once per bully per hour, for as long as they are listed
 --   none when the outlaw is 10+ levels below us: hunting down is ganking too.
 -- Ranks: Tracker 0, Bounty Hunter 10, Manhunter 25, Headhunter 50, Reaper 100.
 --
@@ -34,6 +36,8 @@ Marks.RANKS = {
 }
 Marks.CATCH = { ganker = 3, outlaw = 5, desperado = 8, mostwanted = 12, deadoralive = 20 }
 Marks.JOIN = 1
+Marks.BULLY = 3
+Marks.BULLY_COOLDOWN = 3600  -- per bully
 Marks.DECLINE = -1
 Marks.LEVEL_GAP = 10           -- no marks for hunting 10+ levels down
 Marks.JOIN_COOLDOWN = 1800     -- per outlaw (a posse lasts 30 min)
@@ -41,7 +45,7 @@ Marks.CATCH_COOLDOWN = 60      -- per outlaw
 Marks.DECLINE_COOLDOWN = 600   -- any outlaw
 Marks.MAX_EVENTS = 200
 
-local lastJoin, lastCatch = {}, {}   -- outlaw id -> GetTime()
+local lastJoin, lastCatch, lastBully = {}, {}, {}   -- outlaw id -> GetTime()
 local lastDecline
 
 local function Store()
@@ -167,6 +171,14 @@ function Marks:OnCatch(entry)
     return self:Add(self.CATCH[rank] or self.CATCH.ganker, "catch", OutlawName(entry), rank)
 end
 
+function Marks:OnBullyKilled(entry)
+    local now = ns.Utils.Now()
+    if lastBully[entry.id] and now - lastBully[entry.id] < self.BULLY_COOLDOWN then return nil end
+    lastBully[entry.id] = now
+    if Marks.HuntingDown(entry) then return self:Add(0, "skip", OutlawName(entry)) end
+    return self:Add(self.BULLY, "bully", OutlawName(entry))
+end
+
 -- Eligible to be penalised: out of combat, in the open world, not AFK
 function Marks.DeclineCounts()
     local U = ns.Utils
@@ -192,6 +204,7 @@ ns.Events:Register("HH_INITIALIZED", function()
     Events:Register("HH_POSSE_JOINED", function(_, entry) Marks:OnJoin(entry) end, OWNER)
     Events:Register("HH_POSSE_DECLINED", function(_, entry, _, reason) Marks:OnDecline(entry, reason) end, OWNER)
     Events:Register("HH_CATCH_WITNESSED", function(_, entry) Marks:OnCatch(entry) end, OWNER)
+    Events:Register("HH_BULLY_KILLED", function(_, entry) Marks:OnBullyKilled(entry) end, OWNER)
 end, OWNER)
 
 -- /hh bounty (players see "bounty"; /hh marks stays as an unlisted alias)
