@@ -1,8 +1,9 @@
 -- HH-060: the main window. /hh (no arguments) or the minimap button toggles it.
 --
 -- Tabs:
---   WANTED         who is WANTED now; sort by rank, kills or last kill; Alliance or Horde
---                  (the switch top left, the enemy faction first)
+--   WANTED         players' bounties first (HH-118, merged per target, newest first),
+--                  then who is WANTED now; sort by rank, kills or last kill; Alliance or
+--                  Horde (the switch top left, the enemy faction first)
 --   Hall of Shame  every enemy with the Coward badge (killed lowbies), WANTED or not
 --   High Noon      the best duelists (HH-093), Alliance or Horde (the switch top left)
 --   My deaths      our own PvP deaths, newest first
@@ -181,6 +182,10 @@ local function WantedRows(sortKey, now, faction)
         if Ours(entry) then list[#list + 1] = entry end
     end
     local rows = {}
+    for _, summary in ipairs(ns.Bounties:Board(now)) do
+        local entry = ns.Wanted:Get(summary.target)
+        if entry and Ours(entry) then rows[#rows + 1] = MainWindow.BountyRow(entry, summary, now) end
+    end
     for _, entry in ipairs(list) do
         local kill = entry.lastKill
         local lastKill = "-"
@@ -200,6 +205,30 @@ local function WantedRows(sortKey, now, faction)
         }
     end
     return rows
+end
+
+-- HH-118: one target with players' bounties, on top of the WANTED tab
+function MainWindow.BountyRow(entry, summary, now)
+    local Bounties = ns.Bounties
+    local poster = summary.newest
+    local detail
+    if summary.count > 1 then
+        detail = string.format(L.BOUNTY_POSTERS, summary.count)
+    else
+        detail = string.format(L.BOUNTY_DETAIL, Bounties.ReasonText(poster.reason), ns.Utils.DisplayName(poster.owner))
+    end
+    local tooltip = MainWindow.EntryTooltip(entry, now)
+    table.insert(tooltip, 2, "|cffffd100" .. Bounties:Line(entry.id, now) .. "|r")
+    return {
+        id = entry.id,
+        bounty = true,
+        rank = string.format(L.BOUNTY_RANK, Bounties.Gold(summary.gold)),
+        name = Named(OutlawName(entry), entry),
+        kills = tostring(entry.killCount or 0),
+        lastKill = detail .. " · " .. string.format(L.BOUNTY_LEFT, ns.Wanted.TimeLeft({ wantedUntil = poster["until"] }, now)),
+        badges = ns.Wanted.BadgeNames(entry),
+        tooltip = tooltip,
+    }
 end
 
 local function ShameRows(now)
@@ -293,6 +322,7 @@ local function DeathRows(now)
             local entry = id and ns.Wanted:Get(id)
             local tooltip = entry and MainWindow.EntryTooltip(entry, now) or { name, L.WINDOW_ROW_HINT }
             table.insert(tooltip, 2, string.format(L.TIP_KILLED_YOU, date("%m-%d %H:%M", report.t), zone, kind))
+            if id and ns.Bounties:CanPost(id, now) then tooltip[#tooltip + 1] = L.BOUNTY_ROW_HINT end
             rows[#rows + 1] = {
                 id = id,
                 time = date("%m-%d %H:%M", report.t),
@@ -767,7 +797,7 @@ end
 ns.Events:Register("HH_INITIALIZED", function()
     local request = function() MainWindow:RequestRefresh() end
     for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_DEATH_RECORDED", "HH_REPORT_UPDATED", "HH_MARKS_CHANGED",
-            "HH_HIGHNOON_UPDATED", "HH_TOURNAMENT_UPDATED", "HH_PRESENCE_UPDATED" }) do
+            "HH_HIGHNOON_UPDATED", "HH_TOURNAMENT_UPDATED", "HH_PRESENCE_UPDATED", "HH_BOUNTY_UPDATED" }) do
         ns.Events:Register(event, request, OWNER)
     end
 end, OWNER)

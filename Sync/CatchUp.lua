@@ -167,6 +167,10 @@ function CatchUp:OnData(record, sender)
         if ns.Justice:AddRelayed(body, sender) then received.catches = received.catches + 1 end
     elseif kind == "U" then
         if ns.Duels:OnRecord(body, sender, "relay") then received.duels = (received.duels or 0) + 1 end
+    elseif kind == "W" then
+        ns.Bounties:AddRelayedPoster(body, sender)
+    elseif kind == "R" then
+        ns.Bounties:AddRelayedPayment(body)
     elseif kind == "E" then
         self:Finish("complete")
     end
@@ -189,6 +193,8 @@ function CatchUp.Records(sinceTime)
         local encoded = Protocol.EncodeDeath(report, maxLength)
         if encoded then records[#records + 1] = "D" .. encoded end
     end
+    -- Player bounties (HH-118) after the reports they rest on
+    for _, record in ipairs(ns.Bounties:Records(sinceTime)) do records[#records + 1] = record end
     -- High Noon duels (HH-091) after the reports: they matter less
     for _, duel in ipairs(ns.Duels:Since(sinceTime, CatchUp.MAX_DUELS)) do
         if #records >= CatchUp.MAX_RECORDS + CatchUp.MAX_DUELS then break end

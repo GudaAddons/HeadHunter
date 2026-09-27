@@ -7,7 +7,8 @@
 --   Kills known: 12 (exact 10, guessed 2) · WANTED 2x · caught 1x · peak rank Outlaw
 --   Recent kills: when · victim · zone · kill type (newest first)
 --   Posse: you, Hunterx
---   [Join the posse]
+--   Bounty: 20g by Tallon · Camped me   (HH-118)
+--   [Post a bounty] (our killer, last 24 h)   [Join the posse]
 --
 -- Poster.Content(id, now) is the pure part (tested offline).
 
@@ -64,6 +65,8 @@ function Poster.Content(id, now)
             entry.timesWanted or 0, entry.timesCaught or 0,
             entry.peakRank and Wanted.RankName(entry.peakRank) or "-"),
         posse = ns.Posse:Summary(entry.id),
+        bounty = ns.Bounties:Line(entry.id, now), -- HH-118
+        canPost = ns.Bounties:CanPost(entry.id, now),
         recent = {},
     }
     if entry.wanted then
@@ -152,6 +155,13 @@ local function CreatePosterFrame()
         previous = f.recent[i]
     end
     f.posse = Text(f, "GameFontHighlightSmall", "BOTTOMLEFT", previous, 0, -10, width)
+    f.bounty = Text(f, "GameFontNormal", "BOTTOMLEFT", f.posse, 0, -6, width)
+
+    f.postButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    f.postButton:SetSize(140, 22)
+    f.postButton:SetPoint("BOTTOMLEFT", 14, 14)
+    f.postButton:SetText(L.BOUNTY_POST_BUTTON)
+    f.postButton:SetScript("OnClick", function() ns.BountyDialog:Open(shownId) end)
 
     f.joinButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     f.joinButton:SetSize(170, 22)
@@ -179,7 +189,9 @@ function Poster:Refresh()
     for i, line in ipairs(frame.recent) do line:SetText(c.recent[i] or "") end
     if #c.recent == 0 then frame.recent[1]:SetText(L.POSTER_NO_KILLS) end
     frame.posse:SetText(c.posse or "")
+    frame.bounty:SetText(c.bounty or "")
     if c.canJoin then frame.joinButton:Show() else frame.joinButton:Hide() end
+    if c.canPost then frame.postButton:Show() else frame.postButton:Hide() end
     self.shown = c
 end
 
@@ -207,7 +219,7 @@ end
 
 ns.Events:Register("HH_INITIALIZED", function()
     local refresh = function() Poster:Refresh() end
-    for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_POSSE_CHANGED" }) do
+    for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_POSSE_CHANGED", "HH_BOUNTY_UPDATED" }) do
         ns.Events:Register(event, refresh, OWNER)
     end
 end, OWNER)

@@ -9,6 +9,7 @@
 --   -1   Decline while eligible: at most once per 10 min; never in combat, in an
 --        instance, AFK or outside the level window (HH-047). Letting the popup time
 --        out costs nothing.
+--   +5   a catch of a player's bounty target we saw (HH-118, Sync/Bounties.lua)
 --   none when the outlaw is 10+ levels below us: hunting down is ganking too.
 -- Ranks: Tracker 0, Bounty Hunter 10, Manhunter 25, Headhunter 50, Reaper 100.
 --
@@ -156,6 +157,8 @@ function Marks:OnJoin(entry)
 end
 
 function Marks:OnCatch(entry)
+    -- A posted target that is not WANTED pays the bounty points instead (Sync/Bounties.lua)
+    if not ns.Wanted.Hunted(entry) then return nil end
     local now = ns.Utils.Now()
     if lastCatch[entry.id] and now - lastCatch[entry.id] < self.CATCH_COOLDOWN then return nil end
     lastCatch[entry.id] = now

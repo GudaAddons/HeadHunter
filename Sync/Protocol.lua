@@ -31,6 +31,8 @@ Protocol.TYPES = {
     PING = "T", -- /hh sync ping: manual connectivity test
     PRESENCE = "N", -- HH-110: "here" with our version, counts who is online; both factions
     HELP = "B",     -- HH-111: "help on the way" to a Battle hotspot
+    POSTER = "W",   -- HH-118: a player's bounty poster on their killer
+    PAYMENT = "R",  -- HH-118: a bounty claimed, paid or unpaid (sent by the hunter)
 }
 
 local FACTION_CODE = { Alliance = "A", Horde = "H" }
@@ -362,6 +364,51 @@ function Protocol.DecodeJustice(s)
     local t = Protocol.FromB36(f[2])
     if not t then return nil end
     return f[1], t, Protocol.FromB36(f[3]), not Blank(f[4]) and f[4] or nil
+end
+
+-------------------------------------------------
+-- Poster (HH-118): owner ; target ; reason (1-4) ; gold (copper) ; until ; time
+-- The sender is the owner. The target is an enemy id (a key, or "guid:..." for a
+-- Forever killer known only by the given name).
+-------------------------------------------------
+
+function Protocol.EncodePoster(poster)
+    return table.concat({ poster.owner, poster.target, Protocol.ToB36(poster.reason), Protocol.ToB36(poster.gold),
+        Protocol.ToB36(poster["until"]), Protocol.ToB36(poster.t) }, ";")
+end
+
+-- Returns a poster table, or nil
+function Protocol.DecodePoster(s)
+    if type(s) ~= "string" then return nil end
+    local f = Split(s, ";")
+    if #f ~= 6 or Blank(f[1]) or Blank(f[2]) then return nil end
+    local reason, gold = Protocol.FromB36(f[3]), Protocol.FromB36(f[4])
+    local untilT, t = Protocol.FromB36(f[5]), Protocol.FromB36(f[6])
+    if not (reason and gold and untilT and t) then return nil end
+    return { owner = f[1], target = f[2], reason = reason, gold = gold, ["until"] = untilT, t = t }
+end
+
+-------------------------------------------------
+-- Bounty payment (HH-118): posterId ; hunter ; status (c claimed, p paid, u unpaid) ;
+-- claimedAt ; time. Sent only by the hunter (the one who receives the gold).
+-------------------------------------------------
+
+local PAY_CODE = { claimed = "c", paid = "p", unpaid = "u" }
+local PAY_NAME = Invert(PAY_CODE)
+
+function Protocol.EncodePayment(pay)
+    return table.concat({ pay.posterId, pay.hunter, PAY_CODE[pay.status] or "c", Protocol.ToB36(pay.claimedAt),
+        Protocol.ToB36(pay.t) }, ";")
+end
+
+-- Returns a payment table, or nil
+function Protocol.DecodePayment(s)
+    if type(s) ~= "string" then return nil end
+    local f = Split(s, ";")
+    if #f ~= 5 or Blank(f[1]) or Blank(f[2]) or not PAY_NAME[f[3]] then return nil end
+    local claimedAt, t = Protocol.FromB36(f[4]), Protocol.FromB36(f[5])
+    if not (claimedAt and t) then return nil end
+    return { posterId = f[1], hunter = f[2], status = PAY_NAME[f[3]], claimedAt = claimedAt, t = t }
 end
 
 -------------------------------------------------

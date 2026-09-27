@@ -18,15 +18,20 @@ local OWNER = "Sighting"
 
 Sighting.THROTTLE = 120
 
--- The WANTED entry for an enemy record: by key, or by GUID for Forever outlaws
+-- WANTED, at large, or with a player's bounty (HH-118)
+local function Watched(entry)
+    return ns.Wanted.Hunted(entry) or ns.Bounties:ActiveOn(entry)
+end
+
+-- The watched entry for an enemy record: by key, or by GUID for Forever outlaws
 -- still known only by their given name
 function Sighting.WantedEntry(record)
     local Wanted = ns.Wanted
     local entry = record.key and Wanted:ByKey(record.key)
-    if not Wanted.Hunted(entry) and record.guid then
+    if not Watched(entry) and record.guid then
         entry = Wanted:Get("guid:" .. record.guid)
     end
-    return Wanted.Hunted(entry) and entry or nil
+    return Watched(entry) and entry or nil
 end
 
 -- "60 Night Elf Hunter" (skull icon for a skull level)
@@ -49,11 +54,16 @@ function Sighting:OnEnemySeen(record, source)
         text = string.format(L.SIGHTING_TEXT, Wanted.RankName(entry.rank), name)
         chat = string.format(L.SIGHTING_CHAT, Wanted.RankName(entry.rank), name, Describe(record),
             math.floor(entry.kills)) .. suffix
-    else
+    elseif entry.atLarge then
         text = string.format(L.SIGHTING_AT_LARGE, name)
         chat = string.format(L.SIGHTING_CHAT_AT_LARGE, name, Describe(record),
             Wanted.RankName(entry.lastRank), entry.killCount or 0) .. suffix
+    else
+        text = string.format(L.SIGHTING_BOUNTY, name)
+        chat = string.format(L.SIGHTING_CHAT_BOUNTY, name, Describe(record))
     end
+    local bounty = ns.Bounties:Line(entry.id)
+    if bounty then chat = chat .. " · " .. bounty end
 
     ns.Alerts:Show({
         key = "seen:" .. entry.id,

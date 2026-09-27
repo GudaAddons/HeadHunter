@@ -4,6 +4,7 @@
 --   known, not WANTED now:  "HeadHunter: 12 kills known · caught 1x · Coward" (grey)
 --   unknown enemy:          nothing
 --   any player with duels:  "High Noon: Deadeye #3 (1250)" (HH-093)
+--   a player's bounty:      "Bounty: 20g by Tallon · Camped me" (HH-118)
 --
 -- Hook: TooltipDataProcessor (unit post-call) where the client has it, else the
 -- tooltip's OnTooltipSetUnit script. Either may run more than once for one tooltip,
@@ -70,7 +71,10 @@ function TooltipLine:Fill(tooltip)
     local U = ns.Utils
     local _, unit = U.SafeCall(tooltip.GetUnit, tooltip)
     unit = U.AccessibleString(unit)
-    local lines = self.Lines(self.EntryForUnit(unit))
+    local entry = self.EntryForUnit(unit)
+    local lines = self.Lines(entry)
+    local bounty = entry and ns.Bounties:Line(entry.id)
+    if bounty then lines[#lines + 1] = { bounty, 1, 0.82, 0 } end
     local duel = self.DuelLine(unit)
     if duel then lines[#lines + 1] = duel end
     if #lines == 0 then return end
