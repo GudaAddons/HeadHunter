@@ -8,8 +8,8 @@
 -- 2026-09-27), so every place is taken once. Listed from the first duel.
 -- Ranks by net: Quickdraw, Sharpshooter (+5), Deadeye (+15), Legend (+30); under
 -- MIN_DUELS a player is a Greenhorn. The #1 of each faction is the Top Gun when they
--- are no Greenhorn, won more than they lost and have a clear lead (two at the top with
--- the same record: no Top Gun yet). Two lists: Alliance and Horde (duels stay inside a
+-- are no Greenhorn, have TOP_GUN_NET or more (Sharpshooter; author, 2026-09-28: 6-5 is
+-- no Top Gun) and a clear lead (two at the top with the same record: no Top Gun yet). Two lists: Alliance and Horde (duels stay inside a
 -- faction). The website ranks the same way.
 -- Each rank has its colour, as WoW's item qualities (Greenhorn grey ... Legend purple,
 -- Top Gun orange).
@@ -26,6 +26,7 @@ local HighNoon = ns:RegisterModule("HighNoon", {})
 local OWNER = "HighNoon"
 
 HighNoon.MIN_DUELS = 5
+HighNoon.TOP_GUN_NET = 5 -- the Top Gun needs Sharpshooter (+5); the website's DuelRatingCalculator::TOP_GUN_NET
 HighNoon.DEBOUNCE = 1
 -- Highest first, by net wins
 HighNoon.RANKS = {
@@ -183,9 +184,9 @@ function HighNoon:Recompute()
             p.position = i
             p.topGun = nil
         end
-        -- Top Gun: the faction's #1, no Greenhorn, with a winning record and a clear lead
+        -- Top Gun: the faction's #1, no Greenhorn, +5 or more and a clear lead
         local first, second = list[1], list[2]
-        if first and HighNoon.Established(first) and first.net > 0
+        if first and HighNoon.Established(first) and first.net >= HighNoon.TOP_GUN_NET
             and not (second and HighNoon.Tied(first, second)) then
             first.topGun = true
         end

@@ -94,7 +94,7 @@ The window shows how many HeadHunters are online right now. Hover it to see how 
 - Click a player of your own faction in the Duels list to whisper them.
 - Ranked by record: wins minus losses first, then fewer losses. 6-1 is ahead of 8-3. With the same record, whoever got there first is ahead. You are listed from your first duel.
 - Ranks by net wins: **Quickdraw**, **Sharpshooter** (+5), **Deadeye** (+15) and **Legend** (+30). Under 5 duels you are a **Greenhorn**, listed after everyone with 5 or more.
-- The #1 of each faction is the **Top Gun**, if they won more than they lost and nobody else at the top has the same record. A Greenhorn cannot be Top Gun.
+- The #1 of each faction is the **Top Gun**, once they are 5 or more wins ahead (Sharpshooter) and nobody else at the top has the same record. A Greenhorn cannot be Top Gun.
 
 ![Duels: the Horde list with its Top Gun and records](Assets/2.jpg)
 

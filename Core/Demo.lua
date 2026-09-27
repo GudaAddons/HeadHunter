@@ -235,10 +235,10 @@ local function AddDuels(faction, me, now)
         if ns.Duels:Add(duel, "sim") then added = added + 1 end
     end
 
-    -- A shared #1 has no Top Gun: the leader wins one more until they stand alone
+    -- A Top Gun needs +5 and a clear lead: the leader wins more until they have both
     local byKey = {}
     for _, p in ipairs(players) do byKey[p.key] = p end
-    for extra = 1, 5 do
+    for extra = 1, 10 do
         local duels = {}
         for _, duel in ns.Duels:All() do
             if duel.faction == faction then duels[#duels + 1] = duel end
@@ -246,7 +246,8 @@ local function AddDuels(faction, me, now)
         local list = {}
         for _, p in pairs(ns.HighNoon.Compute(duels)) do list[#list + 1] = p end
         table.sort(list, ns.HighNoon.Better)
-        if not (list[2] and ns.HighNoon.Tied(list[1], list[2])) then break end
+        local clear = not (list[2] and ns.HighNoon.Tied(list[1], list[2]))
+        if clear and list[1].net >= ns.HighNoon.TOP_GUN_NET then break end
         local winner, loser = byKey[list[1].key], byKey[list[#list].key]
         if not (winner and loser) then break end
         ns.Duels:Add({
