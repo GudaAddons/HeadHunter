@@ -3,7 +3,7 @@
 --
 --   Put a bounty on Grim Reaper
 --   Reason   [Camped me          v]
---   Gold     [ 20 ]   (at least 5g)
+--   Gold     [ 20 ]   (at least 2g)
 --   Days     [ 3 days v]
 --                               [Post] [Cancel]
 --

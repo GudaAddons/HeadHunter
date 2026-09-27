@@ -1,7 +1,7 @@
 -- HH-118: player bounties, WANTED posters by players (docs/addon/features.md section 12).
 --
 -- A player killed in the last 24 hours puts a gold bounty on their killer (or an
--- assist): a reason from a list, at least 5g, 1 to 7 days. Any HeadHunter of their
+-- assist): a reason from a list, at least 2g, 1 to 7 days. Any HeadHunter of their
 -- faction whose killing blow brings the target down while the poster runs claims it,
 -- and the owner pays by mail. HeadHunter never holds or moves gold without the
 -- owner's click.
@@ -32,7 +32,7 @@ local DAY = 86400
 
 Bounties.REASONS = { "camped", "mobs", "lowlevel", "group" }
 Bounties.DAYS = { 1, 2, 3, 7 }
-Bounties.MIN_GOLD = 5 * 10000        -- copper
+Bounties.MIN_GOLD = 2 * 10000        -- copper (author, 2026-09-28: 2g for now)
 Bounties.MAX_GOLD = 10000 * 10000
 Bounties.MAX_DURATION = 7 * DAY
 Bounties.POST_WINDOW = DAY           -- our deaths from the last 24 hours
