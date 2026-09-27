@@ -15,8 +15,8 @@
 -- between posters. Protocol R (payment) only from the hunter: "claimed" at the catch,
 -- "paid" when the hunter's mailbox shows the owner's gold, "unpaid" 3 days after the
 -- claim without it. A later "paid" beats "unpaid"; the earliest claim wins a poster.
--- Blocked: an owner with unpaid claims from 2 different hunters, for 30 days from the
--- second one turning unpaid; every client derives it the same way, ignores the owner's
+-- Blocked: an owner with an unpaid claim (author, 2026-09-28: one is enough), for 30
+-- days from the newest one turning unpaid; every client derives it the same way, ignores the owner's
 -- posters and lists them in the Hall of Shame (author, 2026-09-28). The other faction's
 -- unpaid and paid records cross over too: their Deadbeats are listed, alerted and
 -- worth bounty points when we bring them down.
@@ -44,7 +44,7 @@ Bounties.MAX_DURATION = 7 * DAY
 Bounties.POST_WINDOW = DAY           -- our deaths from the last 24 hours
 Bounties.POST_COOLDOWN = 1800        -- between two posters of one owner
 Bounties.UNPAID_AFTER = 3 * DAY
-Bounties.BLOCK_HUNTERS = 2
+Bounties.BLOCK_HUNTERS = 1
 Bounties.BLOCK_WINDOW = 30 * DAY
 Bounties.CLAIM_MARKS = 5
 Bounties.CLAIM_RECENT = 300          -- a catch this old still makes our claim
@@ -124,7 +124,7 @@ local function UnpaidBy(owner, now)
     return times
 end
 
--- When the owner's block ends: 30 days after the BLOCK_HUNTERS-th hunter's unpaid
+-- When the owner's block ends: 30 days after the newest unpaid (of BLOCK_HUNTERS hunters)
 -- (counted from the newest), or nil when they are not blocked
 function Bounties:BlockedUntil(owner, now)
     if not owner then return nil end

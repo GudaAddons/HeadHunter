@@ -40,7 +40,7 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 
 ### Hall of Shame
 - **Bullies**: every enemy with the Bully badge, WANTED or not. They stay as long as HeadHunter knows one of their lowbie kills (30 days).
-- **Deadbeats**: players who did not pay their gold bounty to two different hunters (see *Gold bounties*). They are listed for 30 days, and they cannot post bounties during that time.
+- **Deadbeats**: players who did not pay a gold bounty they posted (see *Gold bounties*). They are listed for 30 days, and they cannot post bounties during that time.
 - You get an alert when a bully or a Deadbeat is near. Turn it off in the options (**Hall of Shame alerts**).
 - Bring down a bully, or a Deadbeat of the other faction, and you get **+3 bounty**, once per player per hour. They stay on the list.
 
@@ -91,7 +91,7 @@ Got ganked? Put gold on your killer's head.
 - Every HeadHunter of your faction sees it: on top of the WANTED list, on the tooltip and the poster, and with an alert when they meet the target.
 - The HeadHunter who lands the killing blow wins the gold, and everyone who saw it gets +5 bounty. No gold for hunting 10 or more levels down.
 - You get a message when your bounty is claimed. At your next mailbox, HeadHunter asks you to send the gold, and one click writes the mail. HeadHunter never sends gold without your click, and never more than you posted.
-- The hunter's HeadHunter sees your mail and marks you as **pays up**. Not paid after 3 days, the claim is unpaid. If two different hunters are not paid, you are a **Deadbeat**: no bounties for 30 days and your name in the Hall of Shame. Paying late gets you out.
+- The hunter's HeadHunter sees your mail and marks you as **pays up**. Not paid after 3 days, the claim is unpaid. If you do not pay, you are a **Deadbeat**: no bounties for 30 days and your name in the Hall of Shame. Paying late gets you out.
 - **Classic Era:** after claiming, click **Announce** (or type `/hh claim`) so the owner hears about it, even outside your guild and group.
 
 ### Catch-up
