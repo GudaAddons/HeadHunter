@@ -215,6 +215,47 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("Hall of Shame alerts: a bully in sight, once per 10 min; the option turns it off", function()
+        local ns = H.Boot({ client = "era" })
+        Death(ns, "Rowena-Firemaw", "Grim-Stonespine", 600, 45)
+        Settle()
+        T.eq(ns.Wanted:ByKey("Grim-Stonespine").badges.coward, true, "a bully, not WANTED")
+        local record = { key = "Grim-Stonespine", level = 45, class = "ROGUE", race = "Orc" }
+        ns.Sighting:OnEnemySeen(record, "target")
+        T.eq(#H.centerTexts, 1, "center text")
+        T.ok(H.centerTexts[1]:find("BULLY", 1, true) ~= nil, "says bully")
+        T.ok(H.Printed("BULLY.*Grim.*1 kills of lowbies"), "chat line")
+        ns.Sighting:OnEnemySeen(record, "target")
+        T.eq(#H.centerTexts, 1, "not again within 10 min")
+        H.Advance(601)
+        ns.Database:SetSetting("alerts.shame", false)
+        ns.Sighting:OnEnemySeen(record, "target")
+        T.eq(#H.centerTexts, 1, "off in the options")
+        T.noErrors()
+    end)
+
+    T.case("Hall of Shame alerts: a Deadbeat of our faction we target", function()
+        local ns = H.Boot({ client = "era" })
+        Death(ns, "Tallon-Firemaw", "Grim-Stonespine", 600)
+        Death(ns, "Tallon-Firemaw", "Moo-Stonespine", 600)
+        Settle()
+        local first = PeerPoster(ns, "Tallon-Firemaw", "Grim-Stonespine", 20, { t = H.serverTime - 4000 })
+        local second = PeerPoster(ns, "Tallon-Firemaw", "Moo-Stonespine", 20, { t = H.serverTime - 100 })
+        PeerPayment(ns, first, "Kestrel-Firemaw", "unpaid", H.serverTime - 3000)
+        PeerPayment(ns, second, "Rowena-Firemaw", "unpaid", H.serverTime - 50)
+        T.eq(ns.Bounties:IsBlocked("Tallon-Firemaw"), true, "a Deadbeat")
+        H.units.target = { name = "Tallon", level = 30, class = "WARRIOR", race = "Human", guid = "Player-1-0000CAFE",
+            faction = "Alliance", isPlayer = true }
+        H.Fire("PLAYER_TARGET_CHANGED")
+        local seen = false
+        for _, text in ipairs(H.centerTexts) do
+            if text:find("DEADBEAT", 1, true) and text:find("Tallon", 1, true) then seen = true end
+        end
+        T.ok(seen, "center text")
+        T.ok(H.Printed("DEADBEAT.*Tallon.*did not pay 2 bounties"), "chat line")
+        T.noErrors()
+    end)
+
     -------------------------------------------------
     -- Claiming
     -------------------------------------------------

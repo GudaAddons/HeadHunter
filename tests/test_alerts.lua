@@ -212,7 +212,7 @@ return function(T, H)
 
     T.case("enemies who are not WANTED raise nothing", function()
         local ns = H.Boot({ client = "era" })
-        H.Slash("spree Gank 2 60")
+        H.Slash("spree Gank 2 60 45 40") -- 5 levels apart: no bully either
         Settle()
         H.units.nameplate1 = GankPlate()
         H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")

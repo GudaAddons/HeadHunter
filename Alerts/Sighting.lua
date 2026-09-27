@@ -1,4 +1,5 @@
--- HH-042: a WANTED outlaw shows up on a nameplate, as target, under the mouse or as
+-- HH-042: a WANTED outlaw (or at large, or with a player's bounty; a Hall of Shame
+-- bully more softly) shows up on a nameplate, as target, under the mouse or as
 -- a party member's target.
 --
 --   WANTED · Ganker Wiadro is here! (?? Dwarf Rogue) · Coward
@@ -17,6 +18,7 @@ local Sighting = ns:RegisterModule("Sighting", {})
 local OWNER = "Sighting"
 
 Sighting.THROTTLE = 120
+Sighting.BULLY_THROTTLE = 600  -- a bully or Deadbeat (Hall of Shame) not WANTED: once per 10 min each
 
 -- WANTED, at large, or with a player's bounty (HH-118)
 local function Watched(entry)
@@ -39,10 +41,35 @@ local function Describe(record)
     return ns.DeathReports.Describe(record)
 end
 
+-- A Hall of Shame bully (killed players 10+ levels lower or grey) who is not WANTED
+function Sighting.BullyEntry(record)
+    local Wanted = ns.Wanted
+    local entry = (record.key and Wanted:ByKey(record.key)) or (record.guid and Wanted:Get("guid:" .. record.guid))
+    return entry and entry.badges and entry.badges.coward and entry or nil
+end
+
+-- Author, 2026-09-28: bullies alert too, softer and less often than WANTED
+function Sighting:OnBullySeen(record, entry)
+    if ns.Database:GetSetting("alerts.shame") == false then return end
+    local name = ns.Utils.DisplayName(record.key) or entry.name
+    ns.Alerts:Show({
+        key = "bully:" .. entry.id,
+        throttle = self.BULLY_THROTTLE,
+        text = string.format(L.SIGHTING_BULLY, name),
+        chat = string.format(L.SIGHTING_CHAT_BULLY, name, Describe(record), entry.cowardKills or 0),
+        sound = "soft",
+        combat = true,
+    })
+end
+
 function Sighting:OnEnemySeen(record, source)
     if source == "sim" or source == "fallback" then return end
     local entry = self.WantedEntry(record)
-    if not entry then return end
+    if not entry then
+        local bully = self.BullyEntry(record)
+        if bully then self:OnBullySeen(record, bully) end
+        return
+    end
 
     local Wanted = ns.Wanted
     local name = ns.Utils.DisplayName(record.key) or entry.name
@@ -75,6 +102,28 @@ function Sighting:OnEnemySeen(record, source)
     })
 end
 
+-- HH-118: a Deadbeat of our own faction (unpaid bounties, blocked 30 days) we target
+-- or hover. The enemy cache only follows enemies, so this watches the two units itself.
+function Sighting:CheckDeadbeat(unit)
+    local U = ns.Utils
+    if ns.Database:GetSetting("alerts.shame") == false or not U.UnitIsPlayer(unit) or U.UnitIsEnemyPlayer(unit) then return end
+    local key = U.UnitKey(unit)
+    if not key or U.SameCharacter(key, U.UnitKey("player")) then return end
+    local untilT = ns.Bounties:BlockedUntil(key)
+    if not untilT then return end
+    local _, unpaid = ns.Bounties:Standing(key)
+    local name = U.DisplayName(key)
+    ns.Alerts:Show({
+        key = "deadbeat:" .. U.CompactName(key),
+        throttle = self.BULLY_THROTTLE,
+        text = string.format(L.SIGHTING_DEADBEAT, name),
+        chat = string.format(L.SIGHTING_CHAT_DEADBEAT, name, unpaid),
+        sound = "soft",
+    })
+end
+
 ns.Events:Register("HH_INITIALIZED", function()
     ns.Events:Register("HH_ENEMY_SEEN", function(_, record, source) Sighting:OnEnemySeen(record, source) end, OWNER)
+    ns.Events:Register("PLAYER_TARGET_CHANGED", function() Sighting:CheckDeadbeat("target") end, OWNER)
+    ns.Events:Register("UPDATE_MOUSEOVER_UNIT", function() Sighting:CheckDeadbeat("mouseover") end, OWNER)
 end, OWNER)

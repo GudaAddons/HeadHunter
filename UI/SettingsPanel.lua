@@ -26,6 +26,7 @@ SettingsPanel.OPTIONS = {
     { key = "range", kind = "choice", path = "alerts.range", label = "SET_RANGE", tip = "SET_RANGE_TIP",
         choices = { "adjacent", "continent" } },
     { key = "whisper", kind = "toggle", path = "alerts.whisperInvite", label = "SET_WHISPER", tip = "SET_WHISPER_TIP" },
+    { key = "shame", kind = "toggle", path = "alerts.shame", label = "SET_SHAME", tip = "SET_SHAME_TIP" },
     { section = "SET_SECTION_DISPLAY" },
     { key = "mapPins", kind = "toggle", path = "mapPins", label = "SET_MAP", tip = "SET_MAP_TIP" },
     { key = "tooltip", kind = "toggle", path = "tooltip", label = "SET_TOOLTIP", tip = "SET_TOOLTIP_TIP" },

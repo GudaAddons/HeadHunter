@@ -34,6 +34,7 @@ local DEFAULTS = {
             popups = true,
             range = "adjacent", -- "adjacent" | "continent"
             whisperInvite = true, -- Join on another layer: whisper the victim for an invite
+            shame = true, -- a Hall of Shame bully or Deadbeat in sight: center text and chat (author, 2026-09-28)
         },
         serialKillerWindowMin = 15, -- 5..15
         mapPins = true, -- HH-046: hotspot and WANTED pins on the world map
