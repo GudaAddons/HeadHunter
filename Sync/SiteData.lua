@@ -34,7 +34,7 @@ local RACES = {
 }
 local FACTIONS = { alliance = "Alliance", horde = "Horde" }
 
-local world, wanted, duelists
+local world, wanted, duelists, deadbeats
 
 -------------------------------------------------
 -- Names
@@ -150,7 +150,7 @@ function SiteData.Duelist(d, faction)
 end
 
 function SiteData:Load()
-    world, wanted, duelists = nil, nil, nil
+    world, wanted, duelists, deadbeats = nil, nil, nil, nil
     local data = Data()
     world = data and FindWorld(data)
     if not world then return false end
@@ -167,7 +167,25 @@ function SiteData:Load()
             if player then duelists[player.key] = player end
         end
     end
+    -- HH-118: both factions' Deadbeats (Classic Era's addon messages do not cross factions)
+    deadbeats = {}
+    for _, d in ipairs(type(world.deadbeats) == "table" and world.deadbeats or {}) do
+        local key = type(d) == "table" and SiteData.Key(d)
+        local untilT = key and Number(d.blocked_until)
+        if untilT then deadbeats[ns.Utils.CompactName(key)] = { key = key, unpaid = Number(d.unpaid) or 2, blockedUntil = untilT } end
+    end
     return true
+end
+
+-- The website's Deadbeat record for a player key: { key, unpaid, blockedUntil } or nil
+function SiteData:Deadbeat(key)
+    local id = key and ns.Utils.CompactName(key)
+    return id and deadbeats and deadbeats[id] or nil
+end
+
+-- Every Deadbeat the website listed: compact name -> record
+function SiteData:Deadbeats()
+    return deadbeats or {}
 end
 
 function SiteData:GeneratedAt()

@@ -130,8 +130,12 @@ function Bounties:BlockedUntil(owner, now)
     if not owner then return nil end
     now = now or ns.Utils.ServerTime()
     local t = UnpaidBy(owner, now)[self.BLOCK_HUNTERS]
-    if t and now < t + self.BLOCK_WINDOW then return t + self.BLOCK_WINDOW end
-    return nil
+    local ours = t and now < t + self.BLOCK_WINDOW and t + self.BLOCK_WINDOW or nil
+    -- The website's list (HH-082 data): Classic Era learns the other faction's this way
+    local site = ns.SiteData:Deadbeat(owner)
+    local theirs = site and now < site.blockedUntil and site.blockedUntil or nil
+    if ours and theirs then return math.max(ours, theirs) end
+    return ours or theirs
 end
 
 function Bounties:IsBlocked(owner, now)
@@ -143,13 +147,18 @@ end
 function Bounties:Shamed(now)
     now = now or ns.Utils.ServerTime()
     local seen, list = {}, {}
-    for posterId in pairs(Payments() or {}) do
-        local owner = self.OwnerOf(posterId)
+    local owners = {}
+    for posterId in pairs(Payments() or {}) do owners[#owners + 1] = self.OwnerOf(posterId) end
+    for _, site in pairs(ns.SiteData:Deadbeats()) do owners[#owners + 1] = site.key end
+    for _, owner in ipairs(owners) do
         local id = ns.Utils.CompactName(owner)
         if id and not seen[id] then
             seen[id] = true
             local untilT = self:BlockedUntil(owner, now)
-            if untilT then list[#list + 1] = { owner = owner, unpaid = #UnpaidTimes(owner), blockedUntil = untilT } end
+            if untilT then
+                local _, unpaid = self:Standing(owner)
+                list[#list + 1] = { owner = owner, unpaid = math.max(unpaid, #UnpaidTimes(owner)), blockedUntil = untilT }
+            end
         end
     end
     table.sort(list, function(a, b)
@@ -159,7 +168,7 @@ function Bounties:Shamed(now)
     return list
 end
 
--- How the owner pays: paid and unpaid claims (all we know of)
+-- How the owner pays: paid and unpaid claims (all we know of; the website's count when higher)
 function Bounties:Standing(owner)
     local paid, unpaid = 0, 0
     for posterId, pay in pairs(Payments() or {}) do
@@ -167,6 +176,8 @@ function Bounties:Standing(owner)
             if pay.status == "paid" then paid = paid + 1 elseif pay.status == "unpaid" then unpaid = unpaid + 1 end
         end
     end
+    local site = ns.SiteData:Deadbeat(owner)
+    if site then unpaid = math.max(unpaid, site.unpaid) end
     return paid, unpaid
 end
 

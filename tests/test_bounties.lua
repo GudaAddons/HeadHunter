@@ -283,6 +283,25 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("era: the website tells us the other faction's Deadbeats; ours to hunt", function()
+        local data = { format_version = 1, generated_at = H.serverTime - 600, characters = {}, worlds = {
+            ["era|eu|Firemaw"] = { generated_at = H.serverTime - 600, wanted = {}, duels = { alliance = {}, horde = {} },
+                deadbeats = { { name = "Miser", realm = "Firemaw", faction = "horde", unpaid = 3,
+                    blocked_until = H.serverTime + 10 * 86400 } } },
+        } }
+        local ns = H.Boot({ client = "era", siteData = data })
+        Settle()
+        T.eq(ns.Bounties:IsBlocked("Miser-Firemaw"), true, "a Deadbeat from the website")
+        T.eq(ns.Bounties:IsBlocked("Miser-Firemaw", H.serverTime + 11 * 86400), false, "until the website's date")
+        local shame = ns.MainWindow.Rows("shame")
+        T.eq(shame[#shame].name, "Miser", "in the Hall of Shame")
+        T.eq(shame[#shame].status, "3 unpaid · no bounties for 10 day(s)", "the website's count and days")
+        PartyKill("Miser")
+        Settle()
+        T.eq(ns.Marks:Total(), 3, "+3 bounty points for bringing them down")
+        T.noErrors()
+    end)
+
     T.case("Hall of Shame alerts: a Deadbeat of our faction we target", function()
         local ns = H.Boot({ client = "era" })
         Death(ns, "Tallon-Firemaw", "Grim-Stonespine", 600)
