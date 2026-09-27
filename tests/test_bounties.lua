@@ -354,6 +354,12 @@ return function(T, H)
         T.ok(ns.Bounties:Get(second) ~= nil, "a new poster after the first was claimed")
         PeerPayment(ns, second, "Kestrel-Firemaw", "unpaid", H.serverTime - 10)
         T.eq(ns.Bounties:IsBlocked("Tallon-Firemaw"), true, "two hunters unpaid: blocked")
+        local shame = ns.MainWindow.Rows("shame")
+        T.eq(shame[#shame].name, "Tallon", "in the Hall of Shame")
+        T.eq(shame[#shame].status, "2 unpaid · no bounties for 30 day(s)", "for 30 days")
+        T.eq(ns.Bounties:IsBlocked("Tallon-Firemaw", H.serverTime + 29 * 86400), true, "still blocked after 29 days")
+        T.eq(ns.Bounties:IsBlocked("Tallon-Firemaw", H.serverTime + 30 * 86400 + 60), false, "free after 30 days")
+        T.eq(#ns.Bounties:Shamed(H.serverTime + 30 * 86400 + 60), 0, "and out of the Hall of Shame")
 
         H.serverTime = H.serverTime + 3600
         Death(ns, "Tallon-Firemaw", "Hoof-Stonespine", 600)

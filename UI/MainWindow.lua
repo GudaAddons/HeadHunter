@@ -4,7 +4,8 @@
 --   WANTED         players' bounties first (HH-118, merged per target, newest first),
 --                  then who is WANTED now; sort by rank, kills or last kill; Alliance or
 --                  Horde (the switch top left, the enemy faction first)
---   Hall of Shame  every enemy with the Coward badge (killed lowbies), WANTED or not
+--   Hall of Shame  every enemy with the Coward badge (killed lowbies), WANTED or not;
+--                  then players who did not pay their bounties (HH-118, blocked 30 days)
 --   High Noon      the best duelists (HH-093), Alliance or Horde (the switch top left)
 --   My deaths      our own PvP deaths, newest first
 --   My marks       our HeadHunter rank and what earned or cost marks (HH-050)
@@ -258,6 +259,19 @@ local function ShameRows(now)
             kills = tostring(entry.killCount or 0),
             status = status,
             tooltip = MainWindow.EntryTooltip(entry, now),
+        }
+    end
+    -- HH-118: owners blocked for unpaid bounties
+    for _, shamed in ipairs(ns.Bounties:Shamed(now)) do
+        local name = ns.Utils.DisplayName(shamed.owner) or shamed.owner
+        local daysLeft = math.max(1, math.ceil((shamed.blockedUntil - now) / 86400))
+        rows[#rows + 1] = {
+            name = name,
+            desc = L.SHAME_UNPAID_WHO,
+            coward = "-",
+            kills = "-",
+            status = string.format(L.SHAME_UNPAID, shamed.unpaid, daysLeft),
+            tooltip = { name, L.SHAME_UNPAID_TIP, string.format(L.SHAME_UNPAID, shamed.unpaid, daysLeft) },
         }
     end
     return rows

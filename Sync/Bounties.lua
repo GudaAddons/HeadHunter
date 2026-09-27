@@ -15,8 +15,9 @@
 -- between posters. Protocol R (payment) only from the hunter: "claimed" at the catch,
 -- "paid" when the hunter's mailbox shows the owner's gold, "unpaid" 3 days after the
 -- claim without it. A later "paid" beats "unpaid"; the earliest claim wins a poster.
--- Blocked: an owner with unpaid claims from 2 different hunters in 30 days; every
--- client derives it the same way and ignores the owner's posters.
+-- Blocked: an owner with unpaid claims from 2 different hunters, for 30 days from the
+-- second one turning unpaid; every client derives it the same way, ignores the owner's
+-- posters and lists them in the Hall of Shame (author, 2026-09-28).
 -- A claim is a catch (Sync/Justice.lua, record K) of the target by our own killing
 -- blow, within the poster's time, not 10+ levels above the target. Everyone who saw
 -- it earns +5 bounty points (Rules/Marks.lua).
@@ -92,22 +93,64 @@ end
 -- Rules (pure over the two sets)
 -------------------------------------------------
 
--- Unpaid claims from BLOCK_HUNTERS different hunters in the last 30 days
-function Bounties:IsBlocked(owner, now)
-    if not owner then return false end
-    now = now or ns.Utils.ServerTime()
-    local hunters, count = {}, 0
+-- Per owner: the newest unpaid time of each hunter, newest first
+local function UnpaidTimes(owner)
+    local byHunter = {}
     for posterId, pay in pairs(Payments() or {}) do
-        if pay.status == "unpaid" and pay.claimedAt >= now - self.BLOCK_WINDOW
-                and ns.Utils.SameCharacter(self.OwnerOf(posterId), owner) then
+        if pay.status == "unpaid" and ns.Utils.SameCharacter(Bounties.OwnerOf(posterId), owner) then
             local hunter = ns.Utils.CompactName(pay.hunter)
-            if hunter and not hunters[hunter] then
-                hunters[hunter] = true
-                count = count + 1
-            end
+            if hunter then byHunter[hunter] = math.max(byHunter[hunter] or 0, pay.t) end
         end
     end
-    return count >= self.BLOCK_HUNTERS
+    local times = {}
+    for _, t in pairs(byHunter) do times[#times + 1] = t end
+    return times
+end
+
+-- Only unpaid claims known by `now` (a poster checked at its own time)
+local function UnpaidBy(owner, now)
+    local times = {}
+    for _, t in ipairs(UnpaidTimes(owner)) do
+        if t <= now + Bounties.MAX_SKEW then times[#times + 1] = t end
+    end
+    table.sort(times, function(a, b) return a > b end)
+    table.sort(times, function(a, b) return a > b end)
+    return times
+end
+
+-- When the owner's block ends: 30 days after the BLOCK_HUNTERS-th hunter's unpaid
+-- (counted from the newest), or nil when they are not blocked
+function Bounties:BlockedUntil(owner, now)
+    if not owner then return nil end
+    now = now or ns.Utils.ServerTime()
+    local t = UnpaidBy(owner, now)[self.BLOCK_HUNTERS]
+    if t and now < t + self.BLOCK_WINDOW then return t + self.BLOCK_WINDOW end
+    return nil
+end
+
+function Bounties:IsBlocked(owner, now)
+    return self:BlockedUntil(owner, now) ~= nil
+end
+
+-- Hall of Shame (author, 2026-09-28): every blocked owner we know of, longest block
+-- first: { owner, unpaid, blockedUntil }
+function Bounties:Shamed(now)
+    now = now or ns.Utils.ServerTime()
+    local seen, list = {}, {}
+    for posterId in pairs(Payments() or {}) do
+        local owner = self.OwnerOf(posterId)
+        local id = ns.Utils.CompactName(owner)
+        if id and not seen[id] then
+            seen[id] = true
+            local untilT = self:BlockedUntil(owner, now)
+            if untilT then list[#list + 1] = { owner = owner, unpaid = #UnpaidTimes(owner), blockedUntil = untilT } end
+        end
+    end
+    table.sort(list, function(a, b)
+        if a.blockedUntil ~= b.blockedUntil then return a.blockedUntil > b.blockedUntil end
+        return a.owner < b.owner
+    end)
+    return list
 end
 
 -- How the owner pays: paid and unpaid claims (all we know of)
