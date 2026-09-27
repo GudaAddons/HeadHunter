@@ -38,7 +38,11 @@ Badges show *how* someone kills, not only how much:
 
 If your own group was in the fight, the kill shows as a **group fight** (for example 4 vs 3) and gives no Duo or Gang badge. It still counts toward WANTED.
 
-Bullies are listed in the **Hall of Shame**.
+### Hall of Shame
+- **Bullies**: every enemy with the Bully badge, WANTED or not. They stay as long as HeadHunter knows one of their lowbie kills (30 days).
+- **Deadbeats**: players who did not pay their gold bounty to two different hunters (see *Gold bounties*). They are listed for 30 days, and they cannot post bounties during that time.
+- You get an alert when a bully or a Deadbeat is near. Turn it off in the options (**Hall of Shame alerts**).
+- Bring down a bully, or a Deadbeat of the other faction, and you get **+3 bounty**, once per player per hour. They stay on the list.
 
 ![The Hall of Shame: every known bully, WANTED or not](Assets/5.png)
 
@@ -46,6 +50,9 @@ Bullies are listed in the **Hall of Shame**.
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
 - **WANTED activity**: a WANTED outlaw killed someone near you. Click **Join the posse** or **Decline**. HeadHunter shows at most one popup every 3 minutes. After a Decline, or a popup you let close by itself, you get no more of these popups for 20 minutes, only chat lines. While you ride with a posse, other outlaws only ask when they are in your zone. Only players close to the outlaw's level get this popup, the others get a chat line. If the victim is on another layer and died again within 15 minutes, joining also asks them for a group invite.
 - **Justice served**: a message when a WANTED outlaw is brought down.
+- **Gold bounty sighting**: "BOUNTY: X is here!" when a player with a gold bounty on them shows up.
+- **Your bounty is claimed**: a message when a HeadHunter brings down the player you put gold on.
+- **Hall of Shame**: "BULLY: X is here!" or "DEADBEAT: X is here!", at most once every 10 minutes per player.
 - **You are WANTED**: with the HeadHunter Sync app, HeadHunter tells you at login when the other faction has you on its WANTED list.
 - **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight and the HeadHunters of your side fighting there. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
 
@@ -57,13 +64,13 @@ Bullies are listed in the **Hall of Shame**.
 
 ### HeadHunter window
 Type `/hh` or click the minimap button:
-- **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill, with a switch between the Alliance and Horde lists (the enemy list opens first). While few outlaws are WANTED, the list fills up to 25 with outlaws **at large**: their WANTED time ran out, but nobody caught them. You get the same alert when you meet one, and catching one still pays their bounty.
-- **Hall of Shame**: every known bully.
+- **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill, with a switch between the Alliance and Horde lists (the enemy list opens first). Gold bounties are listed on top. While few outlaws are WANTED, the list fills up to 25 with outlaws **at large**: their WANTED time ran out, but nobody caught them. You get the same alert when you meet one, and catching one still pays their bounty.
+- **Hall of Shame**: every known bully, and the Deadbeats.
 - **Duels**: the best duelists, with a switch between the Alliance and Horde lists.
 - **My deaths**: who killed you, when and where.
 - **My bounty**: the bounty you collected and your hunter rank.
 
-Hover a name for details, or click it to open the outlaw's **poster**: race and class, rank, badges, recent kills, posse and a **Join the posse** button.
+Hover a name for details, or click it to open the outlaw's **poster**: race and class, rank, badges, recent kills, posse, gold bounties and the **Join the posse** and **Post a bounty** buttons.
 
 ![My deaths, with the details of a killer on hover](Assets/4.png)
 
@@ -72,11 +79,20 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 
 ### Posse and hunter ranks
 - Join a posse to hunt an outlaw together. Posse members see each other.
-- Collect **bounty**: +1 for joining a posse, and +3 to +20 when you or your group bring down a WANTED outlaw (the higher their rank, the bigger the bounty). Declining costs 1; a popup that closes by itself costs nothing.
+- Collect **bounty**: +1 for joining a posse, and +3 to +20 when you or your group bring down a WANTED outlaw (the higher their rank, the bigger the bounty). +5 for bringing down a player with a gold bounty, +3 for a bully or the other faction's Deadbeat. Declining costs 1; a popup that closes by itself costs nothing.
 - No bounty for hunting players 10 or more levels below you. Hunting down is ganking too.
 - Hunter ranks: **Tracker**, **Bounty Hunter**, **Manhunter**, **Headhunter** and **Reaper**.
 
 ![My bounty: what earned or cost bounty, and your hunter rank](Assets/3.jpg)
+
+### Gold bounties
+Got ganked? Put gold on your killer's head.
+- Open the poster of an enemy who killed you, or helped, in the last 24 hours and click **Post a bounty**. Pick a reason (Camped me, Ganked me while I fought mobs, Killed me at low level, Killed me in a group), the gold (at least 2g) and how long it runs (1, 2, 3 or 7 days). One bounty at a time.
+- Every HeadHunter of your faction sees it: on top of the WANTED list, on the tooltip and the poster, and with an alert when they meet the target.
+- The HeadHunter who lands the killing blow wins the gold, and everyone who saw it gets +5 bounty. No gold for hunting 10 or more levels down.
+- You get a message when your bounty is claimed. At your next mailbox, HeadHunter asks you to send the gold, and one click writes the mail. HeadHunter never sends gold without your click, and never more than you posted.
+- The hunter's HeadHunter sees your mail and marks you as **pays up**. Not paid after 3 days, the claim is unpaid. If two different hunters are not paid, you are a **Deadbeat**: no bounties for 30 days and your name in the Hall of Shame. Paying late gets you out.
+- **Classic Era:** after claiming, click **Announce** (or type `/hh claim`) so the owner hears about it, even outside your guild and group.
 
 ### Catch-up
 When you log in, HeadHunter asks other HeadHunters what you missed while you were offline, so your WANTED list is up to date.
@@ -100,12 +116,12 @@ The window shows how many HeadHunters are online right now. Hover it to see how 
 
 ## Website and the HeadHunter Sync app
 
-**[headhunterwow.com](https://headhunterwow.com)** is the bounty board of every HeadHunter player: WANTED posters, the best duelists and the top hunters, for each game and realm. Sign in with Battle.net, Discord, Google or email to see your own characters.
+**[headhunterwow.com](https://headhunterwow.com)** is the bounty board of every HeadHunter player: WANTED posters, the best duelists, the top hunters and the Hall of Shame, for each game and realm. Sign in with Battle.net, Discord, Google or email to see your own characters.
 
 A WoW addon cannot use the internet. That is why there is a small, free desktop app: **HeadHunter Sync**. It connects the game and the website.
 
 1. **Download** HeadHunter Sync for Windows or Mac from [GitHub](https://github.com/GudaAddons/headhunter-sync/releases/latest) and sign in with your website account.
-2. **Play as usual.** When the game saves (logout, `/reload` or quit), the app sends your deaths, catches, duels and bounty to the website. It runs quietly in the tray.
+2. **Play as usual.** When the game saves (logout, `/reload` or quit), the app sends your deaths, catches, duels, bounty and gold bounties to the website. It runs quietly in the tray.
 3. **Get the website's lists back.** The app also writes the website's WANTED list, duel lists and your own records into the game, as a small extra addon called **HeadHunter Data**. You see them after your next login or `/reload`.
 4. **WoW Forever:** when your lists reset (see *Good to know*), the app brings your own deaths, duels and bounty back.
 
@@ -132,6 +148,7 @@ Good to know about the app:
 | `/hh map on/off` | PvP areas and skulls on the world map |
 | `/hh tooltip on/off` | WANTED line on enemy tooltips |
 | `/hh minimap` | Show or hide the minimap button |
+| `/hh claim` | Announce your gold bounty claim to all HeadHunters (Classic Era) |
 | `/hh catchup` | Ask other HeadHunters what you missed |
 | `/hh online` | How many HeadHunters are online, per faction |
 
@@ -144,4 +161,6 @@ All settings are also on the options page: **Esc > Options > AddOns > HeadHunter
 - **WoW: Forever** shares everything automatically.
 - **WoW: Forever is in testing mode.** The Forever client does not load saved data back (a known client issue, not a HeadHunter bug), so your lists and settings reset on every reload or login. Catch-up handles it: when you log in, other HeadHunters send back what you missed, so your lists refill from the realm. The HeadHunter Sync app also brings your own records back from the website. HeadHunter tells you this in chat when you log in on Forever.
 - HeadHunter is off in dungeons, raids and battlegrounds. Duels never count as PvP kills.
+- Gold bounties are paid by mail between players of the same faction. HeadHunter never holds your gold.
+- **Classic Era:** the other faction's Deadbeats reach you through the website, so use the HeadHunter Sync app. WoW Forever shares them directly.
 - The more players use HeadHunter, the better it works. Tell your guild!
