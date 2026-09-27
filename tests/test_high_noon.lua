@@ -448,7 +448,7 @@ return function(T, H)
     -- HH-092 rating and ranks
     -------------------------------------------------
 
-    T.case("records: net wins decide the rank; Greenhorn is only a label", function()
+    T.case("records: net wins decide the rank, Greenhorn under 5 duels", function()
         local ns = H.Boot({ client = "era" })
         local HN = ns.HighNoon
         local players = HN.Compute({ { winner = "A", loser = "B", t = 1, faction = "Alliance" } })
@@ -469,19 +469,20 @@ return function(T, H)
         T.eq(HN.NetText(3) .. HN.NetText(0) .. HN.NetText(-2), "+30-2", "net text")
     end)
 
-    T.case("best first by net, then fewer losses: 1-0 beats 1-4", function()
+    T.case("best first by net, then fewer losses, then more wins; Greenhorns last", function()
         local HN = H.Boot({ client = "era" }).HighNoon
         local list = {
-            { key = "Grinder", wins = 30, losses = 40, net = -10 },
-            { key = "Lucky", wins = 1, losses = 0, net = 1 },
-            { key = "Unlucky", wins = 1, losses = 4, net = -3 },
-            { key = "Even", wins = 10, losses = 9, net = 1 },
-            { key = "Solid", wins = 6, losses = 0, net = 6 },
+            { key = "Grinder", wins = 30, losses = 40, net = -10, duels = 70 },
+            { key = "Lucky", wins = 2, losses = 0, net = 2, duels = 2 },
+            { key = "Unlucky", wins = 1, losses = 4, net = -3, duels = 5 },
+            { key = "Even", wins = 10, losses = 9, net = 1, duels = 19 },
+            { key = "Close", wins = 6, losses = 5, net = 1, duels = 11 },
+            { key = "Solid", wins = 6, losses = 0, net = 6, duels = 6 },
         }
         table.sort(list, HN.Better)
         local order = {}
         for _, p in ipairs(list) do order[#order + 1] = p.key end
-        T.eq(table.concat(order, " "), "Solid Lucky Even Unlucky Grinder", "order")
+        T.eq(table.concat(order, " "), "Solid Close Even Unlucky Grinder Lucky", "order")
     end)
 
     T.case("two lists, best first, from the first duel; the #1 with a winning record is the Top Gun", function()
@@ -496,15 +497,15 @@ return function(T, H)
         T.eq(#alliance, 4, "Alliance: Vati, Bob, Cid and New (one duel is enough)")
         T.eq(alliance[1].key, "Vati-Firemaw", "best first (+6)")
         T.eq(alliance[1].topGun, true, "Top Gun")
-        T.eq(alliance[2].key, "New-Firemaw", "1-0 comes before losing records")
-        T.eq(alliance[2].position, 2, "position")
+        T.eq(alliance[4].key, "New-Firemaw", "a Greenhorn at 1-0 comes after 5+ duels, even losing ones")
+        T.eq(alliance[4].position, 4, "position")
         T.eq(#HN:List("Horde"), 2, "Horde list")
         T.eq(HN:List("Horde")[1].key, "Grom-Firemaw", "Horde Top Gun")
         T.ok(HN.Title(HN:Get("Vati-Firemaw")):find("Top Gun", 1, true) ~= nil, "Top Gun title")
         T.ok(HN.Title(HN:Get("Vati-Firemaw")):find("+6", 1, true) ~= nil, "net in the title")
         T.ok(HN.Title(HN:Get("Cid-Firemaw")):find("#" .. HN:Get("Cid-Firemaw").position, 1, true) ~= nil, "title with position")
         T.eq(HN:Get("New-Firemaw").topGun, nil, "only the #1 is the Top Gun")
-        T.eq(HN.Title(HN:Get("New-Firemaw")), "Greenhorn (1 duels)", "greenhorn title")
+        T.eq(HN.Title(HN:Get("New-Firemaw")), "|cff9d9d9dGreenhorn|r (1 duels)", "greenhorn title, grey")
 
         H.Slash("duels")
         T.ok(H.Printed("Duels, Alliance: 4 duelists"), "/hh duels header")
@@ -512,23 +513,35 @@ return function(T, H)
         T.noErrors()
     end)
 
-    T.case("the same record shares a place; a shared #1 is no Top Gun", function()
+    T.case("the same record: whoever reached it first goes first; every place once", function()
         local ns = H.Boot({ client = "era" })
-        Duels(ns, "Argo-Firemaw", "Chad-Firemaw", 1, "Horde")
-        Duels(ns, "Heavy-Firemaw", "Alex-Firemaw", 1, "Horde", 10000)
-        Duels(ns, "Mornin-Firemaw", "Dampa-Firemaw", 1, "Horde", 20000)
+        Duels(ns, "Tallow-Firemaw", "Quill-Firemaw", 5, "Horde", 20000)
+        Duels(ns, "Brisk-Firemaw", "Moss-Firemaw", 5, "Horde")
+        Duels(ns, "Kestrel-Firemaw", "Fern-Firemaw", 5, "Horde", 10000)
         Settle()
         local list = ns.HighNoon:List("Horde")
-        T.eq(list[1].position .. list[2].position .. list[3].position, "111", "three 1-0 share #1")
-        T.eq(list[4].position, 4, "the next record is #4")
-        for _, p in ipairs(list) do T.eq(p.topGun, nil, p.key .. " is no Top Gun") end
+        T.eq(list[1].key .. "," .. list[2].key .. "," .. list[3].key, "Brisk-Firemaw,Kestrel-Firemaw,Tallow-Firemaw",
+            "three 5-0: the earliest first")
+        T.eq(list[1].position .. list[2].position .. list[3].position .. list[4].position, "1234", "every place once")
+        T.eq(list[1].topGun, nil, "the same record at the top: no Top Gun yet")
+        T.eq(list[2].topGun, nil, "nor the #2")
 
-        Duels(ns, "Heavy-Firemaw", "Chad-Firemaw", 1, "Horde", 30000)
+        Duels(ns, "Tallow-Firemaw", "Quill-Firemaw", 1, "Horde", 30000)
         Settle()
         list = ns.HighNoon:List("Horde")
-        T.eq(list[1].key, "Heavy-Firemaw", "2-0 pulls ahead")
-        T.eq(list[1].topGun, true, "the sole leader is the Top Gun")
-        T.eq(list[2].position, 2, "the 1-0s share #2")
+        T.eq(list[1].key, "Tallow-Firemaw", "6-0 pulls ahead")
+        T.eq(list[1].topGun, true, "the new Top Gun")
+        T.eq(list[2].key, "Brisk-Firemaw", "then the earliest 5-0")
+        T.noErrors()
+    end)
+
+    T.case("a Greenhorn is never Top Gun, even alone at the top", function()
+        local ns = H.Boot({ client = "era" })
+        Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 2)
+        Settle()
+        local list = ns.HighNoon:List("Alliance")
+        T.eq(list[1].key, "Vati-Firemaw", "2-0 first")
+        T.eq(list[1].topGun, nil, "no Top Gun under 5 duels")
         T.noErrors()
     end)
 
@@ -575,8 +588,9 @@ return function(T, H)
         T.eq(rows[1].position, "1", "position")
         T.ok(rows[1].name:find("Vati", 1, true) ~= nil, "name")
         T.ok(rows[1].rank:find("Top Gun", 1, true) ~= nil, "Top Gun")
+        T.ok(rows[1].rank:find("|cffff8000", 1, true) ~= nil, "Top Gun in orange")
         T.eq(rows[1].record, "5-0", "won-lost")
-        T.eq(rows[2].rank, "Quickdraw", "rank name")
+        T.eq(rows[2].rank, "|cffffffffQuickdraw|r", "rank name in its colour")
         T.ok(#rows[1].tooltip >= 2, "tooltip")
 
         T.eq(MW:DuelFaction(), "Alliance", "our faction first")

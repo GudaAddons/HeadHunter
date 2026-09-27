@@ -254,7 +254,7 @@ local function DuelRows(faction, now)
         rows[#rows + 1] = {
             position = tostring(p.position),
             name = name,
-            rank = p.topGun and L.DUEL_RANK_TOPGUN or HighNoon.RankName(p.rank),
+            rank = HighNoon.RankName(p.topGun and "topgun" or p.rank),
             record = p.wins .. "-" .. p.losses,
             net = HighNoon.NetText(p.net),
             lastDuel = lastDuel,

@@ -1,13 +1,18 @@
 -- HH-092: High Noon records and ranks (docs/addon/features.md section 10).
 --
 -- Wins and losses per player from the duel set (Sync/Duels.lua); a retreat is a loss.
--- Order by net (wins minus losses), then fewer losses, then more wins (author,
--- 2026-09-25: no rating, 1-0 is better than 1-4). Listed from the first duel.
+-- Everyone with MIN_DUELS or more first, then the Greenhorns (author, 2026-09-27: a
+-- Greenhorn at 2-0 is not ahead of 6-5). Within each: net (wins minus losses), then
+-- fewer losses, then more wins (author, 2026-09-25: no rating, 1-0 is better than 1-4).
+-- The same record: whoever reached it first (the earlier last duel) goes first (author,
+-- 2026-09-27), so every place is taken once. Listed from the first duel.
 -- Ranks by net: Quickdraw, Sharpshooter (+5), Deadeye (+15), Legend (+30); under
--- MIN_DUELS a player is a Greenhorn (a label only, not a lower place). The same record
--- shares a place. The sole #1 of each faction is the Top Gun when they won more than
--- they lost; a shared #1 means no Top Gun yet. Two lists: Alliance and
--- Horde (duels stay inside a faction). The website ranks the same way.
+-- MIN_DUELS a player is a Greenhorn. The #1 of each faction is the Top Gun when they
+-- are no Greenhorn, won more than they lost and have a clear lead (two at the top with
+-- the same record: no Top Gun yet). Two lists: Alliance and Horde (duels stay inside a
+-- faction). The website ranks the same way.
+-- Each rank has its colour, as WoW's item qualities (Greenhorn grey ... Legend purple,
+-- Top Gun orange).
 --
 --   HighNoon.Compute(duels) -> key -> player   (pure, tested offline)
 --   HighNoon:Get(key), HighNoon:List(faction)  (listed players, best first, with .position)
@@ -44,18 +49,28 @@ function HighNoon.RankOf(player)
     return "quickdraw"
 end
 
--- The same record: they share a place
+-- Past the Greenhorn duels: listed above the Greenhorns and can be Top Gun
+function HighNoon.Established(player)
+    return player.duels >= HighNoon.MinDuels()
+end
+
+-- The same record
 function HighNoon.Tied(a, b)
     return a.net == b.net and a.losses == b.losses and a.wins == b.wins
 end
 
--- Best first: net, then fewer losses, then more wins (by name within a shared place)
+-- Best first: Greenhorns last, then net, then fewer losses, then more wins; the same
+-- record: whoever reached it first (earlier last duel), then by name
 function HighNoon.Better(a, b)
+    local ea, eb = HighNoon.Established(a), HighNoon.Established(b)
+    if ea ~= eb then return ea end
     if not HighNoon.Tied(a, b) then
         if a.net ~= b.net then return a.net > b.net end
         if a.losses ~= b.losses then return a.losses < b.losses end
         return a.wins > b.wins
     end
+    local at, bt = a.lastT or math.huge, b.lastT or math.huge
+    if at ~= bt then return at < bt end
     return a.key < b.key
 end
 
@@ -165,13 +180,15 @@ function HighNoon:Recompute()
     for _, list in pairs(lists) do
         table.sort(list, HighNoon.Better)
         for i, p in ipairs(list) do
-            local previous = list[i - 1]
-            p.position = previous and HighNoon.Tied(previous, p) and previous.position or i
+            p.position = i
+            p.topGun = nil
         end
-        -- Top Gun: the faction's sole leader, with a winning record (a shared #1 has none)
+        -- Top Gun: the faction's #1, no Greenhorn, with a winning record and a clear lead
         local first, second = list[1], list[2]
-        for _, p in ipairs(list) do p.topGun = nil end
-        if first and first.net > 0 and not (second and second.position == 1) then first.topGun = true end
+        if first and HighNoon.Established(first) and first.net > 0
+            and not (second and HighNoon.Tied(first, second)) then
+            first.topGun = true
+        end
     end
     ns.Events:Fire("HH_HIGHNOON_UPDATED")
 end
@@ -194,8 +211,17 @@ function HighNoon:List(faction)
     return lists[faction] or {}
 end
 
+HighNoon.RANK_COLORS = {
+    greenhorn = "9d9d9d", quickdraw = "ffffff", sharpshooter = "1eff00",
+    deadeye = "0070dd", legend = "a335ee", topgun = "ff8000",
+}
+
+-- The rank's name in its colour
 function HighNoon.RankName(rank)
-    return L["DUEL_RANK_" .. tostring(rank):upper()]
+    local name = L["DUEL_RANK_" .. tostring(rank):upper()]
+    local color = HighNoon.RANK_COLORS[rank]
+    if not (name and color) then return name end
+    return "|cff" .. color .. name .. "|r"
 end
 
 -- "Deadeye #3 (+16)", "Top Gun (+20)", "Greenhorn (2 duels)"
