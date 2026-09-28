@@ -26,6 +26,10 @@
 -- claim goes past guild and group only with [Announce] (a click), or /hh claim. The
 -- owner gets an alert when the claim arrives (at login: a chat line), and pays at the
 -- next mailbox.
+-- Alts (HH-122): the addon cannot see accounts, so an alt on the other faction can
+-- bring down its own main. One kill claims one poster (the largest), a hunter claims
+-- on the same target at most once in 7 days, and an older repeat claim of the same
+-- pair counts as a possible alt: its "unpaid" makes no Deadbeat.
 -- Fires HH_BOUNTY_UPDATED() when a poster or payment changes.
 
 local addonName, ns = ...
@@ -49,6 +53,7 @@ Bounties.BLOCK_HUNTERS = 1
 Bounties.BLOCK_WINDOW = 30 * DAY
 Bounties.CLAIM_MARKS = 5
 Bounties.CLAIM_RECENT = 300          -- a catch this old still makes our claim
+Bounties.PAIR_COOLDOWN = 7 * DAY     -- one claim per hunter and target (HH-122)
 Bounties.MAX_SKEW = 300
 Bounties.SENDER_LIMIT = 5
 Bounties.SENDER_WINDOW = 600
@@ -100,11 +105,52 @@ end
 -- Rules (pure over the two sets)
 -------------------------------------------------
 
+-- The hunter's newest claim on this target before this one (time, then poster id, so
+-- every client orders the same), or nil
+function Bounties:PriorClaim(hunter, target, claimedAt, posterId)
+    posterId = posterId or ""
+    local newest
+    for otherId, pay in pairs(Payments() or {}) do
+        local poster = self:Get(otherId)
+        if otherId ~= posterId and poster and poster.target == target and ns.Utils.SameCharacter(pay.hunter, hunter)
+                and (pay.claimedAt < claimedAt or (pay.claimedAt == claimedAt and otherId < posterId))
+                and (not newest or pay.claimedAt > newest) then
+            newest = pay.claimedAt
+        end
+    end
+    return newest
+end
+
+-- The same hunter claimed on the same target less than 7 days before: no claim
+function Bounties:IsRepeat(hunter, target, claimedAt, posterId)
+    local prior = self:PriorClaim(hunter, target, claimedAt, posterId)
+    return prior ~= nil and claimedAt - prior < self.PAIR_COOLDOWN
+end
+
+-- The hunter claimed on this target before: maybe the target's own alt
+function Bounties:LooksLikeAlt(posterId)
+    local poster, pay = self:Get(posterId), self:Payment(posterId)
+    return poster ~= nil and pay ~= nil and self:PriorClaim(pay.hunter, poster.target, pay.claimedAt, posterId) ~= nil
+end
+
+-- The hunter's first claim we know of
+function Bounties:FirstClaim(posterId)
+    local pay = self:Payment(posterId)
+    if not pay then return false end
+    for otherId, other in pairs(Payments() or {}) do
+        if otherId ~= posterId and ns.Utils.SameCharacter(other.hunter, pay.hunter) and other.claimedAt <= pay.claimedAt then
+            return false
+        end
+    end
+    return true
+end
+
 -- Per owner: the newest unpaid time of each hunter, newest first
 local function UnpaidTimes(owner)
     local byHunter = {}
     for posterId, pay in pairs(Payments() or {}) do
-        if pay.status == "unpaid" and ns.Utils.SameCharacter(Bounties.OwnerOf(posterId), owner) then
+        if pay.status == "unpaid" and ns.Utils.SameCharacter(Bounties.OwnerOf(posterId), owner)
+                and not Bounties:LooksLikeAlt(posterId) then
             local hunter = ns.Utils.CompactName(pay.hunter)
             if hunter then byHunter[hunter] = math.max(byHunter[hunter] or 0, pay.t) end
         end
@@ -174,7 +220,11 @@ function Bounties:Standing(owner)
     local paid, unpaid = 0, 0
     for posterId, pay in pairs(Payments() or {}) do
         if ns.Utils.SameCharacter(self.OwnerOf(posterId), owner) then
-            if pay.status == "paid" then paid = paid + 1 elseif pay.status == "unpaid" then unpaid = unpaid + 1 end
+            if pay.status == "paid" then
+                paid = paid + 1
+            elseif pay.status == "unpaid" and not self:LooksLikeAlt(posterId) then
+                unpaid = unpaid + 1
+            end
         end
     end
     local site = ns.SiteData:Deadbeat(owner)
@@ -460,6 +510,7 @@ local function ValidPayment(pay)
     if poster and (pay.claimedAt < poster.t or pay.claimedAt > poster["until"] + Bounties.MAX_SKEW) then return false end
     -- Nobody claims their own bounty
     if U.SameCharacter(pay.hunter, Bounties.OwnerOf(pay.posterId)) then return false end
+    if poster and Bounties:IsRepeat(pay.hunter, poster.target, pay.claimedAt, pay.posterId) then return false end
     return true
 end
 
@@ -528,15 +579,24 @@ function Bounties:OnCatch(record)
     local now = U.ServerTime()
     if now - record.t > self.CLAIM_RECENT then return end
     local entry = ns.Wanted:Get(record.outlaw)
-    local claimed = {}
+    -- One kill claims one poster: the largest, then the oldest; the others stay open
+    local best
     for _, poster in ipairs(self:ActiveFor(record.outlaw, record.t)) do
-        if record.t >= poster.t and not U.SameCharacter(poster.owner, me) then claimed[#claimed + 1] = poster end
+        if record.t >= poster.t and not U.SameCharacter(poster.owner, me)
+                and (not best or poster.gold > best.gold or (poster.gold == best.gold and poster.t < best.t)) then
+            best = poster
+        end
     end
-    if #claimed == 0 then return end
+    if not best then return end
     if entry and ns.Marks.HuntingDown(entry) then
         ns:Print(string.format(L.BOUNTY_NO_CLAIM_LEVEL, self.TargetName(record.outlaw)))
         return
     end
+    if self:IsRepeat(me, record.outlaw, record.t, best.id) then
+        ns:Print(string.format(L.BOUNTY_NO_CLAIM_REPEAT, self.TargetName(record.outlaw)))
+        return
+    end
+    local claimed = { best }
     local lines, gold = {}, 0
     for _, poster in ipairs(claimed) do
         local pay = { posterId = poster.id, hunter = me, status = "claimed", claimedAt = record.t, t = now }
@@ -674,8 +734,14 @@ function Bounties:AskNext()
     local poster = self:Get(payQueue[1])
     if not poster then return false end
     local pay = self:Payment(poster.id)
-    StaticPopupDialogs[self.PAY_POPUP].text = string.format(L.BOUNTY_PAY_PROMPT, ns.Utils.DisplayName(pay.hunter),
-        self.TargetName(poster.target), self.ReasonText(poster.reason), self.Gold(poster.gold))
+    local hunter, target = ns.Utils.DisplayName(pay.hunter), self.TargetName(poster.target)
+    local text = string.format(L.BOUNTY_PAY_PROMPT, hunter, target, self.ReasonText(poster.reason), self.Gold(poster.gold))
+    if self:LooksLikeAlt(poster.id) then
+        text = text .. string.format(L.BOUNTY_PAY_ALT, hunter, target)
+    elseif self:FirstClaim(poster.id) then
+        text = text .. string.format(L.BOUNTY_PAY_FIRST, hunter)
+    end
+    StaticPopupDialogs[self.PAY_POPUP].text = text
     StaticPopup_Show(self.PAY_POPUP)
     return true
 end
