@@ -2,7 +2,8 @@
 -- Players see them as "bounty" (author, 2026-09-24): the My bounty tab, /hh bounty
 -- (/hh marks still works); the code and the saved data keep the name marks.
 --
---   +1   joining a posse (once per outlaw per posse lifetime, 30 min)
+--   +1   joining a posse: once per outlaw per WANTED run (author, 2026-09-28; a
+--        login on Forever and a new posse every 30 min used to pay again)
 --   +N   a catch we saw: we or our group killed a WANTED outlaw (Sync/Justice.lua);
 --        N by the outlaw's rank: Ganker 3, Outlaw 5, Desperado 8, Most Wanted 12,
 --        Dead or Alive 20 (author, 2026-09-23). Once per outlaw per minute.
@@ -153,11 +154,26 @@ end
 -- Earning and losing
 -------------------------------------------------
 
+-- A join point for this outlaw since their WANTED run began. Read from the saved events
+-- (on Forever: the website's), so a login, a /reload or a new posse pays nothing again.
+function Marks:JoinedThisRun(entry)
+    local since = entry.wantedSince or entry.firstKill or 0
+    local name = OutlawName(entry)
+    local store = Store()
+    for _, event in ipairs(store and store.events or {}) do
+        if event.reason == "join" and (event.t or 0) >= since and ns.Utils.SameCharacter(event.outlaw, name) then
+            return true
+        end
+    end
+    return false
+end
+
 function Marks:OnJoin(entry)
     local now = ns.Utils.Now()
     if lastJoin[entry.id] and now - lastJoin[entry.id] < self.JOIN_COOLDOWN then return nil end
     lastJoin[entry.id] = now
     if Marks.HuntingDown(entry) then return self:Add(0, "skip", OutlawName(entry)) end
+    if self:JoinedThisRun(entry) then return nil end
     return self:Add(self.JOIN, "join", OutlawName(entry), entry.rank)
 end
 

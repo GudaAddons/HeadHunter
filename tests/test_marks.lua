@@ -64,8 +64,9 @@ return function(T, H)
         T.eq(needed, 14, "14 more")
     end)
 
-    T.case("joining a posse: +1 once per outlaw per posse lifetime", function()
+    T.case("joining a posse: +1 once per outlaw per WANTED run", function()
         local ns = H.Boot({ client = "era" })
+        H.Slash("debug on")
         Spree(ns, "Gank-Stonespine", 4)
         Settle()
         local entry = Entry(ns, "Gank-Stonespine")
@@ -75,8 +76,31 @@ return function(T, H)
         T.eq(ns.Marks:Total(), 1, "joining again: nothing")
         H.clock = H.clock + 1801
         H.serverTime = H.serverTime + 1801
+        ns.Posse:Join(Entry(ns, "Gank-Stonespine"), { mapID = 1436, x = 0.5, y = 0.5 })
+        T.eq(ns.Marks:Total(), 1, "a new posse on the same WANTED run: nothing")
+
+        H.Slash("catch Gank-Stonespine")
+        local afterCatch = ns.Marks:Total()
+        H.clock = H.clock + 3600
+        H.serverTime = H.serverTime + 3600
+        Spree(ns, "Gank-Stonespine", 4)
+        Settle()
+        ns.Posse:Join(Entry(ns, "Gank-Stonespine"), { mapID = 1436, x = 0.5, y = 0.5 })
+        T.eq(ns.Marks:Total(), afterCatch + 1, "WANTED again after the catch: +1")
+    end)
+
+    T.case("forever: a login forgets the posse, but a join point this WANTED run is not paid again", function()
+        local ns = H.Boot({ client = "forever" })
+        Spree(ns, "Gank Stone", 4)
+        Settle()
+        local entry = Entry(ns, "Gank Stone")
+        T.eq(ns.Posse:IsMember(entry.id), false, "not in the posse after the login")
+        ns.db.marks.total = 1
+        ns.db.marks.events[1] = { t = H.serverTime, delta = 1, reason = "join", outlaw = "Gank Stone", total = 1,
+            origin = "site" }
         ns.Posse:Join(entry, { mapID = 1436, x = 0.5, y = 0.5 })
-        T.eq(ns.Marks:Total(), 2, "a new posse later: +1")
+        T.eq(ns.Posse:IsMember(entry.id), true, "joined again")
+        T.eq(ns.Marks:Total(), 1, "no second point")
     end)
 
     T.case("no marks for hunting 10+ levels down", function()
