@@ -99,10 +99,10 @@ Got ganked? Put gold on your killer's head.
 When you log in, HeadHunter asks other HeadHunters what you missed while you were offline, so your WANTED list is up to date.
 
 ### Who is online
-The window shows how many HeadHunters are online right now. Hover it to see how many are Alliance and how many are Horde, or type `/hh online`.
+Type `/hh online` to see how many HeadHunters are online right now, how many are Alliance and how many are Horde.
 - **WoW Forever:** everyone in your region, both factions.
 - **Classic Era:** only your guild and group. The game does not let addons count further.
-- With more than 500 online, the window shows **500+ online**.
+- With more than 500 online, it says **500+**.
 
 ### Duels
 - Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon, as long as HeadHunter knows both levels (target or mouse over the duelists). WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.

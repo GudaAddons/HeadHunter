@@ -473,21 +473,6 @@ local function CreateMainFrame()
     f.options:SetText(L.OPTIONS_BUTTON)
     f.options:SetScript("OnClick", function() ns.SettingsPanel:Open() end)
 
-    -- HH-110: HeadHunters online (the split per faction on hover)
-    f.online = CreateFrame("Frame", nil, f)
-    f.online:SetSize(160, 16)
-    f.online:SetPoint("TOPRIGHT", -118, -8)
-    f.online.text = f.online:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    f.online.text:SetPoint("RIGHT")
-    f.online:EnableMouse(true)
-    f.online:SetScript("OnEnter", function(self)
-        if not GameTooltip then return end
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(ns.Presence.Describe(ns.Presence:Count()), 1, 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    f.online:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-
     -- WANTED and High Noon: switch between the Alliance and Horde lists
     f.faction = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     f.faction:SetSize(110, 20)
@@ -665,7 +650,6 @@ function MainWindow:Refresh()
         end
         frame.count:SetText(count)
     end
-    frame.online.text:SetText(ns.Presence.Short(ns.Presence:Count()))
     frame.empty:SetText(#rows == 0 and L["EMPTY_" .. current.tab:upper()] or "")
     if current.tab == "duels" or current.tab == "wanted" then
         frame.faction:SetText(string.format(L.FACTION_BUTTON, self:ListFaction() or "?"))
@@ -812,7 +796,7 @@ end
 ns.Events:Register("HH_INITIALIZED", function()
     local request = function() MainWindow:RequestRefresh() end
     for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_DEATH_RECORDED", "HH_REPORT_UPDATED", "HH_MARKS_CHANGED",
-            "HH_HIGHNOON_UPDATED", "HH_TOURNAMENT_UPDATED", "HH_PRESENCE_UPDATED", "HH_BOUNTY_UPDATED" }) do
+            "HH_HIGHNOON_UPDATED", "HH_TOURNAMENT_UPDATED", "HH_BOUNTY_UPDATED" }) do
         ns.Events:Register(event, request, OWNER)
     end
 end, OWNER)
