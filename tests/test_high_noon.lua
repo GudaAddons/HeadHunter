@@ -513,6 +513,23 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("each duelist goes on the list of their own race's faction; the duel's faction when unknown", function()
+        local ns = H.Boot({ client = "era" })
+        ns.Duels:Add({ winner = "Sniper-Firemaw", loser = "Knight-Firemaw", t = H.serverTime - 3600, faction = "Alliance",
+            winnerRace = "Troll", loserRace = "Human", winnerLevel = 30, loserLevel = 30 }, "local")
+        ns.Duels:Add({ winner = "Plain-Firemaw", loser = "Nobody-Firemaw", t = H.serverTime - 1800, faction = "Alliance",
+            winnerLevel = 30, loserLevel = 30 }, "local")
+        Settle()
+        local HN = ns.HighNoon
+        T.eq(HN:Get("Sniper-Firemaw").faction, "Horde", "a Troll is Horde, whatever the duel said")
+        T.eq(HN:Get("Knight-Firemaw").faction, "Alliance", "a Human is Alliance")
+        T.eq(HN:Get("Plain-Firemaw").faction, "Alliance", "no race: the duel's faction")
+        local horde = {}
+        for _, p in ipairs(HN:List("Horde")) do horde[#horde + 1] = p.key end
+        T.eq(table.concat(horde, ","), "Sniper-Firemaw", "only the Troll on the Horde list")
+        T.noErrors()
+    end)
+
     T.case("the same record: whoever reached it first goes first; every place once", function()
         local ns = H.Boot({ client = "era" })
         Duels(ns, "Tallow-Firemaw", "Quill-Firemaw", 5, "Horde", 20000)

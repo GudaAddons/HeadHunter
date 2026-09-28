@@ -107,10 +107,18 @@ function HighNoon.Compute(duels)
         w.duels, l.duels = w.duels + 1, l.duels + 1
     end
     for _, p in pairs(players) do
+        p.faction = HighNoon.FactionOf(p)
         p.net = p.wins - p.losses
         p.rank = HighNoon.RankOf(p)
     end
     return players
+end
+
+-- A duel stores one faction for both players, but duels can cross factions and a
+-- watcher may guess (author, 2026-09-28: a Troll on the Alliance list). The race tells
+-- each player's own faction; the duel's faction only when the race is unknown.
+function HighNoon.FactionOf(p)
+    return ns.Utils.RaceFaction(p.race) or p.faction
 end
 
 -- HH-082: the website's records (Sync/SiteData.lua) with ours. A player the website
@@ -144,6 +152,7 @@ function HighNoon.Merge(site, duels, since)
                 p.class, p.race, p.sex = f.class or p.class, f.race or p.race, f.sex or p.sex
             end
         end
+        p.faction = HighNoon.FactionOf(p)
         p.net = p.wins - p.losses
         p.rank = HighNoon.RankOf(p)
         players[key] = p
