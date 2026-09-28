@@ -47,6 +47,10 @@ local function NewFrame(name)
     function frame:SetFrameLevel(level) self.frameLevel = level end
     -- rawget: a missing field would otherwise be the no-op method below
     function frame:GetFrameLevel() return rawget(self, "frameLevel") or 0 end
+    function frame:SetFrameStrata(strata) self.strata = strata end
+    function frame:GetFrameStrata() return rawget(self, "strata") or "MEDIUM" end
+    -- frame.children: other frames on this one (a test adds other addons' map pins)
+    function frame:GetChildren() return unpack(rawget(self, "children") or {}) end
     function frame:SetScale(scale) self.scale = scale end
     function frame:GetScale() return rawget(self, "scale") or 1 end
     function frame:SetPoint(...) self.point = { ... } end

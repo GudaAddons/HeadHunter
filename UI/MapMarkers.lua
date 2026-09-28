@@ -31,6 +31,10 @@ MapMarkers.WANTED_SIZE = 16
 MapMarkers.HUNTED_SIZE = 20                -- an outlaw our posse is hunting
 MapMarkers.REFRESH = 10                    -- seconds, while the map is shown (timers, cooling)
 MapMarkers.FRAME_LEVEL = 2000              -- above the map's own pins
+MapMarkers.MAX_FRAME_LEVEL = 10000         -- the game's highest frame level
+-- Strata from low to high. Other addons' map pins may sit in a higher one; ours follow
+-- up to FULLSCREEN_DIALOG, never TOOLTIP, so tooltips stay on top.
+MapMarkers.STRATA = { "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG" }
 MapMarkers.MAX_PER_KIND = 10               -- PvP areas and skulls each, per map (author,
                                            -- 2026-09-26): the hottest and highest ranked
 
@@ -200,6 +204,37 @@ local function ReadCanvas()
     return found
 end
 
+local STRATA_RANK = {}
+for rank, strata in ipairs(MapMarkers.STRATA) do STRATA_RANK[strata] = rank end
+
+-- Other addons draw on the same canvas (map notes, quest helpers, fog clearing) and may
+-- put their pins high. The highest strata and frame level among them (the canvas's own
+-- when none is higher), read again at every redraw, as addons add pins later.
+local function TopOfCanvas()
+    local strata, level = canvas:GetFrameStrata(), canvas:GetFrameLevel() or 0
+    pcall(function()
+        for _, child in ipairs({ canvas:GetChildren() }) do
+            local childStrata = child ~= overlay and child:GetFrameStrata()
+            local rank = childStrata and STRATA_RANK[childStrata]
+            if rank and rank > (STRATA_RANK[strata] or 0) then
+                strata, level = childStrata, child:GetFrameLevel() or 0
+            elseif rank and childStrata == strata then
+                level = math.max(level, child:GetFrameLevel() or 0)
+            end
+        end
+    end)
+    return strata, level
+end
+
+-- Just above everything else on the canvas, with room left for our own pins
+local function RaiseOverlay()
+    local strata, top = TopOfCanvas()
+    if STRATA_RANK[strata] then overlay:SetFrameStrata(strata) end
+    local reserve = MapMarkers.MAX_PER_KIND * 2 + 2
+    local level = math.max((canvas:GetFrameLevel() or 0) + MapMarkers.FRAME_LEVEL, top + 1)
+    overlay:SetFrameLevel(math.min(level, MapMarkers.MAX_FRAME_LEVEL - reserve))
+end
+
 -- The overlay covers the canvas, so pins pan and zoom with the map
 local function EnsureOverlay()
     local current = ReadCanvas()
@@ -213,7 +248,7 @@ local function EnsureOverlay()
     canvas = current
     overlay:ClearAllPoints()
     overlay:SetAllPoints(canvas)
-    overlay:SetFrameLevel((canvas:GetFrameLevel() or 0) + MapMarkers.FRAME_LEVEL)
+    RaiseOverlay()
     overlay:Show()
     return true
 end

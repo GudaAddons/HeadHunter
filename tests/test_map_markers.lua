@@ -340,6 +340,40 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("other addons' pins on the map never cover ours; tooltips stay above", function()
+        local ns = H.Boot({ client = "era", worldMap = true })
+        local map, M = H.worldMap, ns.MapMarkers
+        local canvas = map.ScrollContainer.Child
+        canvas.strata, canvas.frameLevel = "HIGH", 10
+        local notes = { strata = "HIGH", frameLevel = 5000 }
+        local tooltipish = { strata = "TOOLTIP", frameLevel = 9000 }
+        function notes:GetFrameStrata() return self.strata end
+        function notes:GetFrameLevel() return self.frameLevel end
+        tooltipish.GetFrameStrata, tooltipish.GetFrameLevel = notes.GetFrameStrata, notes.GetFrameLevel
+        canvas.children = { notes, tooltipish }
+        map:Open(1417)
+        Battle(ns, 1417)
+        H.Advance(0.2)
+        local drawn
+        for _, frame in ipairs(H.AllFrames()) do
+            if rawget(frame, "discs") and frame.shown then drawn = frame end
+        end
+        T.ok(drawn:GetFrameLevel() > 5000, "above the highest other pin")
+
+        notes.strata = "DIALOG"
+        M:Refresh()
+        local overlayStrata
+        for _, frame in ipairs(H.AllFrames()) do
+            if frame.scripts.OnUpdate and rawget(frame, "strata") then overlayStrata = frame.strata end
+        end
+        T.eq(overlayStrata, "DIALOG", "follows a higher strata, but never TOOLTIP")
+
+        notes.strata, notes.frameLevel = "HIGH", 9999
+        M:Refresh()
+        T.ok(drawn:GetFrameLevel() < M.MAX_FRAME_LEVEL, "never past the game's highest level")
+        T.noErrors()
+    end)
+
     T.case("a world map that loads later is picked up", function()
         local ns = H.Boot({ client = "era" })
         _G.WorldMapFrame = H.NewWorldMap()
