@@ -70,7 +70,7 @@ function Poster.Content(id, now)
     }
     local canPost, whyNot = ns.Bounties:CanPost(entry.id, now)
     c.canPost = canPost
-    c.postLocked = whyNot == "level"
+    c.postLocked = (whyNot == "level" or whyNot == "targetlevel") and whyNot or nil
     if entry.wanted then
         c.status = string.format(L.TIP_WANTED, Wanted.RankName(entry.rank), math.floor(entry.kills))
     elseif entry.atLarge then
@@ -170,7 +170,8 @@ local function CreatePosterFrame()
     f.postButton:SetScript("OnEnter", function(self)
         if self:IsEnabled() or not GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(L.BOUNTY_ERR_LEVEL, 1, 1, 1, 1, true)
+        local c = Poster.Content(shownId)
+        GameTooltip:SetText(L["BOUNTY_ERR_" .. string.upper(c and c.postLocked or "level")], 1, 1, 1, 1, true)
         GameTooltip:Show()
     end)
     f.postButton:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
