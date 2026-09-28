@@ -239,3 +239,6 @@ ns.SlashCommands:Register("enemies", function()
             ns.Utils.LevelText(r.level), ns.Utils.RaceName(r.race) or "?", r.class or "?"))
     end
 end, ns.L.HELP_ENEMIES)
+
+-- Another realm's saved enemies (Core/Database.lua ConfirmHome)
+ns.Events:Register("HH_HOME_CHANGED", function() EnemyCache:RebuildIndex() end, OWNER)

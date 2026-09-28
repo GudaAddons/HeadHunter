@@ -100,8 +100,9 @@ return function(T, H)
 
     T.case("GUID index is rebuilt from restored SavedVariables", function()
         local saved = { enemies = { ["Kuh Blam"] = { key = "Kuh Blam", guid = "Player-7", lastSeen = 1780000000 } } }
-        local ns = H.Boot({ client = "forever", savedDB = saved })
-        T.eq(ns.EnemyCache:ByGUID("Player-7").key, "Kuh Blam", "indexed")
+        local ns = H.Boot({ client = "forever", savedDB = saved,
+            playerGUID = "Player-" .. 4619 .. "-00ABCDEF" })
+        T.eq(ns.EnemyCache:ByGUID("Player-7").key, "Kuh Blam", "indexed (old data went to the PvP realm)")
     end)
 
     T.case("likely attacker: live target, then recent target, then newest sighting", function()

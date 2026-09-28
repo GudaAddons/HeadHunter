@@ -95,6 +95,29 @@ function Utils.PlayerServer()
     return Utils.GUIDServer(Utils.UnitGUID("player"))
 end
 
+-- Home keys: where saved data belongs (Core/Database.lua), "forever|4620" or "era|firemaw"
+Utils.HOME_FOREVER = "forever"
+Utils.HOME_ERA = "era"
+Utils.HOME_SEPARATOR = "|"
+
+function Utils.ForeverHome(server)
+    return Utils.HOME_FOREVER .. Utils.HOME_SEPARATOR .. server
+end
+
+function Utils.EraHome(realm)
+    return Utils.HOME_ERA .. Utils.HOME_SEPARATOR .. (realm:gsub("%s", ""):lower())
+end
+
+-- Our home, or nil while the game does not tell our server or realm yet
+function Utils.HomeKey()
+    if ns.Features.RealmlessNames then
+        local server = Utils.PlayerServer()
+        return server and Utils.ForeverHome(server) or nil
+    end
+    local realm = Utils.PlayerRealm()
+    return realm and Utils.EraHome(realm) or nil
+end
+
 -- "Alliance" / "Horde"
 function Utils.UnitFaction(unit)
     return AccessibleString((SafeCall(_G.UnitFactionGroup, unit)))

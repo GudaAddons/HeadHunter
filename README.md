@@ -125,7 +125,7 @@ A WoW addon cannot use the internet. That is why there is a small, free desktop 
 2. **Play as usual.** When the game saves (logout, `/reload` or quit), the app sends your deaths, catches, duels, bounty and gold bounties to the website. It runs quietly in the tray.
 3. **Get the website's lists back.** The app also writes the website's WANTED list, duel lists and your own records into the game, as a small extra addon called **HeadHunter Data**. You see them after your next login or `/reload`.
 4. **WoW Forever:** when your lists reset (see *Good to know*), the app brings your own deaths, duels and bounty back.
-5. **WoW Forever realms stay apart:** PvP, Normal, Roleplay and Hardcore each get their own lists. HeadHunter knows your realm by your character, so a character on a Normal realm sees only Normal realm data.
+5. **Every realm keeps its own data:** PvP, Normal, Roleplay and Hardcore (and every Classic Era realm) each have their own lists, deaths, duels and bounty. A character on a Normal realm sees only Normal realm data. HeadHunter data saved before this update went to the WoW Forever PvP realm.
 
 Good to know about the app:
 - The app only reads HeadHunter's saved data and only talks to headhunterwow.com. Nothing else on your PC is touched.

@@ -422,13 +422,21 @@ ns.Events:Register("HH_INITIALIZED", function()
     SiteData:Load()
 end, OWNER)
 
--- Our character is known at login
-ns.Events:Register("PLAYER_LOGIN", function()
-    if not ns.db then return end
+-- Our world's lists and our own records, into the current home's data
+local function LoadAndRestore()
     SiteData:Load()
     local added = SiteData:Restore()
     if added > 0 then ns:Debug("Website data restored", added, "records") end
     ns.Wanted:RequestRecompute()
     ns.HighNoon:RequestRecompute()
+end
+
+-- Our character is known at login
+ns.Events:Register("PLAYER_LOGIN", function()
+    if not ns.db then return end
+    LoadAndRestore()
     C_Timer.After(SiteData.SELF_WANTED_DELAY, function() SiteData:TellSelfWanted() end)
 end, OWNER)
+
+-- The realm became known after the load (Core/Database.lua ConfirmHome)
+ns.Events:Register("HH_HOME_CHANGED", LoadAndRestore, OWNER)

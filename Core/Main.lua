@@ -18,6 +18,7 @@ end, "Main")
 Events:Register("PLAYER_LOGIN", function()
     Events:Unregister("PLAYER_LOGIN", "Main")
     if not ns.IsSupported then return end
+    ns.Database:ConfirmHome()
     ns.Database:RememberPlayer()
     ns:Print(string.format(L.LOADED, ns.version))
     if ns.Database:ResetsOnReload() then

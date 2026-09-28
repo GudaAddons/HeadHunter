@@ -1,7 +1,13 @@
--- HeadHunter_DB: account-wide state.
+-- HeadHunter_DB: settings and meta for the account, the data per realm ("home").
+--
+-- Each realm keeps its own data (author, 2026-09-29): a Normal realm character must
+-- not see what PvP realm characters collected. HeadHunter_DB.homes["forever|4620"] or
+-- ["era|firemaw"] (Utils.HomeKey) holds the HOME_TABLES; settings, meta and zones stay
+-- at the root. ns.db is a proxy: ns.db.deaths is the current home's, ns.db.settings the
+-- root's, so modules read and write it as before. DB:Root() is the saved table.
 --
 -- Runtime state lives in memory (ns.db). The SavedVariable is a best-effort mirror:
--- on Forever the client writes it at logout but does not load it back (docs/README.md
+-- on Forever the client could write it at logout but not load it back (docs/README.md
 -- "Known bug"), so every module must work from an empty database on every load and
 -- recover shared state from peers (HH-023).
 
@@ -9,7 +15,20 @@ local addonName, ns = ...
 
 local DB = ns:RegisterModule("Database", {})
 
-DB.SCHEMA_VERSION = 1
+DB.SCHEMA_VERSION = 2
+
+-- Old saved data mixed every realm. On WoW Forever it goes to the PvP realm, where the
+-- author played most (author, 2026-09-29); Era takes the realm of the last character.
+DB.LEGACY_FOREVER_SERVER = 4619
+
+-- Used only when neither the game nor meta.home tells the home yet
+DB.FALLBACK_HOME = "unknown"
+
+-- Per home; anything else in ns.db is the root's
+DB.HOME_TABLES = {
+    deaths = true, reports = true, enemies = true, justice = true, posters = true, posse = true,
+    bountyPay = true, duels = true, tournaments = true, marks = true, demoMarks = true, player = true,
+}
 
 DB.LIMITS = {
     deaths = 500,
@@ -41,10 +60,14 @@ local DEFAULTS = {
         tooltip = true, -- HH-062: WANTED line on enemy player tooltips
         minimap = { angle = 200, hidden = false }, -- HH-060 minimap button
     },
+    zones = {}, -- zone mapID -> { name, continent, locale }: names for the website (Alerts/Zones.lua)
+    homes = {}, -- home key -> HOME_DEFAULTS
+}
+
+local HOME_DEFAULTS = {
     deaths = {},  -- array of death reports, oldest first (HH-013)
     reports = {}, -- report id -> report: own + peer deaths, grow-only (HH-022)
     enemies = {}, -- player key -> enemy record (HH-010)
-    wanted = {},  -- player key -> WANTED state (HH-031)
     justice = {}, -- catch id -> WANTED outlaw killed by a HeadHunter or their group (HH-048)
     posters = {}, -- poster id -> player bounty on their killer (HH-118)
     posse = {}, -- outlaw id -> our own join { t, mapID, layer, hunterRank }, kept over a reload
@@ -52,7 +75,6 @@ local DEFAULTS = {
     duels = {},   -- High Noon: duel id -> duel someone saw (HH-091)
     tournaments = {}, -- Gurubashi Tournament: id -> tournament (HH-101)
     marks = { total = 0, events = {} }, -- HH-050
-    zones = {}, -- zone mapID -> { name, continent, locale }: names for the website (Alerts/Zones.lua)
 }
 
 -- MIGRATIONS[n] upgrades a database from schema n-1 to n
@@ -60,13 +82,87 @@ local MIGRATIONS = {}
 
 local DAY = 86400
 
+local root, home
+
+-- ns.db: HOME_TABLES from the current home, the rest from the root
+local proxy = setmetatable({}, {
+    __index = function(_, key)
+        if DB.HOME_TABLES[key] then
+            DB:ConfirmHome()
+            return home and home[key]
+        end
+        return root and root[key]
+    end,
+    __newindex = function(_, key, value)
+        if DB.HOME_TABLES[key] then home[key] = value else root[key] = value end
+    end,
+})
+
+function DB:Root()
+    return root
+end
+
+function DB:HomeKey()
+    return self.homeKey
+end
+
+-- The old data's home (schema 1 had one store for every realm)
+local function LegacyHome(db)
+    if ns.Features.RealmlessNames then return ns.Utils.ForeverHome(DB.LEGACY_FOREVER_SERVER) end
+    local realm = type(db.meta) == "table" and type(db.meta.player) == "table" and db.meta.player.realm
+    return type(realm) == "string" and ns.Utils.EraHome(realm) or ns.Utils.HomeKey() or DB.FALLBACK_HOME
+end
+
+MIGRATIONS[2] = function(db)
+    local key = LegacyHome(db)
+    db.homes[key] = db.homes[key] or {}
+    for name in pairs(DB.HOME_TABLES) do
+        if name ~= "player" and db[name] ~= nil then
+            db.homes[key][name] = db[name]
+            db[name] = nil
+        end
+    end
+    db.wanted = nil
+    db.meta.home = db.meta.home or key
+end
+
+-- Use this home's data. Returns true when the home changed.
+function DB:BindHome(key)
+    key = key or ns.Utils.HomeKey() or root.meta.home or self.FALLBACK_HOME
+    if key == self.homeKey then return false end
+    root.homes[key] = root.homes[key] or {}
+    ns.Utils.ApplyDefaults(root.homes[key], HOME_DEFAULTS)
+    home = root.homes[key]
+    self.homeKey = key
+    self.homeConfirmed = ns.Utils.HomeKey() == key
+    root.meta.home = key
+    ns:Debug("Database home:", key)
+    return true
+end
+
+-- Bound from meta.home while the game did not tell our server or realm: the first data
+-- access once it does moves to the right home, and HH_HOME_CHANGED lets the modules
+-- rebuild what they keep in memory
+function DB:ConfirmHome()
+    if self.homeConfirmed or not root then return end
+    local key = ns.Utils.HomeKey()
+    if not key then return end
+    self.homeConfirmed = true
+    if self:BindHome(key) then
+        self:Prune()
+        C_Timer.After(0, function() ns.Events:Fire("HH_HOME_CHANGED", key) end)
+    end
+end
+
 function DB:Initialize()
     local Utils = ns.Utils
     local saved = HeadHunter_DB
     local restored = type(saved) == "table"
     local db = restored and saved or {}
+    local savedVersion = restored and (tonumber(db.schemaVersion) or 0) or self.SCHEMA_VERSION
 
     Utils.ApplyDefaults(db, DEFAULTS)
+    db.schemaVersion = savedVersion
     self:Migrate(db)
 
     local now = Utils.ServerTime()
@@ -80,8 +176,12 @@ function DB:Initialize()
     -- Lets /hh status and the probe report whether this client loaded SavedVariables
     self.restoredFromDisk = restored
 
+    root, home = db, nil
+    self.homeKey, self.homeConfirmed = nil, false
+    self:BindHome()
+
     HeadHunter_DB = db
-    ns.db = db
+    ns.db = proxy
     ns.debugMode = db.settings.debug == true
 
     self:Prune(now)
@@ -159,14 +259,15 @@ function DB:OnLogout()
     ns.db.meta.savedAt = ns.Utils.ServerTime()
 end
 
--- For the desktop sync app: the saved data is account-wide and written at logout, so
--- meta.player names the character played last (their own deaths, catches and bounty).
+-- For the desktop sync app: the saved data is written at logout, so meta.player names
+-- the character played last and each home's player the last one of that realm (their
+-- own deaths, catches and bounty).
 function DB:RememberPlayer()
     local U = ns.Utils
     local key = U.UnitKey("player")
     if not (ns.db and key) then return end
     local race = U.UnitRace("player")
-    ns.db.meta.player = {
+    local player = {
         key = key,
         realm = not ns.Features.RealmlessNames and U.PlayerRealm() or nil,
         server = ns.Features.RealmlessNames and U.PlayerServer() or nil,
@@ -177,6 +278,8 @@ function DB:RememberPlayer()
         faction = U.UnitFaction("player") or U.RaceFaction(race),
         guild = U.UnitGuild("player"),
     }
+    ns.db.meta.player = player
+    ns.db.player = U.CopyTable(player)
 end
 
 -------------------------------------------------

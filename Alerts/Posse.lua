@@ -259,3 +259,6 @@ ns.SlashCommands:Register("posse", function()
     end
     if not any then ns:Print(L.POSSE_NONE) end
 end, L.HELP_POSSE)
+
+-- Another realm's saved joins (Core/Database.lua ConfirmHome)
+ns.Events:Register("HH_HOME_CHANGED", function() Posse:Restore() end, OWNER)
