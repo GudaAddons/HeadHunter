@@ -79,7 +79,7 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 
 ### Posse and hunter ranks
 - Join a posse to hunt an outlaw together. Posse members see each other.
-- Collect **bounty**: +1 for joining a posse, and +3 to +20 when you or your group bring down a WANTED outlaw (the higher their rank, the bigger the bounty). +5 for bringing down a player with a gold bounty, +3 for a bully or the other faction's Deadbeat. Declining costs 1; a popup that closes by itself costs nothing.
+- Collect **bounty**: +1 for joining a posse (once per outlaw while they are WANTED), and +3 to +20 when you or your group bring down a WANTED outlaw (the higher their rank, the bigger the bounty). +5 for bringing down a player with a gold bounty, +3 for a bully or the other faction's Deadbeat. Declining costs 1; a popup that closes by itself costs nothing.
 - No bounty for hunting players 10 or more levels below you. Hunting down is ganking too.
 - Hunter ranks: **Tracker**, **Bounty Hunter**, **Manhunter**, **Headhunter** and **Reaper**.
 
@@ -87,11 +87,12 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 
 ### Gold bounties
 Got ganked? Put gold on your killer's head.
-- From level 15: open the poster of an enemy who killed you, or helped, in the last 24 hours and click **Post a bounty**. Pick a reason (Camped me, Ganked me while I fought mobs, Killed me at low level, Killed me in a group), the gold (2g to 15g) and how long it runs (1, 2, 3 or 7 days). One bounty at a time.
+- From level 15: open the poster of an enemy (level 15 or higher too) who killed you, or helped, in the last 24 hours and click **Post a bounty**. Pick a reason (Camped me, Ganked me while I fought mobs, Killed me at low level, Killed me in a group), the gold (2g to 15g) and how long it runs (1, 2, 3 or 7 days). One bounty at a time.
 - Every HeadHunter of your faction sees it: on top of the WANTED list, on the tooltip and the poster, and with an alert when they meet the target.
-- The HeadHunter who lands the killing blow wins the gold, and everyone who saw it gets +5 bounty. No gold for hunting 10 or more levels down.
+- The HeadHunter who lands the killing blow wins the gold, and everyone who saw it gets +5 bounty. No gold for hunting 10 or more levels down. One kill wins one bounty (the biggest); the others stay open. The same hunter cannot claim on the same player again for 7 days.
 - You get a message when your bounty is claimed. At your next mailbox, HeadHunter asks you to send the gold, and one click writes the mail. HeadHunter never sends gold without your click, and never more than you posted.
 - The hunter's HeadHunter sees your mail and marks you as **pays up**. Not paid after 3 days, the claim is unpaid. If you do not pay, you are a **Deadbeat**: no bounties for 30 days and your name in the Hall of Shame. Paying late gets you out.
+- If the same hunter claimed on that player before, the mail window warns you that it may be an alt. You can refuse that one without becoming a **Deadbeat**.
 - **Classic Era:** after claiming, click **Announce** (or type `/hh claim`) so the owner hears about it, even outside your guild and group.
 
 ### Catch-up
