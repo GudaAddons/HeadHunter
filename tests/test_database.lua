@@ -47,9 +47,12 @@ return function(T, H)
         H.Fire("PLAYER_LOGOUT")
         T.eq(ns.db.meta.player.level, 31, "refreshed at logout")
 
-        local forever = H.Boot({ client = "forever" })
+        T.eq(player.server, nil, "no server number on Era")
+
+        local forever = H.Boot({ client = "forever", playerGUID = "Player-4620-00ABCDEF" })
         T.eq(forever.db.meta.client, "forever", "Forever client")
         T.eq(forever.db.meta.player.realm, nil, "no realm on Forever")
+        T.eq(forever.db.meta.player.server, 4620, "the server number tells the Forever realm")
         T.noErrors()
     end)
 

@@ -96,6 +96,7 @@ end
 
 -- Replaces every stubbed global. opts.client = "era" | "forever" | custom
 -- { iface = n, project = n }.
+-- opts.playerGUID sets our GUID (WoW Forever: its server number tells the realm).
 function H.Install(opts)
     opts = opts or {}
     local client = type(opts.client) == "table" and opts.client or CLIENTS[opts.client or "era"]
@@ -118,7 +119,7 @@ function H.Install(opts)
         player = {
             name = client == CLIENTS.forever and "Vati Guda" or "Vati",
             level = 30, class = "ROGUE", race = "Human", sex = 2,
-            guid = "Player-1-00000001", faction = "Alliance", isPlayer = true,
+            guid = opts.playerGUID or "Player-1-00000001", faction = "Alliance", isPlayer = true,
         },
     }
     H.maps = {

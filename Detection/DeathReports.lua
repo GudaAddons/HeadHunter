@@ -10,7 +10,7 @@
 -- Report shape:
 --   id          "<victim key>:<server time>" (sim reports add a suffix)
 --   t           server time of the death (seconds)
---   victim      { key, level, class, race }
+--   victim      { key, level, class, race, server (WoW Forever: the GUID server number) }
 --   killer      enemy { key?, guid?, name, nameIncomplete?, level?, levelMin?, class?, race?, sex?, guild? }
 --   assists     array of enemies
 --   mapID, x, y where it happened
@@ -32,6 +32,7 @@ local function VictimSnapshot()
         level = U.UnitLevel("player"),
         class = U.UnitClass("player"),
         race = U.UnitRace("player"),
+        server = ns.Features.RealmlessNames and U.PlayerServer() or nil,
     }
 end
 

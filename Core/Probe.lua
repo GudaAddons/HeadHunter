@@ -142,7 +142,7 @@ function Probe:Run()
         "C_BattleNet.SendGameData:", Exists(C_BattleNet and C_BattleNet.SendGameData))
     Write("canaccessvalue:", Exists(canaccessvalue), "issecretvalue:", Exists(issecretvalue))
     Write("GetServerTime:", Exists(GetServerTime), "realm:", Show(ns.Utils.PlayerRealm()),
-        "player key:", Show(ns.Utils.UnitKey("player")))
+        "server:", Show(ns.Utils.PlayerServer()), "player key:", Show(ns.Utils.UnitKey("player")))
 
     local mapID = ns.Utils.PlayerMapID()
     Write("map:", Show(mapID), Show(ns.Utils.MapName(mapID)), "continent:", Show(ns.Utils.ContinentOf(mapID)),

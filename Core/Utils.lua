@@ -82,6 +82,19 @@ function Utils.UnitGUID(unit)
     return AccessibleString(SafeCall(_G.UnitGUID, unit))
 end
 
+-- A player GUID is "Player-<server number>-<id>"
+Utils.PLAYER_GUID_SERVER = "^Player%-(%d+)%-"
+
+-- The server number of a player GUID ("Player-4620-011810AD" -> 4620). On WoW Forever
+-- the realm name is the same everywhere, so this is how realms are told apart.
+function Utils.GUIDServer(guid)
+    return type(guid) == "string" and tonumber(guid:match(Utils.PLAYER_GUID_SERVER)) or nil
+end
+
+function Utils.PlayerServer()
+    return Utils.GUIDServer(Utils.UnitGUID("player"))
+end
+
 -- "Alliance" / "Horde"
 function Utils.UnitFaction(unit)
     return AccessibleString((SafeCall(_G.UnitFactionGroup, unit)))

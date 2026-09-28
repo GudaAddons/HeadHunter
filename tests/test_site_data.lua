@@ -162,6 +162,64 @@ return function(T, H)
         T.noErrors()
     end)
 
+    local function ForeverData(servers)
+        local function Character(name, t)
+            return { name = name, deaths = {}, duels = {}, catches = {}, bounty = { total = 3, events = {
+                { t = t, type = "catch", bounty = 3, total_after = 3, outlaw_name = "Somebody", outlaw_rank = "ganker" },
+            } } }
+        end
+        local pvpMain, pveAlt = Character("Pvp Main", H.serverTime - 900), Character("Pve Alt", H.serverTime - 800)
+        pvpMain.world, pveAlt.world = "forever|us|pvp", "forever|us|pve"
+        return {
+            format_version = 1,
+            forever_servers = servers,
+            worlds = {
+                ["forever|us|pvp"] = { generated_at = H.serverTime - 60, wanted = { Outlaw("Pvp Ganker", { realm = nil }) },
+                    duels = { alliance = {}, horde = {} } },
+                ["forever|us|pve"] = { generated_at = H.serverTime - 60, wanted = { Outlaw("Pve Ganker", { realm = nil }) },
+                    duels = { alliance = {}, horde = {} } },
+            },
+            characters = { pvpMain, pveAlt },
+        }
+    end
+
+    local function RestoredFrom(ns)
+        local names = {}
+        for _, event in ipairs(ns.db.marks.events) do names[#names + 1] = event.hunter end
+        table.sort(names)
+        return table.concat(names, ",")
+    end
+
+    T.case("forever: our server number picks our realm's lists and only its characters", function()
+        local ns = H.Boot({ client = "forever", playerGUID = "Player-4620-00ABCDEF",
+            siteData = ForeverData({ ["4619"] = "pvp", ["4620"] = "pve" }) })
+        Settle()
+        local list = ns.Wanted:List()
+        T.eq(#list, 1, "one world only")
+        T.eq(list[1].key, "Pve Ganker", "the Normal realm's list")
+        T.eq(RestoredFrom(ns), "Pve Alt", "only the Normal realm's character is restored")
+
+        local pvp = H.Boot({ client = "forever", playerGUID = "Player-4619-00ABCDEF",
+            siteData = ForeverData({ ["4619"] = "pvp", ["4620"] = "pve" }) })
+        Settle()
+        T.eq(pvp.Wanted:List()[1].key, "Pvp Ganker", "the PvP realm's list")
+        T.eq(RestoredFrom(pvp), "Pvp Main", "only the PvP realm's character")
+        T.noErrors()
+    end)
+
+    T.case("forever: a server the website does not know yet, or an older file, works as before", function()
+        local ns = H.Boot({ client = "forever", playerGUID = "Player-4700-00ABCDEF",
+            siteData = ForeverData({ ["4619"] = "pvp", ["4620"] = "pve" }) })
+        Settle()
+        T.eq(#ns.Wanted:List(), 1, "a list as before")
+        T.eq(RestoredFrom(ns), "Pve Alt,Pvp Main", "every Forever character as before")
+
+        local old = H.Boot({ client = "forever", playerGUID = "Player-4620-00ABCDEF", siteData = ForeverData(nil) })
+        Settle()
+        T.eq(#old.Wanted:List(), 1, "no server list: a list as before")
+        T.noErrors()
+    end)
+
     T.case("an expired website entry, or one we caught since, is not WANTED", function()
         local data = EraData()
         data.worlds["era|eu|Firemaw"].wanted = {

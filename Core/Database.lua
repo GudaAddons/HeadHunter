@@ -169,6 +169,7 @@ function DB:RememberPlayer()
     ns.db.meta.player = {
         key = key,
         realm = not ns.Features.RealmlessNames and U.PlayerRealm() or nil,
+        server = ns.Features.RealmlessNames and U.PlayerServer() or nil,
         class = U.UnitClass("player"),
         race = race,
         sex = U.UnitSex("player"),

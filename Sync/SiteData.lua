@@ -6,6 +6,7 @@
 -- The file keeps the website's names (the /api/v1/sync/download answer):
 --   worlds["era|eu|Firemaw"] / ["forever|us|pvp"] = { generated_at, wanted = {...},
 --     duels = { alliance = {...}, horde = {...} }, deadbeats = {...}, bullies = {...} }
+--   forever_servers = { ["4620"] = "pve", ... }: WoW Forever server numbers and their realm type
 --   characters = { { world, name, deaths, duels, catches, bounty = { total, events } } }
 -- This module picks our world, maps names to the addon's (player keys, "ROGUE",
 -- "Scourge", "mostwanted") and:
@@ -80,14 +81,26 @@ local function Split(key)
     return key:match("^([^|]+)|([^|]+)|(.+)$")
 end
 
--- Ours: same client and region (when known) and, on Era, the same realm
-local function IsOurWorld(key)
+-- WoW Forever (author, 2026-09-29): every realm has the same name, so the website lists
+-- server numbers with their realm type ("4620" = "pve"). Our realm type, or nil when the
+-- file has no list or does not know our server yet (then any Forever world counts).
+local function ForeverRealmType(data)
+    if not ns.Features.RealmlessNames then return nil end
+    local servers = type(data) == "table" and data.forever_servers
+    local server = ns.Utils.PlayerServer()
+    if type(servers) ~= "table" or not server then return nil end
+    return Text(servers[tostring(server)]) or Text(servers[server])
+end
+
+-- Ours: same client and region (when known) and, on Era, the same realm; on Forever
+-- the realm type of our server when the website knows it
+local function IsOurWorld(key, realmType)
     if type(key) ~= "string" then return false end
     local client, region, place = Split(key)
     if client ~= ns.Expansion.ClientKey then return false end
     local myRegion = (ns.db and ns.db.meta.region) or ns.Utils.Region()
     if myRegion and region ~= myRegion then return false end
-    if ns.Features.RealmlessNames then return true end
+    if ns.Features.RealmlessNames then return realmType == nil or place == realmType end
     local realm = ns.Utils.PlayerRealm()
     return realm ~= nil and place:gsub("%s", ""):lower() == realm:gsub("%s", ""):lower()
 end
@@ -95,9 +108,13 @@ end
 -- The first matching world, by key, so the choice does not depend on table order
 local function FindWorld(data)
     if type(data.worlds) ~= "table" then return nil end
+    local realmType = ForeverRealmType(data)
+    if ns.Features.RealmlessNames and not realmType then
+        ns:Debug("Website data: our Forever server", tostring(ns.Utils.PlayerServer()), "is not on its list yet")
+    end
     local keys = {}
     for key in pairs(data.worlds) do
-        if IsOurWorld(key) and type(data.worlds[key]) == "table" then keys[#keys + 1] = key end
+        if IsOurWorld(key, realmType) and type(data.worlds[key]) == "table" then keys[#keys + 1] = key end
     end
     table.sort(keys)
     return keys[1] and data.worlds[keys[1]]
@@ -345,10 +362,11 @@ function SiteData:Restore()
     local data = Data()
     if not (data and ns.db and type(data.characters) == "table") then return 0 end
     local myKey = ns.Utils.UnitKey("player")
+    local realmType = ForeverRealmType(data)
     local added = 0
     for _, c in ipairs(data.characters) do
         local me
-        if type(c) == "table" and IsOurWorld(c.world) then
+        if type(c) == "table" and IsOurWorld(c.world, realmType) then
             local _, _, place = Split(c.world)
             me = ns.Utils.PlayerKey(Text(c.name), not ns.Features.RealmlessNames and place or nil)
         end
