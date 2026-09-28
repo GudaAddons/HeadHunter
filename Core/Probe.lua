@@ -98,6 +98,28 @@ local function ReportTarget()
     end
 end
 
+-- HH-121 spike: can map positions become yards, and can we read a group member's position?
+local function ReportWorldPosition(mapID)
+    local U = ns.Utils
+    local x, y = U.PlayerPosition(mapID)
+    local toWorld = C_Map and C_Map.GetWorldPosFromMapPos
+    Write("C_Map.GetWorldPosFromMapPos:", Exists(toWorld), "CreateVector2D:", Exists(CreateVector2D))
+    if toWorld and CreateVector2D and mapID and x then
+        local ok, continent, pos = pcall(toWorld, mapID, CreateVector2D(x, y))
+        if ok and pos and pos.GetXY then
+            Write("world pos (yards): continent", Show(continent), "x, y:", ShowAll(pos:GetXY()))
+        else
+            Write("world pos: failed", Show(continent))
+        end
+    end
+    if UnitExists("party1") and C_Map and C_Map.GetPlayerMapPosition and mapID then
+        local ok, pos = pcall(C_Map.GetPlayerMapPosition, mapID, "party1")
+        Write("party1", Show(U.UnitKey("party1")), "map pos:", ok and pos and pos.GetXY and ShowAll(pos:GetXY()) or "none")
+    else
+        Write("party1: none (group with someone in the same zone and run /hh probe again)")
+    end
+end
+
 function Probe:Run()
     local E = ns.Expansion
     Write("==== HeadHunter probe", ns.version, "====")
@@ -125,6 +147,7 @@ function Probe:Run()
     local mapID = ns.Utils.PlayerMapID()
     Write("map:", Show(mapID), Show(ns.Utils.MapName(mapID)), "continent:", Show(ns.Utils.ContinentOf(mapID)),
         "pos:", ShowAll(ns.Utils.PlayerPosition(mapID)))
+    ReportWorldPosition(mapID)
 
     ReportTarget()
     Write("==== end probe ====")
@@ -212,6 +235,85 @@ local WATCHED = {
     end,
 }
 
+-------------------------------------------------
+-- Witness mode (HH-121 spike): what do we see when another player dies near us?
+--   Era      the combat log: UNIT_DIED, PARTY_KILL and the killing blow (overkill)
+--   Forever  no combat log: a player's nameplate or our target turning dead
+-------------------------------------------------
+
+local SWING_OVERKILL, SPELL_OVERKILL = 13, 16
+local SPELL_DAMAGE_EVENTS = { SPELL_DAMAGE = true, RANGE_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true }
+
+local function IsOtherPlayer(guid, flags)
+    return guid ~= UnitGUID("player") and type(flags) == "number"
+        and bit.band(flags, COMBATLOG_OBJECT_TYPE_PLAYER or 0x400) > 0
+end
+
+local function Hostile(flags)
+    return type(flags) == "number" and bit.band(flags, COMBATLOG_OBJECT_REACTION_HOSTILE or 0x40) > 0
+end
+
+local function OnWitnessCombatLog()
+    if not CombatLogGetCurrentEventInfo then return end
+    local info = { CombatLogGetCurrentEventInfo() }
+    local subevent, sourceName, destGUID, destName, destFlags = info[2], info[5], info[8], info[9], info[10]
+    if subevent == "UNIT_DIED" or subevent == "PARTY_KILL" then
+        Write("witness", subevent, "dest", Show(destName), IsOtherPlayer(destGUID, destFlags) and "player" or "npc",
+            Hostile(destFlags) and "hostile" or "not hostile", "source", Show(sourceName), "at", date("%H:%M:%S"))
+        return
+    end
+    if not IsOtherPlayer(destGUID, destFlags) then return end
+    local overkill = subevent == "SWING_DAMAGE" and info[SWING_OVERKILL]
+        or SPELL_DAMAGE_EVENTS[subevent] and info[SPELL_OVERKILL]
+    if type(overkill) == "number" and overkill >= 0 then
+        Write("witness killing blow", subevent, "on", Show(destName), "by", Show(sourceName), "overkill", Show(overkill))
+    end
+end
+
+local deadSeen = {}
+
+local function CheckDead(unit)
+    local U = ns.Utils
+    if not (unit == "target" or unit:find("^nameplate")) then return end
+    if U.SafeCall(UnitIsPlayer, unit) ~= true then return end
+    local guid = U.UnitGUID(unit)
+    if not guid then return end
+    local dead = U.SafeCall(UnitIsDead, unit)
+    if U.Accessible(dead) == true then
+        if not deadSeen[guid] then
+            deadSeen[guid] = true
+            Write("witness dead unit", unit, Show(U.UnitKey(unit)), "enemy:", Show(U.UnitIsEnemyPlayer(unit)),
+                "at", date("%H:%M:%S"))
+        end
+    elseif dead ~= nil and U.Accessible(dead) == nil then
+        Write("witness", unit, "UnitIsDead is secret")
+    else
+        deadSeen[guid] = nil
+    end
+end
+
+local WITNESS = {
+    COMBAT_LOG_EVENT_UNFILTERED = OnWitnessCombatLog,
+    UNIT_HEALTH = function(_, unit) CheckDead(unit) end,
+    NAME_PLATE_UNIT_ADDED = function(_, unit) CheckDead(unit) end,
+    PLAYER_TARGET_CHANGED = function() CheckDead("target") end,
+}
+
+function Probe:SetWitness(on)
+    self.witnessing = on
+    local owner = OWNER .. "Witness"
+    for event, handler in pairs(WITNESS) do
+        if ns.Events.IsRestricted(event) then
+            if on then Write("witness", event .. ": restricted, skipped") end
+        elseif on then
+            local ok = ns.Events:Register(event, handler, owner)
+            Write("witness", event .. ":", ok and "registered" or "NOT available")
+        else
+            ns.Events:Unregister(event, owner)
+        end
+    end
+end
+
 function Probe:SetWatch(on)
     self.watching = on
     for event, handler in pairs(WATCHED) do
@@ -230,6 +332,11 @@ ns.SlashCommands:Register("probe", function(args)
     if args[1] and args[1]:lower() == "watch" then
         Probe:SetWatch(not Probe.watching)
         ns:Print(Probe.watching and L.PROBE_WATCH_ON or L.PROBE_WATCH_OFF)
+        return
+    end
+    if args[1] and args[1]:lower() == "witness" then
+        Probe:SetWitness(not Probe.witnessing)
+        ns:Print(Probe.witnessing and L.PROBE_WITNESS_ON or L.PROBE_WITNESS_OFF)
         return
     end
     Probe:Run()

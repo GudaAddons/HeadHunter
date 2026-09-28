@@ -54,6 +54,36 @@ return function(T, H)
             T.noErrors()
         end)
 
+        T.case(client .. ": probe witness logs another player dying near us", function()
+            local ns = H.Boot({ client = client })
+            H.Slash("probe")
+            T.ok(table.concat(ns.Log:Lines(), "\n"):find("party1: none", 1, true) ~= nil, "group position check reported")
+            H.Slash("probe witness")
+            T.eq(ns.Probe.witnessing, true, "witness on")
+            if client == "era" then
+                H.FireCLEU(1, "SWING_DAMAGE", false, "Player-3", "Hunter-Firemaw", 0x511, 0,
+                    "Player-2", "Gank-Stonespine", H.FLAGS_HOSTILE_PLAYER, 0, 300, 40)
+                H.FireCLEU(1, "UNIT_DIED", false, "", nil, 0, 0, "Player-2", "Gank-Stonespine", H.FLAGS_HOSTILE_PLAYER, 0)
+            else
+                H.units.nameplate1 = { name = "Grim", realm = "Reaper", level = 20, class = "ROGUE", race = "Orc",
+                    faction = "Horde", isPlayer = true, guid = "Player-2", dead = true }
+                H.Fire("UNIT_HEALTH", "nameplate1")
+                H.Fire("UNIT_HEALTH", "nameplate1")
+            end
+            local text = table.concat(ns.Log:Lines(), "\n")
+            if client == "era" then
+                T.ok(text:find("witness killing blow SWING_DAMAGE on Gank-Stonespine by Hunter-Firemaw", 1, true) ~= nil,
+                    "killing blow of someone else's fight")
+                T.ok(text:find("witness UNIT_DIED dest Gank-Stonespine player hostile", 1, true) ~= nil, "the death")
+            else
+                local _, count = text:gsub("witness dead unit nameplate1", "")
+                T.eq(count, 1, "a dead nameplate, logged once")
+            end
+            H.Slash("probe witness")
+            T.eq(ns.Probe.witnessing, false, "witness off")
+            T.noErrors()
+        end)
+
         T.case(client .. ": sim death and sighting fire internal events", function()
             local ns = H.Boot({ client = client })
             local report, enemy
