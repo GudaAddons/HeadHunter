@@ -189,6 +189,28 @@ function Wanted.MergeSite(entries, site, catches, now)
     return entries
 end
 
+-- The website's Hall of Shame bullies next to ours (author, 2026-09-28): a player we
+-- know gets the bully badge and the higher bully count; one we never saw is added, not
+-- WANTED. Their alerts and the +3 bounty then work as for our own bullies.
+-- entries: id -> entry (changed in place); site: id -> entry (Sync/SiteData.lua)
+function Wanted.MergeBullies(entries, site)
+    for id, theirs in pairs(site or {}) do
+        local ours = entries[id]
+        if ours then
+            ours.badges = ours.badges or {}
+            ours.badges.coward = true
+            ours.cowardKills = math.max(ours.cowardKills or 0, theirs.cowardKills or 0)
+            ours.level = ours.level or theirs.level
+        else
+            local copy = {}
+            for k, v in pairs(theirs) do copy[k] = v end
+            copy.badges = { coward = true }
+            entries[id] = copy
+        end
+    end
+    return entries
+end
+
 -- Synchronous recompute (tests, and the coroutine body)
 function Wanted:ComputeNow(yield)
     local reports = {}
@@ -199,6 +221,7 @@ function Wanted:ComputeNow(yield)
         { serialWindow = SerialWindow(), wantedKills = Wanted.TestThreshold(), catches = catches },
         yield)
     Wanted.MergeSite(result, ns.SiteData:Wanted(), catches, now)
+    Wanted.MergeBullies(result, ns.SiteData:Bullies())
     Publish(result)
     return result
 end

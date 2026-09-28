@@ -5,7 +5,7 @@
 --
 -- The file keeps the website's names (the /api/v1/sync/download answer):
 --   worlds["era|eu|Firemaw"] / ["forever|us|pvp"] = { generated_at, wanted = {...},
---     duels = { alliance = {...}, horde = {...} } }
+--     duels = { alliance = {...}, horde = {...} }, deadbeats = {...}, bullies = {...} }
 --   characters = { { world, name, deaths, duels, catches, bounty = { total, events } } }
 -- This module picks our world, maps names to the addon's (player keys, "ROGUE",
 -- "Scourge", "mostwanted") and:
@@ -17,6 +17,7 @@
 --     faction's reports never reach our addon, so this is the only way to learn it
 --
 --   SiteData:Wanted() -> id -> WANTED entry     SiteData:Duelists() -> key -> player
+--   SiteData:Bullies() -> id -> Hall of Shame entry (Rules/Wanted.lua MergeBullies)
 --   SiteData:GeneratedAt()                      nil when there is no data for our world
 
 local addonName, ns = ...
@@ -34,7 +35,7 @@ local RACES = {
 }
 local FACTIONS = { alliance = "Alliance", horde = "Horde" }
 
-local world, wanted, duelists, deadbeats
+local world, wanted, duelists, deadbeats, bullies
 
 -------------------------------------------------
 -- Names
@@ -136,6 +137,23 @@ function SiteData.WantedEntry(w)
     }
 end
 
+-- A Hall of Shame bully from the website: an entry that is not WANTED, with the bully badge
+function SiteData.BullyEntry(b)
+    local key = SiteData.Key(b)
+    local cowardKills = Number(b.coward_kills)
+    if not key or not cowardKills or cowardKills < 1 then return nil end
+    local lastKillAt = Number(b.last_kill_at)
+    return {
+        id = key, key = key, name = key,
+        level = Number(b.level), class = SiteData.Class(b.class), race = SiteData.Race(b.race), sex = Number(b.sex),
+        wanted = false, kills = 0, timesWanted = 0, timesCaught = 0,
+        killCount = Number(b.kill_count) or cowardKills, cowardKills = cowardKills,
+        badges = { coward = true },
+        lastKill = lastKillAt and { t = lastKillAt } or nil,
+        source = SiteData.ORIGIN,
+    }
+end
+
 function SiteData.Duelist(d, faction)
     local key = SiteData.Key(d)
     local wins, losses = Number(d.wins), Number(d.losses)
@@ -150,7 +168,7 @@ function SiteData.Duelist(d, faction)
 end
 
 function SiteData:Load()
-    world, wanted, duelists, deadbeats = nil, nil, nil, nil
+    world, wanted, duelists, deadbeats, bullies = nil, nil, nil, nil, nil
     local data = Data()
     world = data and FindWorld(data)
     if not world then return false end
@@ -174,7 +192,18 @@ function SiteData:Load()
         local untilT = key and Number(d.blocked_until)
         if untilT then deadbeats[ns.Utils.CompactName(key)] = { key = key, unpaid = Number(d.unpaid) or 2, blockedUntil = untilT } end
     end
+    -- Both factions' bullies with a kill in the last 30 days (author, 2026-09-28)
+    bullies = {}
+    for _, b in ipairs(type(world.bullies) == "table" and world.bullies or {}) do
+        local entry = type(b) == "table" and SiteData.BullyEntry(b)
+        if entry then bullies[entry.id] = entry end
+    end
     return true
+end
+
+-- The website's Hall of Shame bullies: id -> entry
+function SiteData:Bullies()
+    return bullies or {}
 end
 
 -- The website's Deadbeat record for a player key: { key, unpaid, blockedUntil } or nil

@@ -98,6 +98,38 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("the website's bullies join our Hall of Shame, alert and pay +3 when brought down", function()
+        local data = EraData()
+        data.worlds["era|eu|Firemaw"].bullies = {
+            { name = "Greystomp", realm = "Firemaw", faction = "horde", class = "warrior", race = "orc", level = 40,
+                coward_kills = 4, kill_count = 9, last_kill_at = H.serverTime - 86400 },
+            { name = "Duskblade", realm = "Firemaw", faction = "horde", class = "rogue", race = "undead", level = 34,
+                coward_kills = 20, kill_count = 45, last_kill_at = H.serverTime - 3600 },
+            { name = "Broken", realm = "Firemaw", coward_kills = 0 },
+        }
+        local ns = H.Boot({ client = "era", siteData = data })
+        Settle()
+        local grey = ns.Wanted:ByKey("Greystomp-Firemaw")
+        T.ok(grey ~= nil and grey.badges.coward, "a bully we never saw")
+        T.eq(grey.wanted, false, "not WANTED")
+        T.eq(#ns.Wanted:List(), 1, "the WANTED list is unchanged")
+        T.eq(ns.Wanted:ByKey("Duskblade-Firemaw").cowardKills, 20, "the higher bully count wins")
+        T.eq(ns.Wanted:ByKey("Broken-Firemaw"), nil, "no bully kills: left out")
+
+        local names = {}
+        for _, row in ipairs(ns.MainWindow.Rows("shame")) do names[#names + 1] = row.name .. ":" .. row.coward end
+        T.ok(table.concat(names, " "):find("Greystomp.*:4") ~= nil, "in the Hall of Shame tab")
+
+        ns.Sighting:OnEnemySeen({ key = "Greystomp-Firemaw", level = 40, class = "WARRIOR", race = "Orc" }, "target")
+        T.ok(H.Printed("BULLY.*Greystomp.*4 kills of lowbies"), "the bully alert")
+
+        H.FireCLEU(H.serverTime, "PARTY_KILL", false, "Player-1-00000001", "Vati", H.FLAGS_FRIENDLY_PLAYER, 0,
+            "Player-2-0000BEEF", "Greystomp", H.FLAGS_HOSTILE_PLAYER, 0)
+        Settle()
+        T.eq(ns.Marks:Total(), 3, "+3 bounty for bringing them down")
+        T.noErrors()
+    end)
+
     T.case("a realm name with spaces matches our normalized realm", function()
         H.Install({ client = "era" })
         local data = EraData()
