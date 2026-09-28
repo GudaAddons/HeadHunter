@@ -66,9 +66,11 @@ function Poster.Content(id, now)
             entry.peakRank and Wanted.RankName(entry.peakRank) or "-"),
         posse = ns.Posse:Summary(entry.id),
         bounty = ns.Bounties:Line(entry.id, now), -- HH-118
-        canPost = ns.Bounties:CanPost(entry.id, now),
         recent = {},
     }
+    local canPost, whyNot = ns.Bounties:CanPost(entry.id, now)
+    c.canPost = canPost
+    c.postLocked = whyNot == "level"
     if entry.wanted then
         c.status = string.format(L.TIP_WANTED, Wanted.RankName(entry.rank), math.floor(entry.kills))
     elseif entry.atLarge then
@@ -164,6 +166,14 @@ local function CreatePosterFrame()
     f.postButton:SetPoint("BOTTOMLEFT", 14, 14)
     f.postButton:SetText(L.BOUNTY_POST_BUTTON)
     f.postButton:SetScript("OnClick", function() ns.BountyDialog:Open(shownId) end)
+    if f.postButton.SetMotionScriptsWhileDisabled then f.postButton:SetMotionScriptsWhileDisabled(true) end
+    f.postButton:SetScript("OnEnter", function(self)
+        if self:IsEnabled() or not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L.BOUNTY_ERR_LEVEL, 1, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    f.postButton:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
 
     f.joinButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     f.joinButton:SetSize(170, 22)
@@ -193,7 +203,8 @@ function Poster:Refresh()
     frame.posse:SetText(c.posse or "")
     frame.bounty:SetText(c.bounty or "")
     if c.canJoin then frame.joinButton:Show() else frame.joinButton:Hide() end
-    if c.canPost then frame.postButton:Show() else frame.postButton:Hide() end
+    frame.postButton:SetShown(c.canPost or c.postLocked)
+    frame.postButton:SetEnabled(c.canPost == true)
     self.shown = c
 end
 

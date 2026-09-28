@@ -1,7 +1,7 @@
 -- HH-118: player bounties, WANTED posters by players (docs/addon/features.md section 12).
 --
 -- A player killed in the last 24 hours puts a gold bounty on their killer (or an
--- assist): a reason from a list, at least 2g, 1 to 7 days. Any HeadHunter of their
+-- assist): a reason from a list, 2g to 15g, 1 to 7 days, from level 15. Any HeadHunter of their
 -- faction whose killing blow brings the target down while the poster runs claims it,
 -- and the owner pays by mail. HeadHunter never holds or moves gold without the
 -- owner's click.
@@ -38,8 +38,9 @@ local DAY = 86400
 
 Bounties.REASONS = { "camped", "mobs", "lowlevel", "group" }
 Bounties.DAYS = { 1, 2, 3, 7 }
-Bounties.MIN_GOLD = 2 * 10000        -- copper (author, 2026-09-28: 2g for now)
-Bounties.MAX_GOLD = 10000 * 10000
+Bounties.MIN_GOLD = 2 * 10000        -- copper (author, 2026-09-28: 2g to 15g on the beta)
+Bounties.MAX_GOLD = 15 * 10000
+Bounties.MIN_LEVEL = 15              -- the owner's level at the death (author, 2026-09-28)
 Bounties.MAX_DURATION = 7 * DAY
 Bounties.POST_WINDOW = DAY           -- our deaths from the last 24 hours
 Bounties.POST_COOLDOWN = 1800        -- between two posters of one owner
@@ -234,13 +235,19 @@ function Bounties:ActiveOf(owner, now)
     return nil
 end
 
+-- The victim's level at that death decides, on every client the same way
+function Bounties.OldEnough(report)
+    return (tonumber(report.victim and report.victim.level) or 0) >= Bounties.MIN_LEVEL
+end
+
 -- True when the target killed or helped kill the owner at or before `at`, within the
--- post window
+-- post window, while the owner was MIN_LEVEL or higher
 function Bounties.KilledBy(owner, target, at)
     local Engine = ns.RulesEngine
     for _, report in ns.Reports:All() do
         if report.t <= at + Bounties.MAX_SKEW and at - report.t <= Bounties.POST_WINDOW + Bounties.MAX_SKEW
-                and ns.Utils.SameCharacter(report.victim and report.victim.key, owner) then
+                and ns.Utils.SameCharacter(report.victim and report.victim.key, owner)
+                and Bounties.OldEnough(report) then
             if Engine.EnemyId(report.killer) == target then return true end
             for _, assist in ipairs(report.assists or {}) do
                 if Engine.EnemyId(assist) == target then return true end
@@ -349,11 +356,15 @@ function Bounties:CanPost(targetId, now)
     now = now or ns.Utils.ServerTime()
     local me = Me()
     if not me then return false, "unknown" end
-    local killer = false
+    local killer, oldEnough = false, false
     for _, target in ipairs(self:PostableTargets(now)) do
-        if target.id == targetId then killer = true end
+        if target.id == targetId then
+            killer = true
+            oldEnough = oldEnough or self.OldEnough(target.report)
+        end
     end
     if not killer then return false, "notkiller" end
+    if not oldEnough then return false, "level" end
     local limit = self:OwnerLimit({ id = "", owner = me, t = now })
     if limit then return false, limit end
     return true
