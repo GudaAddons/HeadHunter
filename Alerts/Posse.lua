@@ -10,6 +10,8 @@
 -- popup ("Posse: A, B") and by /hh posse (with each member's hunter rank, HH-050).
 -- Decline: HH_POSSE_DECLINED(entry, report, reason), counted by marks (Rules/Marks.lua)
 -- unless the popup only timed out (reason "timeout").
+-- Our own joins are also kept in ns.db.posse for their 30 minutes, so a /reload still
+-- knows we ride with the posse: no second [Join the posse], no second bounty for it.
 -- Events: HH_POSSE_JOINED(entry, report), HH_POSSE_CHANGED(outlawId).
 
 local addonName, ns = ...
@@ -43,8 +45,26 @@ local function AddMember(outlawId, name, t, mapID, isSelf, layer, hunterRank)
     local known = posses[outlawId][id]
     posses[outlawId][id] = { name = name, t = t, mapID = mapID, layer = layer, hunterRank = hunterRank,
         self = isSelf or (known and known.self) or nil }
+    if isSelf and ns.db and ns.db.posse then
+        ns.db.posse[outlawId] = { t = t, mapID = mapID, layer = layer, hunterRank = hunterRank }
+    end
     ns.Events:Fire("HH_POSSE_CHANGED", outlawId)
     return not known
+end
+
+-- After a reload: our joins that still count, back in the member lists (not sent again)
+function Posse:Restore(now)
+    local saved = ns.db and ns.db.posse
+    if not saved then return end
+    now = now or ns.Utils.ServerTime()
+    local me = ns.Utils.UnitKey("player") or "me"
+    for outlawId, join in pairs(saved) do
+        if type(join) ~= "table" or now - (tonumber(join.t) or 0) > self.TTL then
+            saved[outlawId] = nil
+        else
+            AddMember(outlawId, me, join.t, join.mapID, true, join.layer, join.hunterRank)
+        end
+    end
 end
 
 -- Members of one posse: us first, then earliest first
@@ -130,7 +150,9 @@ function Posse.DiedAgain(report)
     return false
 end
 
+-- Already riding with this posse (also after a reload): nothing to join, nothing earned
 function Posse:Join(entry, report)
+    if self:IsMember(entry.id) then return false end
     local U = ns.Utils
     local name = entry.key and U.DisplayName(entry.key) or entry.name
     local zone = U.MapName(report.mapID) or L.UNKNOWN_ZONE
@@ -158,6 +180,7 @@ function Posse:Join(entry, report)
         if ok then ns:Print(string.format(L.POSSE_WHISPERED, U.DisplayName(U.PlayerKey(report.sender)) or report.sender)) end
     end
     ns.Events:Fire("HH_POSSE_JOINED", entry, report)
+    return true
 end
 
 -- Decline (author, 2026-09-26): no WANTED popup about any outlaw for DECLINE_QUIET
@@ -210,6 +233,7 @@ function Posse:OnPeerJoin(record, sender)
 end
 
 ns.Events:Register("HH_INITIALIZED", function()
+    Posse:Restore()
     ns.Transport:RegisterHandler(ns.Protocol.TYPES.POSSE, function(record, sender) Posse:OnPeerJoin(record, sender) end)
 end, OWNER)
 

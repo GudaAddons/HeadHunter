@@ -74,6 +74,7 @@ return function(T, H)
         ns.Posse:Join(entry, { mapID = 1436, x = 0.5, y = 0.5 })
         T.eq(ns.Marks:Total(), 1, "joining again: nothing")
         H.clock = H.clock + 1801
+        H.serverTime = H.serverTime + 1801
         ns.Posse:Join(entry, { mapID = 1436, x = 0.5, y = 0.5 })
         T.eq(ns.Marks:Total(), 2, "a new posse later: +1")
     end)

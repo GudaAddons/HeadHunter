@@ -47,6 +47,7 @@ local DEFAULTS = {
     wanted = {},  -- player key -> WANTED state (HH-031)
     justice = {}, -- catch id -> WANTED outlaw killed by a HeadHunter or their group (HH-048)
     posters = {}, -- poster id -> player bounty on their killer (HH-118)
+    posse = {}, -- outlaw id -> our own join { t, mapID, layer, hunterRank }, kept over a reload
     bountyPay = {}, -- poster id -> claim and payment of that bounty (HH-118)
     duels = {},   -- High Noon: duel id -> duel someone saw (HH-091)
     tournaments = {}, -- Gurubashi Tournament: id -> tournament (HH-101)

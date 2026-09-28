@@ -247,4 +247,26 @@ return function(T, H)
         H.Slash("posse")
         T.ok(H.Printed("Gank%-Stonespine.*Posse: Alpha"), "listed")
     end)
+
+    T.case("a reload keeps our posse: no second Join button, no second bounty", function()
+        local ns = H.Boot({ client = "era" })
+        H.Slash("spree Gank 4 60")
+        for _ = 1, 3 do H.Advance(1) for _ = 1, 10 do H.Advance(0) end end
+        local entry = ns.Wanted:ByKey("Gank-Firemaw")
+        T.ok(ns.Posse:Join(entry, { mapID = 1436, x = 0.5, y = 0.5 }), "joined")
+        T.eq(ns.Marks:Total(), 1, "+1")
+
+        local saved = ns.db
+        ns = H.Boot({ client = "era", savedDB = saved })
+        for _ = 1, 3 do H.Advance(1) for _ = 1, 10 do H.Advance(0) end end
+        entry = ns.Wanted:ByKey("Gank-Firemaw")
+        T.eq(ns.Posse:IsMember(entry.id), true, "still in the posse after the reload")
+        T.eq(ns.Poster.Content(entry.id).canJoin, false, "no Join the posse button")
+        T.eq(ns.Posse:Join(entry, { mapID = 1436, x = 0.5, y = 0.5 }), false, "joining again does nothing")
+        T.eq(ns.Marks:Total(), 1, "no second bounty")
+
+        H.serverTime = H.serverTime + 1801
+        T.eq(ns.Posse:IsMember(entry.id), false, "after 30 minutes the join is over")
+        T.noErrors()
+    end)
 end
