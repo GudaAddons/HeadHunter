@@ -10,7 +10,7 @@ For **Classic Era** and **WoW: Forever**.
 
 See the WANTED board, the best duelists and the top hunters on **[headhunterwow.com](https://headhunterwow.com)**.
 
-![The WANTED list: outlaws of both factions with their rank, kills, last kill and badges](Assets/1.png)
+![The WANTED list: outlaws with their rank, kills, last kill and badges, gold bounties on top](Assets/2.jpg)
 
 ## How it works
 
@@ -44,7 +44,7 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 - You get an alert when a bully or a Deadbeat is near. Turn it off in the options (**Hall of Shame alerts**).
 - Bring down a bully, or a Deadbeat of the other faction, and you get **+3 bounty**, once per player per hour. They stay on the list.
 
-![The Hall of Shame: every known bully, WANTED or not](Assets/5.png)
+![The Hall of Shame: every known bully, WANTED or not](Assets/3.jpg)
 
 ### Alerts
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
@@ -70,9 +70,13 @@ Type `/hh` or click the minimap button:
 - **My deaths**: who killed you, when and where.
 - **My bounty**: the bounty you collected and your hunter rank.
 
-Hover a name for details, or click it to open the outlaw's **poster**: race and class, rank, badges, recent kills, posse, gold bounties and the **Join the posse** and **Post a bounty** buttons.
+The window has the same look as the website. Too big or too small for your screen? Change **Window size** in the options (90% to 130%).
 
-![My deaths, with the details of a killer on hover](Assets/4.png)
+Hover a name for details, or click it to open their **WANTED poster** in the middle of the window: an old paper poster with a black and white picture of their race, their name, rank, kills, badges and the gold on their head. Next to it: their history, recent kills, the posse, gold bounties and the **Join the posse** and **Post a bounty** buttons.
+
+![The WANTED poster of an outlaw, with their recent kills next to it](Assets/1.jpg)
+
+![My deaths: who killed you, when, where and how fair it was](Assets/5.jpg)
 
 ### Enemy tooltips
 Mouse over an enemy player to see if they are WANTED, their rank, kills and badges. Any player with duels also shows their duel rank.
@@ -83,7 +87,7 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 - No bounty for hunting players 10 or more levels below you. Hunting down is ganking too.
 - Hunter ranks: **Tracker**, **Bounty Hunter**, **Manhunter**, **Headhunter** and **Reaper**.
 
-![My bounty: what earned or cost bounty, and your hunter rank](Assets/3.jpg)
+![My bounty: what earned or cost bounty, and your hunter rank](Assets/6.jpg)
 
 ### Gold bounties
 Got ganked? Put gold on your killer's head.
@@ -113,7 +117,7 @@ Type `/hh online` to see how many HeadHunters are online right now, how many are
 - Ranks by net wins: **Quickdraw**, **Sharpshooter** (+5), **Deadeye** (+15) and **Legend** (+30). Under 5 duels you are a **Greenhorn**, listed after everyone with 5 or more.
 - The #1 of each faction is the **Top Gun**, once they are 5 or more wins ahead (Sharpshooter) and nobody else at the top has the same record. A Greenhorn cannot be Top Gun.
 
-![Duels: the Horde list with its Top Gun and records](Assets/2.jpg)
+![Duels: the Horde list with ranks and records, a player's duels on hover](Assets/4.jpg)
 
 ## Website and the HeadHunter Sync app
 
