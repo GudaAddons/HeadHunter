@@ -113,6 +113,8 @@ function Simulator.SendOptions(args)
     return options
 end
 
+-- Refused where the zone cannot be read: other players would see "an unknown zone"
+-- (HH-123). A named zone always works.
 function Simulator:Send(args)
     local U = ns.Utils
     if not ns.debugMode then
@@ -134,7 +136,6 @@ function Simulator:Send(args)
         mapID = U.PlayerMapID()
         x, y = U.PlayerPosition(mapID)
     end
-    -- Without a zone other players would see "an unknown zone" (HH-123)
     if not mapID or not x then
         ns:Print(L.SIM_SEND_NO_ZONE)
         return
