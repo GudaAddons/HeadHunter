@@ -10,7 +10,7 @@
 -- Report shape:
 --   id          "<victim key>:<server time>" (sim reports add a suffix)
 --   t           server time of the death (seconds)
---   victim      { key, level, class, race, server (WoW Forever: the GUID server number) }
+--   victim      { key, level, class, race, faction, server (WoW Forever: the GUID server number) }
 --   killer      enemy { key?, guid?, name, nameIncomplete?, level?, levelMin?, class?, race?, sex?, guild? }
 --   assists     array of enemies
 --   mapID, x, y where it happened
@@ -32,6 +32,7 @@ local function VictimSnapshot()
         level = U.UnitLevel("player"),
         class = U.UnitClass("player"),
         race = U.UnitRace("player"),
+        faction = U.UnitFaction("player"),
         server = ns.Features.RealmlessNames and U.PlayerServer() or nil,
     }
 end
@@ -44,7 +45,7 @@ function DeathReports.EnemyFromCache(guid, fallbackName)
         return {
             key = record.key, guid = guid, name = record.key,
             level = record.level, levelMin = record.levelMin,
-            class = record.class, race = record.race, sex = record.sex, guild = record.guild,
+            class = record.class, race = record.race, faction = record.faction, sex = record.sex, guild = record.guild,
         }
     end
     local part = cache:PartialByGUID(guid)
@@ -53,7 +54,7 @@ function DeathReports.EnemyFromCache(guid, fallbackName)
         guid = guid,
         name = given or "?",
         nameIncomplete = true,
-        class = part and part.class, race = part and part.race, sex = part and part.sex,
+        class = part and part.class, race = part and part.race, faction = part and part.faction, sex = part and part.sex,
     }
 end
 
@@ -62,7 +63,7 @@ function DeathReports.EnemyFromRecord(record)
     return {
         key = record.key, guid = record.guid, name = record.key,
         level = record.level, levelMin = record.levelMin,
-        class = record.class, race = record.race, sex = record.sex, guild = record.guild,
+        class = record.class, race = record.race, faction = record.faction, sex = record.sex, guild = record.guild,
     }
 end
 

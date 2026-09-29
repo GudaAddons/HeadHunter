@@ -57,6 +57,26 @@ local function Invert(t)
 end
 local CLASS_NAME, RACE_NAME, CONFIDENCE_NAME = Invert(CLASS_CODE), Invert(RACE_CODE), Invert(CONFIDENCE_CODE)
 
+-- Skyborne (WoW Forever) is played by both factions, so its code tells the faction too
+-- (author, 2026-09-29). Older clients do not know these codes and read no race.
+Protocol.SKYBORNE = "Skyborne"
+local SKYBORNE_CODE = { Alliance = "K", Horde = "Y" }
+local SKYBORNE_UNKNOWN_FACTION = "Q"
+local SKYBORNE_FACTION = Invert(SKYBORNE_CODE)
+
+local function RaceCode(race, faction)
+    if race == Protocol.SKYBORNE then return SKYBORNE_CODE[faction] or SKYBORNE_UNKNOWN_FACTION end
+    return RACE_CODE[race] or ""
+end
+
+-- race, faction (the faction only when the code tells it)
+local function RaceFromCode(code)
+    if code == SKYBORNE_UNKNOWN_FACTION then return Protocol.SKYBORNE, nil end
+    local faction = SKYBORNE_FACTION[code]
+    if faction then return Protocol.SKYBORNE, faction end
+    return RACE_NAME[code], nil
+end
+
 -------------------------------------------------
 -- Primitives
 -------------------------------------------------
@@ -140,7 +160,7 @@ local function EncodeEnemy(enemy)
         incomplete and "1" or "",
         EncodeLevel(enemy.level),
         CLASS_CODE[enemy.class] or "",
-        RACE_CODE[enemy.race] or "",
+        RaceCode(enemy.race, enemy.faction),
         (enemy.sex == 2 or enemy.sex == 3) and tostring(enemy.sex) or "",
         incomplete and (enemy.guid or "") or "",
     }, ",")
@@ -151,10 +171,12 @@ local function DecodeEnemy(s)
     if #f ~= 7 or Blank(f[1]) then return nil end
     local level = DecodeLevel(f[3])
     if level == false then return nil end
+    local race, faction = RaceFromCode(f[5])
     local enemy = {
         level = level,
         class = CLASS_NAME[f[4]],
-        race = RACE_NAME[f[5]],
+        race = race,
+        faction = faction,
         sex = tonumber(f[6]),
     }
     if f[2] == "1" then
@@ -193,7 +215,7 @@ function Protocol.EncodeDeath(report, maxLength)
         v.key,
         EncodeLevel(v.level),
         CLASS_CODE[v.class] or "",
-        RACE_CODE[v.race] or "",
+        RaceCode(v.race, v.faction),
         report.mapID and Protocol.ToB36(report.mapID) or "",
         EncodeCoord(report.x),
         EncodeCoord(report.y),
@@ -232,7 +254,8 @@ function Protocol.DecodeDeath(s)
     if not killer then return nil end
     local report = {
         t = t,
-        victim = { key = f[2], level = victimLevel, class = CLASS_NAME[f[4]], race = RACE_NAME[f[5]] },
+        victim = { key = f[2], level = victimLevel, class = CLASS_NAME[f[4]], race = RaceFromCode(f[5]),
+            faction = select(2, RaceFromCode(f[5])) },
         mapID = Protocol.FromB36(f[6]),
         x = DecodeCoord(f[7]),
         y = DecodeCoord(f[8]),
@@ -257,7 +280,7 @@ end
 function Protocol.EncodeIdentity(reportId, enemy)
     return table.concat({
         reportId, enemy.guid or "", enemy.key or "", EncodeLevel(enemy.level),
-        CLASS_CODE[enemy.class] or "", RACE_CODE[enemy.race] or "",
+        CLASS_CODE[enemy.class] or "", RaceCode(enemy.race, enemy.faction),
         (enemy.sex == 2 or enemy.sex == 3) and tostring(enemy.sex) or "",
     }, ";")
 end
@@ -270,7 +293,8 @@ function Protocol.DecodeIdentity(s)
     if level == false then return nil end
     return f[1], {
         guid = f[2], key = f[3], level = level,
-        class = CLASS_NAME[f[5]], race = RACE_NAME[f[6]], sex = tonumber(f[7]),
+        class = CLASS_NAME[f[5]], race = RaceFromCode(f[6]), faction = select(2, RaceFromCode(f[6])),
+        sex = tonumber(f[7]),
     }
 end
 
@@ -308,14 +332,14 @@ local function Level(n)
 end
 
 local function RaceSexCode(race, sex)
-    local code = RACE_CODE[race]
+    local code = race and RaceCode(race)
     if code and sex == 3 then return code:lower() end
     return code or ""
 end
 
 -- race, sex (2 male, 3 female; nil when the code is blank or unknown)
 local function RaceSexName(code)
-    local race = RACE_NAME[code:upper()]
+    local race = RaceFromCode(code:upper())
     if not race then return nil, nil end
     return race, code == code:lower() and 3 or 2
 end

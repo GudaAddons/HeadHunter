@@ -49,6 +49,32 @@ return function(T, H)
         T.eq(r.confidence, "exact", "confidence")
     end)
 
+    T.case("skyborne plays both factions: the race code tells the faction too", function()
+        local p = P()
+        local r = p.DecodeDeath(p.EncodeDeath(Report({
+            victim = { key = "Nib Sprocket", level = 12, class = "MAGE", race = "Skyborne", faction = "Alliance" },
+            killer = { key = "Wing Talon", name = "Wing Talon", level = 14, class = "HUNTER", race = "Skyborne", faction = "Horde" },
+            assists = { { key = "Mist Feather", name = "Mist Feather", level = 13, race = "Skyborne" } },
+        })))
+        T.eq(r.victim.race, "Skyborne", "victim race")
+        T.eq(r.victim.faction, "Alliance", "victim faction")
+        T.eq(r.killer.race, "Skyborne", "killer race")
+        T.eq(r.killer.faction, "Horde", "killer faction")
+        T.eq(r.assists[1].race, "Skyborne", "assist race without a faction")
+        T.eq(r.assists[1].faction, nil, "faction unknown")
+
+        local id, enemy = p.DecodeIdentity(p.EncodeIdentity("Nib Sprocket:1", {
+            guid = "Player-4620-00AA", key = "Wing Talon", level = 14, class = "HUNTER", race = "Skyborne", faction = "Horde" }))
+        T.eq(id, "Nib Sprocket:1", "identity report")
+        T.eq(enemy.race .. ":" .. enemy.faction, "Skyborne:Horde", "identity race and faction")
+
+        local duel = p.DecodeDuel(p.EncodeDuel({ winner = "Wing Talon", loser = "Nib Sprocket", t = 1790109611,
+            faction = "Alliance", winnerRace = "Skyborne", winnerSex = 3, winnerLevel = 14, loserLevel = 12 }))
+        T.eq(duel.winnerRace, "Skyborne", "duel race")
+        T.eq(duel.winnerSex, 3, "duel sex")
+        T.noErrors()
+    end)
+
     T.case("skull, unknown level, incomplete killer with GUID, assists", function()
         local p = P()
         local r = p.DecodeDeath(p.EncodeDeath(Report({

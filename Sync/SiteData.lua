@@ -33,6 +33,7 @@ SiteData.ORIGIN = "website"
 local RACES = {
     human = "Human", dwarf = "Dwarf", night_elf = "NightElf", gnome = "Gnome", draenei = "Draenei",
     orc = "Orc", undead = "Scourge", tauren = "Tauren", troll = "Troll", blood_elf = "BloodElf",
+    skyborne = "Skyborne",
 }
 local FACTIONS = { alliance = "Alliance", horde = "Horde" }
 
@@ -255,12 +256,12 @@ local function Enemy(attacker)
     local key = SiteData.Key(attacker)
     if key then
         return { key = key, name = key, level = level, class = SiteData.Class(attacker.class),
-            race = SiteData.Race(attacker.race), sex = Number(attacker.sex) }
+            race = SiteData.Race(attacker.race), faction = SiteData.Faction(attacker.faction), sex = Number(attacker.sex) }
     end
     local guid = Text(attacker.guid)
     if not guid then return nil end
     return { guid = guid, name = Text(attacker.given_name), nameIncomplete = true, level = level,
-        class = SiteData.Class(attacker.class), race = SiteData.Race(attacker.race) }
+        class = SiteData.Class(attacker.class), race = SiteData.Race(attacker.race), faction = SiteData.Faction(attacker.faction) }
 end
 
 function SiteData.Death(d, me)
