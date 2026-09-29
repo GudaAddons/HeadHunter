@@ -19,6 +19,8 @@
 ## Notes-frFR: Notez les gankers, placardez des affiches RECHERCHÉ et traquez-les avec votre faction.
 ## Title-deDE: HeadHunter - Gesucht: tot oder lebendig
 ## Notes-deDE: Erfasse Ganker, hänge GESUCHT-Steckbriefe aus und jage sie mit deiner Fraktion.
+## Title-itIT: HeadHunter - Ricercato: vivo o morto
+## Notes-itIT: Registra i ganker, appendi manifesti RICERCATO e dagli la caccia insieme alla tua fazione.
 ## Author: Vati
 ## X-Translated-By: 车长不二 (zhCN, zhTW)
 ## Version: 0.3.2
@@ -37,6 +39,7 @@ Locales_ptBR.lua
 Locales_esES.lua
 Locales_frFR.lua
 Locales_deDE.lua
+Locales_itIT.lua
 
 # Core (load order matters)
 Core\Init.lua
