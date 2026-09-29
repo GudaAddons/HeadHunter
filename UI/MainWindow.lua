@@ -14,8 +14,8 @@
 -- A row click opens the outlaw's poster (UI/Poster.lua).
 --
 -- MainWindow.Rows(tab, sortKey, now) is the pure part (tested offline): one table per
--- row with the text of each column. The rest only draws it, in the GudaBags look
--- (UI/Theme.lua: dark window, tabs on the bottom edge).
+-- row with the text of each column. The rest only draws it, in the website's look
+-- (UI/Theme.lua, HH-125: leather, gold frame, tabs in the wood header).
 
 local addonName, ns = ...
 local L = ns.L
@@ -24,61 +24,64 @@ local MainWindow = ns:RegisterModule("MainWindow", {})
 
 local OWNER = "MainWindow"
 
-MainWindow.WIDTH = 620
-MainWindow.HEIGHT = 440
-MainWindow.ROW_HEIGHT = 18
+MainWindow.WIDTH = 840
+MainWindow.HEIGHT = 580
+MainWindow.ROW_HEIGHT = 26
+MainWindow.TEXT_SIZE = 14    -- the list text; names one bigger (HH-125)
+MainWindow.NAME_SIZE = 15
 MainWindow.MAX_ROWS = 300
 MainWindow.BOARD_MIN = 25    -- the WANTED tab fills up to this many rows with outlaws at large
 MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 
 MainWindow.TABS = { "wanted", "shame", "duels", "deaths", "marks", "tours" }
 
--- Columns per tab: key, header, width, sort key (WANTED only)
+-- Columns per tab: key, header, width, sort key (WANTED only); name columns use the
+-- name font, like the website's player cells
 MainWindow.COLUMNS = {
     wanted = {
-        { key = "rank", header = "COL_RANK", width = 90, sort = "rank" },
-        { key = "name", header = "COL_NAME", width = 150 },
-        { key = "kills", header = "COL_KILLS", width = 50, sort = "kills" },
-        { key = "lastKill", header = "COL_LAST_KILL", width = 200, sort = "last" },
-        { key = "badges", header = "COL_BADGES", width = 100 },
+        { key = "rank", header = "COL_RANK", width = 125, sort = "rank" },
+        { key = "name", header = "COL_NAME", width = 215, font = "name" },
+        { key = "kills", header = "COL_KILLS", width = 70, sort = "kills" },
+        { key = "lastKill", header = "COL_LAST_KILL", width = 245, sort = "last" },
+        { key = "badges", header = "COL_BADGES", width = 135 },
     },
     shame = {
-        { key = "name", header = "COL_NAME", width = 150 },
-        { key = "desc", header = "COL_WHO", width = 130 },
-        { key = "coward", header = "COL_COWARD_KILLS", width = 90 },
-        { key = "kills", header = "COL_KILLS", width = 50 },
-        { key = "status", header = "COL_STATUS", width = 170 },
+        { key = "name", header = "COL_NAME", width = 215, font = "name" },
+        { key = "desc", header = "COL_WHO", width = 180 },
+        { key = "coward", header = "COL_COWARD_KILLS", width = 115 },
+        { key = "kills", header = "COL_KILLS", width = 70 },
+        { key = "status", header = "COL_STATUS", width = 210 },
     },
     duels = {
-        { key = "position", header = "COL_POSITION", width = 30 },
-        { key = "name", header = "COL_NAME", width = 170 },
-        { key = "rank", header = "COL_DUEL_RANK", width = 110 },
-        { key = "record", header = "COL_RECORD", width = 70 },
-        { key = "net", header = "COL_NET", width = 60 },
-        { key = "lastDuel", header = "COL_LAST_DUEL", width = 110 },
+        { key = "position", header = "COL_POSITION", width = 40 },
+        { key = "name", header = "COL_NAME", width = 235, font = "name" },
+        { key = "rank", header = "COL_DUEL_RANK", width = 145 },
+        { key = "record", header = "COL_RECORD", width = 100 },
+        { key = "net", header = "COL_NET", width = 80 },
+        { key = "lastDuel", header = "COL_LAST_DUEL", width = 190 },
     },
     tours = {
-        { key = "name", header = "COL_TOUR", width = 125 },
-        { key = "format", header = "COL_FORMAT", width = 35 },
-        { key = "series", header = "COL_SERIES", width = 70 },
-        { key = "start", header = "COL_START", width = 90 },
-        { key = "level", header = "COL_LEVEL", width = 40 },
-        { key = "teams", header = "COL_TEAMS", width = 45 },
-        { key = "organizer", header = "COL_ORGANIZER", width = 80 },
-        { key = "status", header = "COL_STATUS", width = 85 },
+        { key = "name", header = "COL_TOUR", width = 165 },
+        { key = "format", header = "COL_FORMAT", width = 50 },
+        { key = "series", header = "COL_SERIES", width = 90 },
+        { key = "start", header = "COL_START", width = 120 },
+        { key = "level", header = "COL_LEVEL", width = 55 },
+        { key = "teams", header = "COL_TEAMS", width = 60 },
+        { key = "organizer", header = "COL_ORGANIZER", width = 115, font = "name" },
+        { key = "status", header = "COL_STATUS", width = 125 },
     },
     marks = {
-        { key = "time", header = "COL_WHEN", width = 90 },
-        { key = "change", header = "COL_CHANGE", width = 60 },
-        { key = "reason", header = "COL_REASON", width = 340 },
-        { key = "total", header = "COL_TOTAL", width = 60 },
+        { key = "time", header = "COL_WHEN", width = 125 },
+        { key = "change", header = "COL_CHANGE", width = 80 },
+        { key = "reason", header = "COL_REASON", width = 480 },
+        { key = "total", header = "COL_TOTAL", width = 95 },
     },
     deaths = {
-        { key = "time", header = "COL_WHEN", width = 90 },
-        { key = "name", header = "COL_KILLER", width = 150 },
-        { key = "desc", header = "COL_WHO", width = 130 },
-        { key = "kind", header = "COL_KIND", width = 100 },
-        { key = "zone", header = "COL_ZONE", width = 120 },
+        { key = "time", header = "COL_WHEN", width = 125 },
+        { key = "name", header = "COL_KILLER", width = 205, font = "name" },
+        { key = "desc", header = "COL_WHO", width = 180 },
+        { key = "kind", header = "COL_KIND", width = 125 },
+        { key = "zone", header = "COL_ZONE", width = 145 },
     },
 }
 
@@ -456,55 +459,59 @@ local function CreateMainFrame()
     f:SetClampedToScreen(true)
     tinsert(UISpecialFrames, "HeadHunterMainFrame")
 
-    -- The GudaBags look (UI/Theme.lua): dark window, tabs on the bottom edge
-    ns.Theme.StyleFrame(f, L.WINDOW_TITLE)
+    -- The website's look (UI/Theme.lua): leather, gold frame, tabs in the wood header
+    local Theme = ns.Theme
+    Theme.StyleFrame(f, L.WINDOW_TITLE)
     local tabs = {}
     for i, tab in ipairs(MainWindow.TABS) do tabs[i] = { id = tab, label = L["TAB_" .. tab:upper()] } end
-    f.tabs = ns.Theme.CreateTabs(f, tabs, function(tab) MainWindow:SelectTab(tab) end)
+    f.tabs = Theme.CreateTopTabs(f, tabs, function(tab) MainWindow:SelectTab(tab) end)
     -- Under development: the Tournaments tab (the last one) only with /hh debug tours on
     for _, button in ipairs(f.tabs.buttons) do
         if button.id == "tours" then f.toursTab = button end
     end
-    if not MainWindow.ToursEnabled() then f.toursTab:Hide() end
+    f.tabs:SetTabShown("tours", MainWindow.ToursEnabled())
 
-    f.options = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    f.options:SetSize(80, 20)
-    f.options:SetPoint("TOPRIGHT", -30, -6)
-    f.options:SetText(L.OPTIONS_BUTTON)
-    f.options:SetScript("OnClick", function() ns.SettingsPanel:Open() end)
+    f.options = Theme.HeaderGear(f, function() ns.SettingsPanel:Open() end)
+    f.options:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(L.OPTIONS_BUTTON)
+        GameTooltip:Show()
+    end)
+    f.options:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
 
-    -- WANTED and High Noon: switch between the Alliance and Horde lists
-    f.faction = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    f.faction:SetSize(110, 20)
-    f.faction:SetPoint("TOPLEFT", 14, -6)
+    -- The toolbar under the header (only on tabs with buttons)
+    local toolbarY = -(Theme.HEADER_HEIGHT + 10)
+    -- WANTED and Duels: switch between the Alliance and Horde lists
+    f.faction = Theme.Button(f, "", "outline", 150, 24)
+    f.faction:SetPoint("TOPLEFT", 16, toolbarY)
     f.faction:SetScript("OnClick", function() MainWindow:SwitchFaction() end)
     f.faction:Hide()
 
     -- Tournaments: Create, Join / Leave and Cancel for the selected one
-    local function TourButton(width, x, onClick)
-        local button = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-        button:SetSize(width, 20)
-        button:SetPoint("TOPLEFT", x, -6)
+    local function TourButton(variant, x, onClick)
+        local button = Theme.Button(f, "", variant, 110, 24)
+        button:SetPoint("TOPLEFT", x, toolbarY)
         button:SetScript("OnClick", onClick)
         button:Hide()
         return button
     end
-    f.tourCreate = TourButton(80, 14, function() ns.TournamentDialog:Open() end)
+    f.tourCreate = TourButton("gold", 16, function() ns.TournamentDialog:Open() end)
     f.tourCreate:SetText(L.TOUR_BUTTON_CREATE)
-    f.tourAction = TourButton(80, 98, function() MainWindow:TourAction() end)
-    f.tourCancel = TourButton(80, 182, function()
+    f.tourAction = TourButton("outline", 134, function() MainWindow:TourAction() end)
+    f.tourCancel = TourButton("outline", 252, function()
         if current.selected then ns.Tournaments:DoCancel(current.selected) end
     end)
     f.tourCancel:SetText(L.TOUR_BUTTON_CANCEL)
 
-    f.count = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    f.count:SetPoint("BOTTOMRIGHT", -16, 10)
+    f.count = Theme.Text(f, "text", 13, "muted")
+    f.count:SetPoint("BOTTOMRIGHT", -18, 11)
 
     -- Forever: saved data resets on reload (known client issue), on every tab; hover for more
     f.forever = CreateFrame("Frame", nil, f)
-    f.forever:SetSize(360, 14)
-    f.forever:SetPoint("BOTTOMLEFT", 16, 8)
-    f.forever.text = f.forever:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.forever:SetSize(420, 16)
+    f.forever:SetPoint("BOTTOMLEFT", 18, 9)
+    f.forever.text = Theme.Text(f.forever, "text", 13, "gold")
     f.forever.text:SetPoint("LEFT")
     f.forever.text:SetTextColor(1, 0.53, 0)
     f.forever.text:SetText(L.FOREVER_SAVED_VARS_SHORT)
@@ -518,16 +525,17 @@ local function CreateMainFrame()
     f.forever:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     if ns.Database:ResetsOnReload() then f.forever:Show() else f.forever:Hide() end
 
-    -- Column headers (buttons: clicking a sortable one sorts)
+    -- Column headers (buttons: clicking a sortable one sorts), a gold line under them
     f.headers = {}
+    f.headerLine = f:CreateTexture(nil, "ARTWORK")
+    f.headerLine:SetColorTexture(Theme.COLORS.gold[1], Theme.COLORS.gold[2], Theme.COLORS.gold[3], 0.35)
+    f.headerLine:SetHeight(1)
     f.scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
-    f.scroll:SetPoint("TOPLEFT", 14, -56)
-    f.scroll:SetPoint("BOTTOMRIGHT", -34, 28)
     f.content = CreateFrame("Frame", nil, f.scroll)
     f.content:SetSize(MainWindow.WIDTH - 50, MainWindow.ROW_HEIGHT)
     f.scroll:SetScrollChild(f.content)
 
-    f.empty = f:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    f.empty = Theme.Text(f, "text", 16, "muted")
     f.empty:SetPoint("CENTER", f, "CENTER", 0, -20)
 
     f:SetScript("OnUpdate", function(_, elapsed)
@@ -554,13 +562,20 @@ local function RowFrame(i)
     row:SetHeight(MainWindow.ROW_HEIGHT)
     row:SetPoint("TOPLEFT", 0, -(i - 1) * MainWindow.ROW_HEIGHT)
     row:SetPoint("RIGHT", frame.content, "RIGHT")
+    local gold = ns.Theme.COLORS.gold
     row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
     row.highlight:SetAllPoints(row)
-    row.highlight:SetColorTexture(1, 1, 1, 0.08)
+    row.highlight:SetColorTexture(gold[1], gold[2], gold[3], 0.08)
     row.selectedMark = row:CreateTexture(nil, "BACKGROUND")
     row.selectedMark:SetAllPoints(row)
-    row.selectedMark:SetColorTexture(1, 0.82, 0, 0.15)
+    row.selectedMark:SetColorTexture(gold[1], gold[2], gold[3], 0.16)
     row.selectedMark:Hide()
+    -- A thin line between rows, as in the website's tables
+    row.line = row:CreateTexture(nil, "BORDER")
+    row.line:SetPoint("BOTTOMLEFT")
+    row.line:SetPoint("BOTTOMRIGHT")
+    row.line:SetHeight(1)
+    row.line:SetColorTexture(gold[1], gold[2], gold[3], 0.1)
     row.cells = {}
     row:SetScript("OnEnter", ShowRowTooltip)
     row:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
@@ -572,7 +587,7 @@ end
 local function Cell(row, c)
     local cell = row.cells[c]
     if not cell then
-        cell = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        cell = row:CreateFontString(nil, "OVERLAY")
         cell:SetJustifyH("LEFT")
         cell:SetWordWrap(false)
         row.cells[c] = cell
@@ -580,35 +595,48 @@ local function Cell(row, c)
     return cell
 end
 
+-- The list starts under the toolbar on tabs with buttons, else right under the header
+local function ListTop()
+    local toolbar = current.tab == "wanted" or current.tab == "duels" or current.tab == "tours"
+    return ns.Theme.HEADER_HEIGHT + (toolbar and 44 or 12)
+end
+
 local function LayoutHeaders(columns)
+    local Theme = ns.Theme
     for _, header in ipairs(frame.headers) do header:Hide() end
-    local x = 14
+    local top = ListTop()
+    local x = 16
     for c, column in ipairs(columns) do
         local header = frame.headers[c]
         if not header then
             header = CreateFrame("Button", nil, frame)
-            header:SetHeight(18)
-            header.text = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            header:SetHeight(22)
+            header.text = Theme.Text(header, "heading", 12, "gold")
             header.text:SetPoint("LEFT", header, "LEFT", 2, 0)
+            header.text:SetJustifyH("LEFT")
             header:SetScript("OnClick", function(self)
                 if self.sort then MainWindow:SetSort(self.sort) end
             end)
             frame.headers[c] = header
         end
         header:ClearAllPoints()
-        header:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -34)
+        header:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -top)
         header:SetWidth(column.width)
+        header.text:SetWidth(column.width - 4)
         header.sort = column.sort
         header.text:SetText(L[column.header])
-        -- The sorted column in white, the others in the usual gold
-        if column.sort and column.sort == current.sort then
-            header.text:SetTextColor(1, 1, 1)
-        else
-            header.text:SetTextColor(1, 0.82, 0)
-        end
+        -- The sorted column in the light text colour, the others gold
+        local color = (column.sort and column.sort == current.sort) and Theme.COLORS.foreground or Theme.COLORS.gold
+        header.text:SetTextColor(color[1], color[2], color[3])
         header:Show()
         x = x + column.width
     end
+    frame.headerLine:ClearAllPoints()
+    frame.headerLine:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -(top + 23))
+    frame.headerLine:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -16, -(top + 23))
+    frame.scroll:ClearAllPoints()
+    frame.scroll:SetPoint("TOPLEFT", 16, -(top + 26))
+    frame.scroll:SetPoint("BOTTOMRIGHT", -34, 34)
 end
 
 function MainWindow:Refresh()
@@ -624,6 +652,13 @@ function MainWindow:Refresh()
         local x = 2
         for c, column in ipairs(columns) do
             local cell = Cell(row, c)
+            if column.font == "name" then
+                ns.Theme.Font(cell, "name", self.NAME_SIZE)
+            else
+                ns.Theme.Font(cell, "text", self.TEXT_SIZE)
+            end
+            local fg = ns.Theme.COLORS.foreground
+            cell:SetTextColor(fg[1], fg[2], fg[3])
             cell:ClearAllPoints()
             cell:SetPoint("LEFT", row, "LEFT", x, 0)
             cell:SetWidth(column.width - 4)
@@ -704,9 +739,7 @@ end
 function MainWindow:ApplyToursTab()
     local on = self.ToursEnabled()
     if not on and current.tab == "tours" then current.tab = "wanted" end
-    if frame and frame.toursTab then
-        if on then frame.toursTab:Show() else frame.toursTab:Hide() end
-    end
+    if frame and frame.tabs then frame.tabs:SetTabShown("tours", on) end
     self:Refresh()
 end
 

@@ -560,6 +560,13 @@ local CN = {
     SIGHTING_CHAT_DEADBEAT_ENEMY = "|cffff4040老赖|r |cffff4040%s|r 被目击 · 欠自己阵营 %d 笔悬赏未付 · 击倒可拿赏金",
     SIGHTING_BOUNTY = "|cffffd100赏金|r · |cffff4040%s|r 出现了！",
     SIGHTING_CHAT_BOUNTY = "|cffffd100赏金|r |cffff4040%s|r 被目击（%s）",
+    -- HH-125: the poster paper and the Window size option
+    POSTER_WANTED = "通缉",
+    POSTER_DEAD_OR_ALIVE = "生死不论",
+    POSTER_REWARD = "赏金",
+    SET_SCALE = "窗口大小",
+    SET_SCALE_TIP = "放大或缩小 HeadHunter 的窗口及其文字。",
+    SET_PERCENT = "%d%%",
 }
 
 for key, text in pairs(CN) do L[key] = text end

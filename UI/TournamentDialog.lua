@@ -13,7 +13,7 @@ local L = ns.L
 local TournamentDialog = ns:RegisterModule("TournamentDialog", {})
 
 TournamentDialog.WIDTH = 330
-TournamentDialog.HEIGHT = 360
+TournamentDialog.HEIGHT = 394
 TournamentDialog.DEFAULT_MINUTES = 30
 
 local FORMATS = { 1, 2, 3, 5 }
@@ -60,7 +60,7 @@ end
 -------------------------------------------------
 
 local function Label(f, text, y)
-    local label = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local label = ns.Theme.Text(f, "bold", 13, "gold")
     label:SetPoint("TOPLEFT", 18, y)
     label:SetText(text)
     return label
@@ -137,48 +137,44 @@ local function CreateDialog()
     tinsert(UISpecialFrames, "HeadHunterTournamentDialog")
     ns.Theme.StyleFrame(f, L.TOUR_DLG_TITLE)
 
-    Label(f, L.TOUR_DLG_NAME, -40)
-    f.name = EditBox(f, "name", -40, 170)
+    Label(f, L.TOUR_DLG_NAME, -64)
+    f.name = EditBox(f, "name", -64, 170)
     f.name:SetMaxLetters(ns.Tournaments.MAX_NAME)
 
-    Label(f, L.TOUR_DLG_VENUE, -70)
-    f.venue = Dropdown(f, "venue", -70, TournamentDialog.VenueOptions(), 190)
-    Label(f, L.TOUR_DLG_FORMAT, -100)
-    f.format = Dropdown(f, "format", -100, TournamentDialog.FormatOptions())
-    Label(f, L.TOUR_DLG_BRACKET, -130)
-    f.bracket = Dropdown(f, "bracket", -130, TournamentDialog.BracketOptions())
-    Label(f, L.TOUR_DLG_SERIES, -160)
-    f.series = Dropdown(f, "bestOf", -160, TournamentDialog.SeriesOptions())
+    Label(f, L.TOUR_DLG_VENUE, -94)
+    f.venue = Dropdown(f, "venue", -94, TournamentDialog.VenueOptions(), 190)
+    Label(f, L.TOUR_DLG_FORMAT, -124)
+    f.format = Dropdown(f, "format", -124, TournamentDialog.FormatOptions())
+    Label(f, L.TOUR_DLG_BRACKET, -154)
+    f.bracket = Dropdown(f, "bracket", -154, TournamentDialog.BracketOptions())
+    Label(f, L.TOUR_DLG_SERIES, -184)
+    f.series = Dropdown(f, "bestOf", -184, TournamentDialog.SeriesOptions())
 
-    Label(f, L.TOUR_DLG_MINUTES, -190)
-    f.minutes = EditBox(f, "minutes", -190, 60, true)
+    Label(f, L.TOUR_DLG_MINUTES, -214)
+    f.minutes = EditBox(f, "minutes", -214, 60, true)
     f.minutes:SetMaxLetters(5)
-    f.preview = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    f.preview:SetPoint("TOPLEFT", 18, -214)
+    f.preview = ns.Theme.Text(f, "text", 13, "muted")
+    f.preview:SetPoint("TOPLEFT", 18, -238)
     f.preview:SetWidth(TournamentDialog.WIDTH - 36)
     f.preview:SetJustifyH("LEFT")
 
-    Label(f, L.TOUR_DLG_LEVEL, -244)
-    f.minLevel = EditBox(f, "minLevel", -244, 40, true)
+    Label(f, L.TOUR_DLG_LEVEL, -268)
+    f.minLevel = EditBox(f, "minLevel", -268, 40, true)
     f.minLevel:SetMaxLetters(2)
-    Label(f, L.TOUR_DLG_TEAMS, -274)
-    f.maxTeams = EditBox(f, "maxTeams", -274, 40, true)
+    Label(f, L.TOUR_DLG_TEAMS, -298)
+    f.maxTeams = EditBox(f, "maxTeams", -298, 40, true)
     f.maxTeams:SetMaxLetters(2)
 
-    f.error = f:CreateFontString(nil, "OVERLAY", "GameFontRedSmall")
-    f.error:SetPoint("BOTTOMLEFT", 18, 42)
+    f.error = ns.Theme.Text(f, "text", 13, "wanted")
+    f.error:SetPoint("BOTTOMLEFT", 18, 50)
     f.error:SetWidth(TournamentDialog.WIDTH - 36)
     f.error:SetJustifyH("LEFT")
 
-    f.create = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    f.create:SetSize(100, 22)
-    f.create:SetPoint("BOTTOMRIGHT", -124, 14)
-    f.create:SetText(L.TOUR_BUTTON_CREATE)
+    f.create = ns.Theme.Button(f, L.TOUR_BUTTON_CREATE, "gold", 110, 26)
+    f.create:SetPoint("BOTTOMRIGHT", -134, 16)
     f.create:SetScript("OnClick", function() TournamentDialog:Submit() end)
-    f.close = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    f.close:SetSize(100, 22)
-    f.close:SetPoint("BOTTOMRIGHT", -18, 14)
-    f.close:SetText(CANCEL or "Cancel")
+    f.close = ns.Theme.Button(f, CANCEL or "Cancel", "outline", 110, 26)
+    f.close:SetPoint("BOTTOMRIGHT", -18, 16)
     f.close:SetScript("OnClick", function() f:Hide() end)
     f:Hide()
     return f

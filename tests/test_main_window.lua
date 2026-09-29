@@ -136,9 +136,9 @@ return function(T, H)
         M:SelectTab("deaths")
         T.eq(select(1, M:Current()), "deaths", "tab")
         local tabs = _G.HeadHunterMainFrame.tabs.buttons
-        T.eq(#tabs, 6, "six bottom tabs")
+        T.eq(#tabs, 6, "six tabs")
         T.ok(tabs[4].selected and not tabs[1].selected, "the selected tab is drawn selected")
-        T.eq(tabs[1].point[1], "BOTTOMLEFT", "hanging from the bottom edge")
+        T.eq(tabs[1].point[2], _G.HeadHunterMainFrame.header, "in the header, like the website's menu")
         T.eq(#M.shownRows, 0, "no deaths of ours")
         M:SelectTab("wanted")
         M:SetSort("kills")
@@ -146,6 +146,9 @@ return function(T, H)
 
         M:OnRowClick(M.shownRows[1])
         T.eq(ns.Poster:ShownId(), "Gank-Stonespine", "the row opened the poster")
+        local at = _G.HeadHunterPosterFrame.point
+        T.ok(at[1] == "CENTER" and at[2] == _G.HeadHunterMainFrame and at[3] == "CENTER",
+            "in the middle of the main window")
         H.Slash("")
         T.ok(not M:IsShown(), "closed")
         T.noErrors()

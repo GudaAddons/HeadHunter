@@ -564,6 +564,13 @@ local KR = {
     SIGHTING_CHAT_DEADBEAT_ENEMY = "|cffff4040먹튀|r |cffff4040%s|r 발견 · 자기 진영 현상금 %d건 미지불 · 쓰러뜨리면 현상금 점수",
     SIGHTING_BOUNTY = "|cffffd100현상금|r · |cffff4040%s|r 여기 있다!",
     SIGHTING_CHAT_BOUNTY = "|cffffd100현상금|r |cffff4040%s|r 발견 (%s)",
+    -- HH-125: the poster paper and the Window size option
+    POSTER_WANTED = "현상수배",
+    POSTER_DEAD_OR_ALIVE = "생사불문",
+    POSTER_REWARD = "현상금",
+    SET_SCALE = "창 크기",
+    SET_SCALE_TIP = "HeadHunter 창과 글자를 크게 또는 작게 만듭니다.",
+    SET_PERCENT = "%d%%",
 }
 
 for key, text in pairs(KR) do L[key] = text end

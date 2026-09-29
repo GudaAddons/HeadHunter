@@ -59,6 +59,7 @@ local DEFAULTS = {
         mapPins = true, -- HH-046: hotspot and WANTED pins on the world map
         tooltip = true, -- HH-062: WANTED line on enemy player tooltips
         minimap = { angle = 200, hidden = false }, -- HH-060 minimap button
+        uiScale = 100, -- HH-125: Window size, 90..130 %
     },
     zones = {}, -- zone mapID -> { name, continent, locale }: names for the website (Alerts/Zones.lua)
     homes = {}, -- home key -> HOME_DEFAULTS

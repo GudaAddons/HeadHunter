@@ -312,6 +312,12 @@ L.SET_MINIMAP_TIP = "Click it to open the HeadHunter window; drag it to move it.
 L.SET_SERIAL = "Serial Killer window"
 L.SET_SERIAL_TIP = "The Serial Killer badge needs 5 different victims in separate fights within this time."
 L.SET_MINUTES = "%d min"
+L.POSTER_WANTED = "WANTED"
+L.POSTER_DEAD_OR_ALIVE = "Dead or Alive"
+L.POSTER_REWARD = "Reward"
+L.SET_SCALE = "Window size"
+L.SET_SCALE_TIP = "Makes the HeadHunter windows and their text bigger or smaller."
+L.SET_PERCENT = "%d%%"
 
 -- Bounty, "Marks" in the code (HH-050)
 L.HUNTER_RANK_TRACKER = "Tracker"

@@ -565,6 +565,13 @@ local IT = {
     SIGHTING_CHAT_DEADBEAT_ENEMY = "|cffff4040INSOLVENTE|r |cffff4040%s|r avvistato · taglie non pagate alla sua fazione: %d · abbattilo per punti taglia",
     SIGHTING_BOUNTY = "|cffffd100TAGLIA|r · |cffff4040%s|r è qui!",
     SIGHTING_CHAT_BOUNTY = "|cffffd100TAGLIA|r |cffff4040%s|r avvistato (%s)",
+    -- HH-125: the poster paper and the Window size option
+    POSTER_WANTED = "RICERCATO",
+    POSTER_DEAD_OR_ALIVE = "Vivo o morto",
+    POSTER_REWARD = "Ricompensa",
+    SET_SCALE = "Dimensione della finestra",
+    SET_SCALE_TIP = "Rende più grandi o più piccole le finestre di HeadHunter e il loro testo.",
+    SET_PERCENT = "%d%%",
 }
 
 for key, text in pairs(IT) do L[key] = text end

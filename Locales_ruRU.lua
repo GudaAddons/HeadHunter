@@ -564,6 +564,13 @@ local RU = {
     SIGHTING_CHAT_DEADBEAT_ENEMY = "|cffff4040ДОЛЖНИК|r |cffff4040%s|r замечен · не выплатил своей фракции наград: %d · повергните его ради очков награды",
     SIGHTING_BOUNTY = "|cffffd100НАГРАДА|r · |cffff4040%s|r здесь!",
     SIGHTING_CHAT_BOUNTY = "|cffffd100НАГРАДА|r |cffff4040%s|r замечен (%s)",
+    -- HH-125: the poster paper and the Window size option
+    POSTER_WANTED = "РАЗЫСКИВАЕТСЯ",
+    POSTER_DEAD_OR_ALIVE = "Живым или мёртвым",
+    POSTER_REWARD = "Награда",
+    SET_SCALE = "Размер окна",
+    SET_SCALE_TIP = "Увеличивает или уменьшает окна HeadHunter и их текст.",
+    SET_PERCENT = "%d%%",
 }
 
 for key, text in pairs(RU) do L[key] = text end

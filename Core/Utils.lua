@@ -404,12 +404,19 @@ local GENDER_ATLAS = { [2] = "male", [3] = "female" }
 -- unknown. race: token ("Orc", "Scourge", "NightElf"); sex: 2 male, 3 female.
 -- Forever has the larger retail art ("raceicon128-...").
 function Utils.RaceIcon(race, sex, size)
-    if type(race) ~= "string" or race == "" then return "" end
+    local atlas = Utils.RaceAtlas(race, sex)
+    if not atlas then return "" end
+    size = size or 14
+    return string.format("|A:%s:%d:%d|a", atlas, size, size)
+end
+
+-- The race icon's atlas name ("raceicon-orc-male"), or nil when the race is unknown
+function Utils.RaceAtlas(race, sex)
+    if type(race) ~= "string" or race == "" then return nil end
     local name = race:lower()
     name = RACE_ATLAS[name] or name
     local prefix = ns.IsForever and "raceicon128" or "raceicon"
-    size = size or 14
-    return string.format("|A:%s-%s-%s:%d:%d|a", prefix, name, GENDER_ATLAS[sex] or "male", size, size)
+    return string.format("%s-%s-%s", prefix, name, GENDER_ATLAS[sex] or "male")
 end
 
 -- A level for text: the skull icon for -1 (10+ levels above the viewer), "?" unknown

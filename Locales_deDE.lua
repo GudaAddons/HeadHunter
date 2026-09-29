@@ -564,6 +564,13 @@ local DE = {
     SIGHTING_CHAT_DEADBEAT_ENEMY = "|cffff4040ZECHPRELLER|r |cffff4040%s|r gesichtet · unbezahlte Kopfgelder der eigenen Seite: %d · bring ihn für Kopfgeldpunkte zur Strecke",
     SIGHTING_BOUNTY = "|cffffd100KOPFGELD|r · |cffff4040%s|r ist hier!",
     SIGHTING_CHAT_BOUNTY = "|cffffd100KOPFGELD|r |cffff4040%s|r gesichtet (%s)",
+    -- HH-125: the poster paper and the Window size option
+    POSTER_WANTED = "GESUCHT",
+    POSTER_DEAD_OR_ALIVE = "Tot oder lebendig",
+    POSTER_REWARD = "Belohnung",
+    SET_SCALE = "Fenstergröße",
+    SET_SCALE_TIP = "Macht die HeadHunter-Fenster und ihren Text größer oder kleiner.",
+    SET_PERCENT = "%d %%",
 }
 
 for key, text in pairs(DE) do L[key] = text end

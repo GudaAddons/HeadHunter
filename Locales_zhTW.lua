@@ -561,6 +561,13 @@ local TW = {
     SIGHTING_CHAT_DEADBEAT_ENEMY = "|cffff4040賴帳者|r |cffff4040%s|r 被目擊 · 欠自己陣營 %d 筆懸賞未付 · 擊倒可拿賞金",
     SIGHTING_BOUNTY = "|cffffd100賞金|r · |cffff4040%s|r 出現了！",
     SIGHTING_CHAT_BOUNTY = "|cffffd100賞金|r |cffff4040%s|r 被目擊（%s）",
+    -- HH-125: the poster paper and the Window size option
+    POSTER_WANTED = "通緝",
+    POSTER_DEAD_OR_ALIVE = "生死不論",
+    POSTER_REWARD = "賞金",
+    SET_SCALE = "視窗大小",
+    SET_SCALE_TIP = "放大或縮小 HeadHunter 的視窗及其文字。",
+    SET_PERCENT = "%d%%",
 }
 
 for key, text in pairs(TW) do L[key] = text end
