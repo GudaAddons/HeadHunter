@@ -167,6 +167,7 @@ L.SIM_USAGE_DEATH = "/hh sim death \"<name>\" <level|skull> <CLASS> <RACE> [sex 
 L.SIM_USAGE_SIGHTING = "/hh sim sighting \"<name>\" <level|skull> <CLASS> <RACE> [sex 2|3]"
 L.SIM_SEND_USAGE = "/hh sim send \"<killer>\" [kills 1-10] [level|skull] [CLASS] [RACE] [\"Zone\"] (WoW Forever names have two words, e.g. \"Grim Reaper\")"
 L.SIM_SEND_NEEDS_DEBUG = "/hh sim send is a debug tool: turn on /hh debug on first."
+L.SIM_SEND_NO_ZONE = "Your zone cannot be read here. Stand in a zone, or name one: /hh sim send \"<killer>\" 3 \"Westfall\""
 L.SIM_SENT = "Sent %d simulated death(s) by %s in %s to other HeadHunters (test)."
 L.SIM_BAD_NAME = "Invalid name for this client: %s"
 L.SIM_DEATH = "Simulated death by %s (%s)."

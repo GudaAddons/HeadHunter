@@ -148,6 +148,7 @@ function H.Install(opts)
 
     _G.HeadHunter_DB = opts.savedDB
     _G.HeadHunter_SiteData = opts.siteData
+    _G.HeadHunter_Dev = opts.dev
     _G.SLASH_HEADHUNTER1, _G.SLASH_HEADHUNTER2 = nil, nil
     _G.SlashCmdList = {}
     _G.UISpecialFrames = {}

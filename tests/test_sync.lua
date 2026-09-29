@@ -159,6 +159,67 @@ return function(T, H)
         T.eq(ns.Reports:Count(), 0, "rejected")
     end)
 
+    -- HH-123: /hh sim send test deaths of other players
+    local function TestReport(victimKey, t)
+        local report = PeerReport(victimKey, t)
+        report.confidence = "sim"
+        return report
+    end
+
+    T.case("another player's test deaths count only from a trusted character", function()
+        local ns = H.Boot({ client = "era" })
+        H.Slash("debug on")
+        H.Deliver(PeerMessage(ns, TestReport("Tester-Firemaw")), "Tester-Firemaw")
+        T.eq(ns.Reports:Count(), 0, "debug mode alone does not trust anyone")
+        T.ok(ns.Reports.lastRejected:find("test data", 1, true), "reason kept for /hh sync")
+
+        ns = H.Boot({ client = "era", dev = { trust = { "Tester-Firemaw" } } })
+        H.Deliver(PeerMessage(ns, TestReport("Tester-Firemaw")), "Tester-Firemaw")
+        H.Deliver(PeerMessage(ns, TestReport("Stranger-Firemaw")), "Stranger-Firemaw")
+        H.Deliver(PeerMessage(ns, PeerReport("Stranger-Firemaw")), "Stranger-Firemaw")
+        local _, _, peers = ns.Reports:Count()
+        T.eq(peers, 2, "trusted test death and the stranger's real death")
+    end)
+
+    T.case("test deaths are relayed only from a trusted character and never passed on", function()
+        local ns = H.Boot({ client = "era", dev = { trust = { "Tester-Firemaw" } } })
+        local record = ns.Protocol.EncodeDeath(TestReport("Tester-Firemaw", H.serverTime - 60))
+        T.eq(ns.Reports:AddRelayed(record, "Stranger-Firemaw"), nil, "untrusted relay refused")
+        local added = ns.Reports:AddRelayed(record, "Tester-Firemaw")
+        T.ok(added, "trusted relay kept")
+        T.eq(added.sender, nil, "the relayer is not taken as the victim")
+        T.eq(#ns.Reports:Since(H.serverTime - 3600), 0, "not passed on to others")
+    end)
+
+    T.case("saved test deaths of untrusted players are dropped at load", function()
+        local saved = { reports = {} }
+        local function Put(id, origin, sender, relayedBy)
+            saved.reports[id] = { id = id, t = H.serverTime - 60, victim = { key = "Tester-Firemaw" },
+                killer = { key = "Gank-Stonespine", name = "Gank-Stonespine" }, assists = {},
+                confidence = "sim", origin = origin, sender = sender, relayedBy = relayedBy }
+        end
+        Put("a", "peer", "Tester-Firemaw")
+        Put("b", "peer", "Stranger-Firemaw")
+        Put("c", "relay", nil, "Stranger-Firemaw")
+        Put("d", "sim")
+        local ns = H.Boot({ client = "era", savedDB = saved, dev = { trust = { "Tester-Firemaw" } } })
+        T.ok(ns.Reports:Get("a"), "trusted kept")
+        T.eq(ns.Reports:Get("b"), nil, "untrusted peer dropped")
+        T.eq(ns.Reports:Get("c"), nil, "untrusted relay dropped")
+        T.ok(ns.Reports:Get("d"), "our own simulation kept")
+    end)
+
+    T.case("/hh sim send is refused where the zone cannot be read", function()
+        local ns = H.Boot({ client = "era" })
+        H.Slash("debug on")
+        H.playerMap = nil
+        H.Slash("sim send Gank-Stonespine 2")
+        T.ok(H.Printed("cannot be read"), "told why")
+        T.eq(ns.Reports:Count(), 0, "nothing sent")
+        H.Slash("sim send Gank-Stonespine 2 \"Westfall\"")
+        T.eq(ns.Reports:Count(), 2, "a named zone still works")
+    end)
+
     T.case("other-faction, echo, foreign prefix and junk are ignored", function()
         local ns = H.Boot({ client = "era" })
         H.Deliver(PeerMessage(ns, PeerReport("Victim-Firemaw"), "H"), "Victim-Firemaw")

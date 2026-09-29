@@ -4,7 +4,7 @@
 ## Author: Vati
 ## Version: 0.3.1
 ## SavedVariables: HeadHunter_DB
-## OptionalDeps: HeadHunter_Data
+## OptionalDeps: HeadHunter_Data, HeadHunter_Dev
 ## IconTexture: Interface\Icons\INV_Misc_Head_Human_01
 ## X-Category: PvP
 
@@ -17,6 +17,7 @@ Core\Expansion.lua
 Core\Events.lua
 Core\Utils.lua
 Core\Log.lua
+Core\Dev.lua
 Core\Database.lua
 Core\Guards.lua
 Core\SlashCommands.lua

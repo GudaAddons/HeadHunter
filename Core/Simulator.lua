@@ -134,6 +134,11 @@ function Simulator:Send(args)
         mapID = U.PlayerMapID()
         x, y = U.PlayerPosition(mapID)
     end
+    -- Without a zone other players would see "an unknown zone" (HH-123)
+    if not mapID or not x then
+        ns:Print(L.SIM_SEND_NO_ZONE)
+        return
+    end
     local now = U.ServerTime()
     local records = {}
     for i = 1, count do
