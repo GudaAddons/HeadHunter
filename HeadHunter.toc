@@ -11,6 +11,10 @@
 ## Notes-ruRU: Отслеживайте ганкеров, объявляйте их в РОЗЫСК и охотьтесь на них вместе со своей фракцией.
 ## Title-ptBR: HeadHunter - Procurado: Vivo ou Morto
 ## Notes-ptBR: Registre os gankers, coloque cartazes de PROCURADO e cace-os junto com sua facção.
+## Title-esES: HeadHunter - Se busca: vivo o muerto
+## Notes-esES: Registra a los gankers, pon carteles de SE BUSCA y cázalos junto a tu facción.
+## Title-esMX: HeadHunter - Se busca: vivo o muerto
+## Notes-esMX: Registra a los gankers, pon carteles de SE BUSCA y cázalos junto a tu facción.
 ## Author: Vati
 ## X-Translated-By: 车长不二 (zhCN, zhTW)
 ## Version: 0.3.2
@@ -26,6 +30,7 @@ Locales_zhTW.lua
 Locales_koKR.lua
 Locales_ruRU.lua
 Locales_ptBR.lua
+Locales_esES.lua
 
 # Core (load order matters)
 Core\Init.lua
