@@ -5,6 +5,8 @@
 ## Notes-zhCN: 记录偷袭你的人，发布 WANTED 通缉令，与阵营同伴一起将他们绳之以法。
 ## Title-zhTW: HeadHunter - 通緝：生死不論
 ## Notes-zhTW: 記錄偷襲你的人，發布 WANTED 通緝令，與陣營同伴一起將他們繩之以法。
+## Title-koKR: HeadHunter - 현상수배: 생사불문
+## Notes-koKR: 갱커를 기록하고, 현상수배를 걸고, 진영 동료들과 함께 사냥하세요.
 ## Author: Vati
 ## X-Translated-By: 车长不二 (zhCN, zhTW)
 ## Version: 0.3.2
@@ -17,6 +19,7 @@
 Locales.lua
 Locales_zhCN.lua
 Locales_zhTW.lua
+Locales_koKR.lua
 
 # Core (load order matters)
 Core\Init.lua

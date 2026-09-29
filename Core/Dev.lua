@@ -8,7 +8,7 @@
 -- trust: characters whose test deaths (/hh sim send) we count. The check is on our
 -- side, so another player's own HeadHunter_Dev never makes us count their test data.
 --
--- locale: show a translation on any client, "zhCN" or "zhTW" (read by Locales.lua).
+-- locale: show a translation on any client, "zhCN", "zhTW" or "koKR" (read by Locales.lua).
 -- Class and faction names still come from the client, so they stay in its language.
 
 local addonName, ns = ...
