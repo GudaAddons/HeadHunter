@@ -5,7 +5,13 @@ local addonName, ns = ...
 local L = setmetatable({}, { __index = function(_, key) return key end })
 ns.L = L
 
--- enUS (default). Other locales are added in HH-064.
+-- The client's language. HeadHunter_Dev (Core/Dev.lua) can set another one, to see a
+-- translation on an English client.
+local dev = _G.HeadHunter_Dev
+ns.locale = type(dev) == "table" and type(dev.locale) == "string" and dev.locale
+    or type(GetLocale) == "function" and GetLocale() or "enUS"
+
+-- enUS (default). Other languages are in Locales_<locale>.lua and replace these keys.
 L.LOADED = "v%s loaded. |cffffff00/hh help|r for commands."
 L.FOREVER_SAVED_VARS = "|cffff8800WoW Forever is in testing mode:|r this client does not load saved data back (a known client issue), so your lists and settings reset on every reload. Catch-up refills them from other HeadHunters when you log in."
 L.FOREVER_SAVED_VARS_SHORT = "Forever testing mode: saved data resets on reload (client issue)"

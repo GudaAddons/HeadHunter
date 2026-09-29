@@ -344,6 +344,7 @@ function H.Install(opts)
     end
     _G.GetNormalizedRealmName = function() return H.realm end
     _G.GetRealmName = function() return H.realm end
+    _G.GetLocale = function() return opts.locale or "enUS" end
     _G.IsInInstance = function() return H.instance[1], H.instance[2] end
 
     _G.Enum = { UIMapType = { Continent = 2 } }

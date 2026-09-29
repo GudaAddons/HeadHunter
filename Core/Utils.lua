@@ -420,11 +420,27 @@ function Utils.LevelText(level)
     return level and tostring(level) or "?"
 end
 
--- A race token as players know it ("NightElf" -> "Night Elf", "Scourge" -> "Undead")
+-- A race token as players know it ("NightElf" -> "Night Elf", "Scourge" -> "Undead").
+-- ns.RaceDisplay holds the names for other languages (Locales_<locale>.lua).
 local RACE_NAMES = { NightElf = "Night Elf", Scourge = "Undead" }
 
 function Utils.RaceName(race)
-    return race and (RACE_NAMES[race] or race) or nil
+    if not race then return nil end
+    return ns.RaceDisplay and ns.RaceDisplay[race] or RACE_NAMES[race] or race
+end
+
+-- A class token as players know it ("ROGUE" -> "Rogue"), in the client's language
+function Utils.ClassName(class)
+    if not class then return nil end
+    return LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class]
+        or class:sub(1, 1) .. class:sub(2):lower()
+end
+
+-- "Alliance" / "Horde" in the client's language
+function Utils.FactionName(faction)
+    if faction == "Alliance" then return FACTION_ALLIANCE or faction end
+    if faction == "Horde" then return FACTION_HORDE or faction end
+    return faction
 end
 
 -- Inline class icon for text, from the client's class icon sheet, or "" when unknown

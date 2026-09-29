@@ -652,7 +652,7 @@ function MainWindow:Refresh()
     end
     frame.empty:SetText(#rows == 0 and L["EMPTY_" .. current.tab:upper()] or "")
     if current.tab == "duels" or current.tab == "wanted" then
-        frame.faction:SetText(string.format(L.FACTION_BUTTON, self:ListFaction() or "?"))
+        frame.faction:SetText(string.format(L.FACTION_BUTTON, ns.Utils.FactionName(self:ListFaction()) or "?"))
         frame.faction:Show()
     else
         frame.faction:Hide()

@@ -1,7 +1,12 @@
 ## Interface: 11509, 16001
 ## Title: HeadHunter - Wanted: Dead or Alive
 ## Notes: Track gankers, post WANTED bounties and hunt them down with your faction.
+## Title-zhCN: HeadHunter - 通缉：生死不论
+## Notes-zhCN: 记录偷袭你的人，发布 WANTED 通缉令，与阵营同伴一起将他们绳之以法。
+## Title-zhTW: HeadHunter - 通緝：生死不論
+## Notes-zhTW: 記錄偷襲你的人，發布 WANTED 通緝令，與陣營同伴一起將他們繩之以法。
 ## Author: Vati
+## X-Translated-By: 车长不二 (zhCN, zhTW)
 ## Version: 0.3.2
 ## SavedVariables: HeadHunter_DB
 ## OptionalDeps: HeadHunter_Data, HeadHunter_Dev
@@ -10,6 +15,8 @@
 
 # Localization (load first)
 Locales.lua
+Locales_zhCN.lua
+Locales_zhTW.lua
 
 # Core (load order matters)
 Core\Init.lua

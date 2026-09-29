@@ -90,8 +90,7 @@ function Hotspots:EnemyNames(zone, now)
     local parts = {}
     for i = 1, math.min(#list, ns.Protocol.MAX_PING_NAMES) do
         local e = list[i]
-        local class = e.class and ((LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[e.class])
-            or e.class:sub(1, 1) .. e.class:sub(2):lower())
+        local class = ns.Utils.ClassName(e.class)
         local about = {}
         if e.level then about[#about + 1] = e.level == -1 and "??" or tostring(e.level) end
         if class then about[#about + 1] = class end
@@ -265,8 +264,8 @@ Hotspots.Fire = Fire
 
 local function EnemyFaction()
     local mine = ns.Utils.UnitFaction("player")
-    if mine == "Alliance" then return FACTION_HORDE or "Horde" end
-    if mine == "Horde" then return FACTION_ALLIANCE or "Alliance" end
+    if mine == "Alliance" then return ns.Utils.FactionName("Horde") end
+    if mine == "Horde" then return ns.Utils.FactionName("Alliance") end
     return L.ENEMIES
 end
 Hotspots.EnemyFaction = EnemyFaction
@@ -275,8 +274,7 @@ Hotspots.EnemyFaction = EnemyFaction
 -- (only they send pings), so it is a lower bound.
 local function OwnFaction()
     local mine = ns.Utils.UnitFaction("player")
-    if mine == "Alliance" then return FACTION_ALLIANCE or "Alliance" end
-    if mine == "Horde" then return FACTION_HORDE or "Horde" end
+    if mine == "Alliance" or mine == "Horde" then return ns.Utils.FactionName(mine) end
     return L.HEADHUNTERS
 end
 Hotspots.OwnFaction = OwnFaction
