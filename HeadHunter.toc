@@ -9,6 +9,8 @@
 ## Notes-koKR: 갱커를 기록하고, 현상수배를 걸고, 진영 동료들과 함께 사냥하세요.
 ## Title-ruRU: HeadHunter - Разыскивается живым или мёртвым
 ## Notes-ruRU: Отслеживайте ганкеров, объявляйте их в РОЗЫСК и охотьтесь на них вместе со своей фракцией.
+## Title-ptBR: HeadHunter - Procurado: Vivo ou Morto
+## Notes-ptBR: Registre os gankers, coloque cartazes de PROCURADO e cace-os junto com sua facção.
 ## Author: Vati
 ## X-Translated-By: 车长不二 (zhCN, zhTW)
 ## Version: 0.3.2
@@ -23,6 +25,7 @@ Locales_zhCN.lua
 Locales_zhTW.lua
 Locales_koKR.lua
 Locales_ruRU.lua
+Locales_ptBR.lua
 
 # Core (load order matters)
 Core\Init.lua
