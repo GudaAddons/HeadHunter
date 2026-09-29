@@ -28,7 +28,7 @@ return function(T, H)
         T.noErrors()
     end)
 
-    for _, locale in ipairs({ "zhCN", "zhTW", "koKR", "ruRU", "ptBR", "esES", "esMX", "frFR" }) do
+    for _, locale in ipairs({ "zhCN", "zhTW", "koKR", "ruRU", "ptBR", "esES", "esMX", "frFR", "deDE" }) do
         T.case(locale .. ": every key translated, same format and color codes", function()
             local ns = H.Boot({ client = "era", locale = locale })
             local english = EnglishTexts()
