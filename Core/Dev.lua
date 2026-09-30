@@ -39,26 +39,47 @@ function Dev.Trusts(name)
     return false
 end
 
--- Test marks (author, 2026-09-30): /hh dev wanted and /hh dev shame (UI/Nameplates.lua)
--- put the WANTED or Hall of Shame mark above the target's head, only on this client and
--- only with a HeadHunter_Dev config. Nothing else changes: no list, alert or sharing.
--- Memory only, so a /reload clears them.
-local testMarks = { wanted = {}, shame = {} }
-
-function Dev.TestMark(kind, key)
-    return Config() ~= nil and key ~= nil and testMarks[kind] ~= nil and testMarks[kind][key] == true
-end
-
--- Turns the mark on or off; returns true when it is now on
-function Dev.ToggleTestMark(kind, key)
-    testMarks[kind][key] = not testMarks[kind][key] or nil
-    return testMarks[kind][key] == true
-end
-
-function Dev.ClearTestMarks()
-    testMarks = { wanted = {}, shame = {} }
-end
+-- Test entries (author, 2026-09-30): /hh dev wanted and /hh dev shame (UI/Nameplates.lua)
+-- put the target in the WANTED list or the Hall of Shame, only on this client and only
+-- with a HeadHunter_Dev config. Rules/Wanted.lua merges them like the website's entries,
+-- so lists, tooltips and marks show them. Memory only, so a /reload clears them.
+local tests = { wanted = {}, shame = {} }
 
 function Dev.Enabled()
     return Config() ~= nil
+end
+
+-- key -> entry, in the shape of Sync/SiteData.lua WantedEntry and BullyEntry
+function Dev.TestEntries(kind)
+    return Config() and tests[kind] or {}
+end
+
+local function Entry(kind, key, unit)
+    local U = ns.Utils
+    local now = U.ServerTime()
+    local entry = {
+        id = key, key = key, name = key,
+        level = U.UnitLevel(unit), class = U.UnitClass(unit), race = U.UnitRace(unit), sex = U.UnitSex(unit),
+        wanted = false, kills = 0, killCount = 1, cowardKills = 0, timesWanted = 0, timesCaught = 0,
+        badges = {}, lastKill = { t = now }, source = "dev",
+    }
+    if kind == "wanted" then
+        entry.wanted, entry.rank, entry.peakRank, entry.kills, entry.timesWanted = true, "outlaw", "outlaw", 1, 1
+        entry.wantedSince, entry.wantedUntil = now, now + 86400
+    else
+        entry.cowardKills = 1
+    end
+    return entry
+end
+
+-- Adds or removes the unit; returns true when it is now in, nil when it is no player
+function Dev.ToggleTest(kind, unit)
+    local key = ns.Utils.UnitIsPlayer(unit) and ns.Utils.UnitKey(unit)
+    if not key or not tests[kind] then return nil end
+    tests[kind][key] = not tests[kind][key] and Entry(kind, key, unit) or nil
+    return tests[kind][key] ~= nil, key
+end
+
+function Dev.ClearTests()
+    tests = { wanted = {}, shame = {} }
 end
