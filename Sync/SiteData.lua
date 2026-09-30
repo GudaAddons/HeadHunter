@@ -331,7 +331,8 @@ local function RestoreDeaths(list, me)
     return added
 end
 
-local function RestoreMarks(bounty, me, isMe)
+local function RestoreMarks(bounty, me)
+    ns.Marks:Total() -- the character we play owns marks.total
     local store = ns.db.marks
     local seen, added = {}, 0
     for _, event in ipairs(store.events) do
@@ -348,13 +349,10 @@ local function RestoreMarks(bounty, me, isMe)
     end
     if added > 0 then
         table.sort(store.events, function(a, b) return (a.t or 0) < (b.t or 0) end)
-        while #store.events > ns.Marks.MAX_EVENTS do table.remove(store.events, 1) end
+        ns.Marks.Trim(store)
     end
-    -- The addon keeps one total for the account; the character we play shows theirs
-    if isMe and Number(bounty.total) and bounty.total > (store.total or 0) then
-        store.total = bounty.total
-        added = added + 1
-    end
+    -- Each character keeps its own total
+    if Number(bounty.total) and ns.Marks:SetTotalOf(me, bounty.total) then added = added + 1 end
     return added
 end
 
@@ -362,7 +360,6 @@ end
 function SiteData:Restore()
     local data = Data()
     if not (data and ns.db and type(data.characters) == "table") then return 0 end
-    local myKey = ns.Utils.UnitKey("player")
     local realmType = ForeverRealmType(data)
     local added = 0
     for _, c in ipairs(data.characters) do
@@ -382,7 +379,7 @@ function SiteData:Restore()
                 if record and ns.Justice:Add(record, SiteData.ORIGIN) then added = added + 1 end
             end
             if type(c.bounty) == "table" then
-                added = added + RestoreMarks(c.bounty, me, ns.Utils.SameCharacter(me, myKey))
+                added = added + RestoreMarks(c.bounty, me)
             end
         end
     end

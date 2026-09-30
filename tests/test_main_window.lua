@@ -76,6 +76,23 @@ return function(T, H)
         T.eq(rows[1].zone, "Elwynn Forest", "zone")
     end)
 
+    T.case("My deaths and bounty posting: only the character we play", function()
+        local ns = H.Boot({ client = "era" })
+        local function Death(victim, killer, t)
+            ns.db.deaths[#ns.db.deaths + 1] = { id = victim .. ":" .. t, t = t, victim = { key = victim },
+                killer = { key = killer, name = killer, level = 30, class = "ROGUE", race = "Orc" },
+                assists = {}, mapID = 1429, confidence = "exact" }
+        end
+        Death("Vati-Firemaw", "Brute-Stonespine", H.serverTime - 120)
+        Death("Tovik-Firemaw", "Sneak-Firemaw", H.serverTime - 60)
+        T.eq(Names(ns.MainWindow.Rows("deaths")), "Brute", "our deaths only")
+        T.eq(#ns.Bounties:PostableTargets(), 1, "bounty only on our own killers")
+        H.units.player.name = "Tovik"
+        T.eq(Names(ns.MainWindow.Rows("deaths")), "Sneak", "the other character's deaths")
+        T.eq(#ns.Bounties:PostableTargets(), 1, "and its own killers")
+        T.noErrors()
+    end)
+
     T.case("search on Hall of Shame and My deaths, one search per tab", function()
         local ns = H.Boot({ client = "era" })
         Spree(ns, "Bully-Stonespine", 5, { victimLevel = 20 })

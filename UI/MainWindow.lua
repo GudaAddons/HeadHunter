@@ -342,7 +342,7 @@ local function MarksRows()
 end
 
 local function DeathRows(now)
-    local deaths = ns.db and ns.db.deaths or {}
+    local deaths = ns.DeathReports:Mine()
     local rows = {}
     for i = #deaths, 1, -1 do
         local report = deaths[i]
