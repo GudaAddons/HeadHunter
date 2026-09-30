@@ -33,6 +33,7 @@ Protocol.TYPES = {
     PRESENCE = "N", -- HH-110: "here" with our version, counts who is online; both factions
     HELP = "B",     -- HH-111: "help on the way" to a Battle hotspot
     SPOTTED = "L",  -- a watched outlaw spotted there (Alerts/Spotted.lua)
+    MATCH = "M",    -- a tournament match: call, ready, game, result (Tournament/Matches.lua)
     POSTER = "W",   -- HH-118: a player's bounty poster on their killer
     PAYMENT = "R",  -- HH-118: a bounty claimed, paid or unpaid (sent by the hunter)
 }
@@ -532,6 +533,35 @@ function Protocol.DecodeSpotted(s)
     local mapID, t = Protocol.FromB36(f[2]), Protocol.FromB36(f[3])
     if not mapID or not t then return nil end
     return f[1], mapID, t, DecodeCoord(f[4]), DecodeCoord(f[5])
+end
+
+-------------------------------------------------
+-- Tournament match (author, 2026-10-01): kind ; tournament ; round ; match ; ...
+--   C ;tid;round;match;readyBy      D ;tid;round;match      R ;tid;round;match
+--   G ;tid;round;match;winnerKey;t
+--   F ;tid;round;match;a;b;winsA;winsB;forfeit;t
+-- Numbers base 36; names and ids as they are (no separators in them).
+-------------------------------------------------
+
+local MATCH_FIELDS = { C = 5, D = 4, R = 4, G = 6, F = 10 }
+
+function Protocol.EncodeMatch(kind, tid, round, match, ...)
+    local fields = { kind, tid, Protocol.ToB36(round), Protocol.ToB36(match) }
+    for _, v in ipairs({ ... }) do
+        fields[#fields + 1] = type(v) == "number" and Protocol.ToB36(v) or tostring(v or "")
+    end
+    return table.concat(fields, ";")
+end
+
+-- Returns kind, tid, round, match, and the kind's other fields as strings
+function Protocol.DecodeMatch(s)
+    if type(s) ~= "string" then return nil end
+    local f = Split(s, ";")
+    local kind = f[1]
+    if not MATCH_FIELDS[kind] or #f ~= MATCH_FIELDS[kind] or Blank(f[2]) then return nil end
+    local round, match = Protocol.FromB36(f[3]), Protocol.FromB36(f[4])
+    if not round or not match then return nil end
+    return kind, f[2], round, match, select(5, unpack(f))
 end
 
 -------------------------------------------------

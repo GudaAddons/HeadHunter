@@ -87,6 +87,7 @@ Tournament\Arena.lua
 Tournament\Brackets.lua
 Tournament\Tournaments.lua
 Tournament\Organizers.lua
+Tournament\Matches.lua
 
 # Alerts (M4)
 Alerts\Alerts.lua
@@ -105,6 +106,7 @@ UI\MapMarkers.lua
 UI\MainWindow.lua
 UI\Poster.lua
 UI\BountyDialog.lua
+UI\ResultDialog.lua
 UI\MinimapButton.lua
 UI\Nameplates.lua
 UI\TooltipLine.lua

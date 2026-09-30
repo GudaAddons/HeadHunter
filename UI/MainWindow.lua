@@ -94,12 +94,13 @@ MainWindow.COLUMNS = {
         { key = "status", header = "COL_STATUS", width = 80 },
     },
     -- One event's round: who meets who
+    -- The last 200 px hold the row's buttons (Call, Ready, Confirm ...)
     event = {
-        { key = "match", header = "COL_MATCH", width = 40 },
-        { key = "a", header = "COL_ENTRANT", width = 230, font = "name" },
-        { key = "score", header = "COL_SCORE", width = 70 },
-        { key = "b", header = "COL_OPPONENT", width = 230, font = "name" },
-        { key = "status", header = "COL_STATUS", width = 210 },
+        { key = "match", header = "COL_MATCH", width = 36 },
+        { key = "a", header = "COL_ENTRANT", width = 180, font = "name" },
+        { key = "score", header = "COL_SCORE", width = 56 },
+        { key = "b", header = "COL_OPPONENT", width = 180, font = "name" },
+        { key = "status", header = "COL_STATUS", width = 150 },
     },
     marks = {
         { key = "time", header = "COL_WHEN", width = 125 },
@@ -422,13 +423,55 @@ local function EventRows(view, now)
     return rows
 end
 
+-- The live state of a match to play, and its buttons: the organizer's call, ready,
+-- games and confirm (Tournament/Matches.lua); a called player's Ready
+local function MatchState(t, round, m, now, organizer)
+    local M, TN = ns.Matches, ns.Tournaments
+    local call = M:Call(t.id, round, m.match)
+    local actions = {}
+    if organizer then
+        if not call then
+            actions[1] = { kind = "call", label = L.EVENT_ACT_CALL }
+            actions[2] = { kind = "set", label = L.EVENT_ACT_SET }
+            return nil, actions
+        end
+        actions[2] = { kind = "set", label = L.EVENT_ACT_SET }
+        local wa, wb = call.wins.a, call.wins.b
+        if call.decided then
+            actions[1] = { kind = "confirm", label = string.format(L.EVENT_ACT_CONFIRM, wa .. " - " .. wb) }
+            return string.format(L.EVENT_ST_DECIDED, wa, wb), actions
+        end
+        if #call.games > 0 then return string.format(L.EVENT_ST_PLAYING, wa, wb), actions end
+        if call.go then return L.EVENT_ST_GO, actions end
+        local left = call.readyBy - now
+        local ready = (call.ready.a and 1 or 0) + (call.ready.b and 1 or 0)
+        if left > 0 then
+            return string.format(L.EVENT_ST_CALLED, ready, math.floor(left / 60), left % 60), actions
+        end
+        local late = not call.ready.a and "a" or "b"
+        local name = TN.SideName(t, late == "a" and m.a or m.b) or "?"
+        actions[1] = { kind = "noshow", side = late, label = string.format(L.EVENT_ACT_NOSHOW, name) }
+        actions[2] = { kind = "call", label = L.EVENT_ACT_RECALL }
+        return string.format(L.EVENT_ST_NOT_READY, name), actions
+    end
+    local mine = M:Mine()
+    if mine and mine.tid == t.id and mine.round == round and mine.match == m.match and not mine.ready then
+        actions[1] = { kind = "ready", label = L.EVENT_ACT_READY }
+        return L.EVENT_ST_CALLED_YOU, actions
+    end
+    return nil, actions
+end
+
 -- One round of an event: who meets who, the score, what is left (pure, tested offline)
-function MainWindow.MatchRows(t, roundNumber)
+function MainWindow.MatchRows(t, roundNumber, now)
     local TN = ns.Tournaments
+    now = now or ns.Utils.ServerTime()
     local rounds = TN.Bracket(t)
     local round = rounds[roundNumber]
     local rows = {}
     if not round then return rows end
+    -- Matches are called once the tournament has started
+    local organizer = ns.Matches.IsOrganizer(t) and TN.Ongoing(t, now)
     for _, m in ipairs(round.matches) do
         local a, b = TN.SideName(t, m.a), TN.SideName(t, m.b)
         local played = m.winner ~= nil and not m.bye
@@ -444,6 +487,14 @@ function MainWindow.MatchRows(t, roundNumber)
         else
             status = L.EVENT_TO_PLAY
         end
+        local actions = {}
+        if m.a and m.b and not m.bye and not m.winner then
+            local live
+            live, actions = MatchState(t, round.number, m, now, organizer)
+            status = live or status
+        elseif played and organizer and not ns.Brackets.NextIsPlayed(rounds, round.number, m.match) then
+            actions = { { kind = "set", label = L.EVENT_ACT_CHANGE } }
+        end
         if m.thirdPlace then status = L.EVENT_THIRD_PLACE .. " · " .. status end
         local gold = "|cffffd100%s|r"
         rows[#rows + 1] = {
@@ -453,6 +504,7 @@ function MainWindow.MatchRows(t, roundNumber)
             b = b and (played and m.winner == "b" and string.format(gold, b) or b) or "",
             score = m.forfeit and L.EVENT_FF or (played and (m.winsA .. " - " .. m.winsB)) or (m.bye and "" or "vs"),
             status = status,
+            actions = actions,
         }
     end
     return rows
@@ -791,6 +843,7 @@ function MainWindow:Refresh()
             x = x + column.width
         end
         for c = #columns + 1, #row.cells do row.cells[c]:Hide() end
+        self:LayoutRowButtons(row, data.actions)
         row:Show()
     end
     for i = #rows + 1, #rowFrames do
@@ -819,6 +872,52 @@ function MainWindow:Refresh()
     end
     self:LayoutToolbar(section, event)
     self.shownRows = rows
+end
+
+-- Up to two buttons at the right end of a row (the event view's Call, Ready, Confirm ...)
+function MainWindow:LayoutRowButtons(row, actions)
+    row.actionButtons = rawget(row, "actionButtons") or {}
+    for i = 1, 2 do
+        local action = actions and actions[i]
+        local button = row.actionButtons[i]
+        if action and not button then
+            button = ns.Theme.Button(row, "", i == 1 and "gold" or "outline", 96, 20)
+            button:SetPoint("RIGHT", row, "RIGHT", -4 - (i - 1) * 100, 0)
+            button:SetScript("OnClick", function(self) MainWindow:OnMatchAction(row.data, self.action) end)
+            row.actionButtons[i] = button
+        end
+        if button then
+            button.action = action
+            if action then
+                button:SetText(action.label)
+                button:Show()
+            else
+                button:Hide()
+            end
+        end
+    end
+end
+
+-- A row button of the event view
+function MainWindow:OnMatchAction(data, action)
+    local t = self:OpenEvent()
+    if not (t and data and data.eventMatch and action) then return end
+    local round, match = data.eventMatch.round, data.eventMatch.match
+    local M = ns.Matches
+    if action.kind == "call" then
+        M:CallMatch(t, round, match)
+    elseif action.kind == "ready" then
+        M:Ready()
+    elseif action.kind == "confirm" then
+        local call = M:Call(t.id, round, match)
+        if call then M:Confirm(t, round, match, call.wins.a, call.wins.b) end
+    elseif action.kind == "noshow" then
+        M:Confirm(t, round, match, 0, 0, action.side)
+    elseif action.kind == "set" then
+        local call = M:Call(t.id, round, match)
+        ns.ResultDialog:Open(t, round, match, call and call.decided and (call.wins.a .. "-" .. call.wins.b) or nil)
+    end
+    self:Refresh()
 end
 
 -- The toolbar of the section on show: its sub-tabs, the faction switch, the search; an
@@ -1059,7 +1158,7 @@ end
 ns.Events:Register("HH_INITIALIZED", function()
     local request = function() MainWindow:RequestRefresh() end
     for _, event in ipairs({ "HH_WANTED_UPDATED", "HH_DEATH_RECORDED", "HH_REPORT_UPDATED", "HH_MARKS_CHANGED",
-            "HH_HIGHNOON_UPDATED", "HH_BOUNTY_UPDATED" }) do
+            "HH_HIGHNOON_UPDATED", "HH_BOUNTY_UPDATED", "HH_MATCHES_CHANGED" }) do
         ns.Events:Register(event, request, OWNER)
     end
 end, OWNER)

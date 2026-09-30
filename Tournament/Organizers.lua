@@ -66,6 +66,18 @@ function Organizers:RoleOf(key, now)
     return found, foundTournament
 end
 
+-- Host or co-organizer of this tournament, at any time (who may call and confirm its
+-- matches, Tournament/Matches.lua): only by the website data
+function Organizers.IsOrganizerOf(tournament, key)
+    local U = ns.Utils
+    if not (tournament and key) then return false end
+    if U.SameCharacter(tournament.host, key) then return true end
+    for _, organizer in ipairs(tournament.organizers or {}) do
+        if U.SameCharacter(organizer, key) then return true end
+    end
+    return false
+end
+
 -- "starts in 45 min" or "in progress", for the day whose window is open
 function Organizers.Status(tournament, now)
     local start = InWindow(tournament, now) or tournament.startsAt

@@ -66,6 +66,9 @@ local DEFAULTS = {
     },
     zones = {}, -- zone mapID -> { name, continent, locale }: names for the website (Alerts/Zones.lua)
     homes = {}, -- home key -> HOME_DEFAULTS
+    -- Tournament match results confirmed in game (Tournament/Matches.lua), for every
+    -- HeadHunter's bracket and, our own, for the website (HeadHunter Sync)
+    eventResults = {},
 }
 
 local HOME_DEFAULTS = {

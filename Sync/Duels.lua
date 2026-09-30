@@ -19,6 +19,8 @@
 --
 -- ns.db.duels is a grow-only set, keyed "<winner>><loser>:<time>". Many witnesses see
 -- the same duel: the same pair within DEDUPE seconds is one duel.
+-- Every result we see also fires HH_DUEL_RESULT(winner, loser, retreat) at once, before
+-- the fairness and dedupe rules: tournament games count every duel (Tournament/Matches.lua).
 -- Duels happen inside one faction; the record says which. Other-faction HeadHunters'
 -- duel records are accepted too (Transport lets only this type through), rate limited,
 -- so High Noon can list both factions. Shared on the automatic routes and by login
@@ -275,6 +277,7 @@ function Duels:OnResultLine(winnerName, loserName, retreat)
     -- Our own duel: the line decides, not our health judgement
     if IsPair(finished, winner, loser) then finished = nil end
     if IsPair(own, winner, loser) then own.decided = true end
+    ns.Events:Fire("HH_DUEL_RESULT", winner, loser, retreat)
     return self:Record(winner, loser, retreat)
 end
 
@@ -397,6 +400,7 @@ function Duels:OnDuelFinished()
         if finished ~= wait then return end
         finished = nil
         ns:Debug("Duel: no result line, judged by health")
+        ns.Events:Fire("HH_DUEL_RESULT", winner, loser, retreat)
         Duels:Record(winner, loser, retreat)
     end)
     return nil
