@@ -14,7 +14,6 @@ local CN = {
     WINDOW_ROW_WHISPER = "|cff00ff00点击：密语|r",
     FOREVER_SAVED_VARS = "|cffff8800WoW Forever 处于测试模式：|r此客户端不会回读存档（已知客户端问题），每次重载后列表与设置都会重置。登录时会从其他 HeadHunter 补齐。",
     FOREVER_SAVED_VARS_SHORT = "Forever 测试模式：重载后存档重置（客户端问题）",
-    FACTION_BUTTON = "%s 名单",
     OPTIONS_BUTTON = "选项",
     MINIMAP_HINT = "左键点击：打开 · 拖动：移动",
 
@@ -567,6 +566,9 @@ local CN = {
     SET_SCALE = "窗口大小",
     SET_SCALE_TIP = "放大或缩小 HeadHunter 的窗口及其文字。",
     SET_PERCENT = "%d%%",
+    -- Duels search
+    SEARCH_PLAYER = "查找玩家",
+    SEARCH_EMPTY = "没有叫 %s 的玩家",
 }
 
 for key, text in pairs(CN) do L[key] = text end

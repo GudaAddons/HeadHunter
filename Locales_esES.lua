@@ -347,7 +347,6 @@ local ES = {
     DUEL_RANK_DEADEYE = "Ojo de Halcón",
     DUEL_RANK_LEGEND = "Leyenda",
     DUEL_RANK_TOPGUN = "As",
-    FACTION_BUTTON = "Lista: %s",
     DUEL_TITLE = "%s n.º %d (%s)",
     DUEL_TITLE_TOPGUN = "|cffff8000As|r (%s)",
     DUEL_TITLE_GREENHORN = "%s (duelos: %d)",
@@ -572,6 +571,9 @@ local ES = {
     SET_SCALE = "Tamaño de la ventana",
     SET_SCALE_TIP = "Hace más grandes o más pequeñas las ventanas de HeadHunter y su texto.",
     SET_PERCENT = "%d %%",
+    -- Duels search
+    SEARCH_PLAYER = "Buscar un jugador",
+    SEARCH_EMPTY = "Nadie se llama %s",
 }
 
 for key, text in pairs(ES) do L[key] = text end

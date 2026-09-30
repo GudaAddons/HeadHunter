@@ -346,7 +346,6 @@ local RU = {
     DUEL_RANK_DEADEYE = "Снайпер",
     DUEL_RANK_LEGEND = "Легенда",
     DUEL_RANK_TOPGUN = "Лучший стрелок",
-    FACTION_BUTTON = "Список: %s",
     DUEL_TITLE = "%s №%d (%s)",
     DUEL_TITLE_TOPGUN = "|cffff8000Лучший стрелок|r (%s)",
     DUEL_TITLE_GREENHORN = "%s (дуэлей: %d)",
@@ -571,6 +570,9 @@ local RU = {
     SET_SCALE = "Размер окна",
     SET_SCALE_TIP = "Увеличивает или уменьшает окна HeadHunter и их текст.",
     SET_PERCENT = "%d%%",
+    -- Duels search
+    SEARCH_PLAYER = "Найти игрока",
+    SEARCH_EMPTY = "Нет игрока с именем %s",
 }
 
 for key, text in pairs(RU) do L[key] = text end

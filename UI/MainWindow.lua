@@ -12,6 +12,8 @@
 --   Tournaments    Gurubashi Tournaments (HH-103): a click selects one; Create, Join /
 --                  Leave and Cancel (own) top left; UI/TournamentDialog.lua creates
 -- A row click opens the outlaw's poster (UI/Poster.lua).
+-- Hall of Shame, Duels and My deaths have a search by name (top right), one per tab;
+-- the rows keep their place.
 --
 -- MainWindow.Rows(tab, sortKey, now) is the pure part (tested offline): one table per
 -- row with the text of each column. The rest only draws it, in the website's look
@@ -34,6 +36,15 @@ MainWindow.BOARD_MIN = 25    -- the WANTED tab fills up to this many rows with o
 MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 
 MainWindow.TABS = { "wanted", "shame", "duels", "deaths", "marks", "tours" }
+-- The faction crests in the Alliance / Horde switch: the game's PvP flag icons,
+-- cut to the crest
+MainWindow.FACTION_ICONS = {
+    Alliance = "Interface\\TargetingFrame\\UI-PVP-Alliance",
+    Horde = "Interface\\TargetingFrame\\UI-PVP-Horde",
+}
+MainWindow.FACTION_ICON_COORDS = { 0.03, 0.62, 0.02, 0.62 }
+-- Tabs with a search box, each with its own search (the long lists)
+MainWindow.SEARCH_TABS = { shame = true, duels = true, deaths = true }
 
 -- Columns per tab: key, header, width, sort key (WANTED only); name columns use the
 -- name font, like the website's player cells
@@ -256,6 +267,7 @@ local function ShameRows(now)
         end
         rows[#rows + 1] = {
             id = entry.id,
+            plain = OutlawName(entry),
             name = Named(OutlawName(entry), entry),
             desc = ns.DeathReports.Describe(entry),
             coward = tostring(entry.cowardKills or 0),
@@ -269,6 +281,7 @@ local function ShameRows(now)
         local name = ns.Utils.DisplayName(shamed.owner) or shamed.owner
         local daysLeft = math.max(1, math.ceil((shamed.blockedUntil - now) / 86400))
         rows[#rows + 1] = {
+            plain = name,
             name = name,
             desc = L.SHAME_UNPAID_WHO,
             coward = "-",
@@ -292,7 +305,8 @@ local function DuelRows(faction, now)
     local HighNoon = ns.HighNoon
     local rows = {}
     for _, p in ipairs(HighNoon:List(faction)) do
-        local name = Named(ns.Utils.DisplayName(p.key) or p.key, p)
+        local plain = ns.Utils.DisplayName(p.key) or p.key
+        local name = Named(plain, p)
         local lastDuel = p.lastT and ns.Utils.Ago(math.max(0, now - p.lastT)) or "-"
         local whisper = MainWindow.CanWhisper(p.key, p.faction) and p.key or nil
         local tooltip = { name, string.format(L.DUEL_TOOLTIP, HighNoon.Title(p)),
@@ -300,6 +314,7 @@ local function DuelRows(faction, now)
         if whisper then tooltip[#tooltip + 1] = L.WINDOW_ROW_WHISPER end
         rows[#rows + 1] = {
             position = tostring(p.position),
+            plain = plain,
             name = name,
             rank = HighNoon.RankName(p.topGun and "topgun" or p.rank),
             record = p.wins .. "-" .. p.losses,
@@ -335,7 +350,8 @@ local function DeathRows(now)
             local id = ns.RulesEngine.EnemyId(report.killer)
             local zone = ns.Utils.MapName(report.mapID) or L.UNKNOWN_ZONE
             local kind = ns.Classify.ReportLabel(report)
-            local name = Named(ns.DeathReports.DisplayName(report.killer), report.killer)
+            local plain = ns.DeathReports.DisplayName(report.killer)
+            local name = Named(plain, report.killer)
             -- This death first, then what we know about the killer overall
             local entry = id and ns.Wanted:Get(id)
             local tooltip = entry and MainWindow.EntryTooltip(entry, now) or { name, L.WINDOW_ROW_HINT }
@@ -344,6 +360,7 @@ local function DeathRows(now)
             rows[#rows + 1] = {
                 id = id,
                 time = date("%m-%d %H:%M", report.t),
+                plain = plain,
                 name = name,
                 desc = ns.DeathReports.Describe(report.killer),
                 kind = kind,
@@ -416,7 +433,19 @@ function MainWindow.TourActions(t)
 end
 
 -- tab: one of TABS; sortKey (WANTED): "rank" | "kills" | "last"; faction (WANTED, High Noon): "Alliance" | "Horde"
-function MainWindow.Rows(tab, sortKey, now, faction)
+-- Rows keep their place (the Duels # column) and are only left out, so a search by
+-- part of a name, any case, finds players far down the list too
+local function Matching(rows, search)
+    local needle = search and search ~= "" and search:lower() or nil
+    if not needle then return rows end
+    local found = {}
+    for _, row in ipairs(rows) do
+        if row.plain and row.plain:lower():find(needle, 1, true) then found[#found + 1] = row end
+    end
+    return found
+end
+
+function MainWindow.Rows(tab, sortKey, now, faction, search)
     now = now or ns.Utils.ServerTime()
     local rows
     if tab == "tours" then
@@ -432,6 +461,7 @@ function MainWindow.Rows(tab, sortKey, now, faction)
     else
         rows = WantedRows(sortKey, now, faction)
     end
+    if MainWindow.SEARCH_TABS[tab] then rows = Matching(rows, search) end
     for i = #rows, MainWindow.MAX_ROWS + 1, -1 do rows[i] = nil end
     return rows
 end
@@ -442,7 +472,8 @@ end
 
 local frame
 -- faction: High Noon list, wantedFaction: WANTED list (nil = the default of each tab)
-local current = { tab = "wanted", sort = "rank", faction = nil, wantedFaction = nil }
+-- searches: tab -> the text in its search box
+local current = { tab = "wanted", sort = "rank", faction = nil, wantedFaction = nil, searches = {} }
 local rowFrames = {}
 local sinceRefresh = 0
 
@@ -482,11 +513,44 @@ local function CreateMainFrame()
 
     -- The toolbar under the header (only on tabs with buttons)
     local toolbarY = -(Theme.HEADER_HEIGHT + 10)
-    -- WANTED and Duels: switch between the Alliance and Horde lists
-    f.faction = Theme.Button(f, "", "outline", 150, 24)
+    -- WANTED and Duels: the Alliance and Horde lists side by side, the one on show gold
+    local U = ns.Utils
+    f.faction = Theme.Segmented(f, {
+        { value = "Alliance", label = U.FactionName("Alliance"), icon = MainWindow.FACTION_ICONS.Alliance,
+            coords = MainWindow.FACTION_ICON_COORDS },
+        { value = "Horde", label = U.FactionName("Horde"), icon = MainWindow.FACTION_ICONS.Horde,
+            coords = MainWindow.FACTION_ICON_COORDS },
+    }, function(faction) MainWindow:SetFaction(faction) end)
     f.faction:SetPoint("TOPLEFT", 16, toolbarY)
-    f.faction:SetScript("OnClick", function() MainWindow:SwitchFaction() end)
     f.faction:Hide()
+
+    -- Search tabs: find a player by name (Esc clears it, a second Esc leaves the box)
+    local search = CreateFrame("EditBox", nil, f)
+    search:SetSize(220, 24)
+    search:SetPoint("TOPRIGHT", -18, toolbarY)
+    search:SetAutoFocus(false)
+    search:SetTextInsets(8, 8, 0, 0)
+    Theme.Font(search, "text", 14)
+    local fg = Theme.COLORS.foreground
+    search:SetTextColor(fg[1], fg[2], fg[3])
+    local searchBg = search:CreateTexture(nil, "BACKGROUND")
+    searchBg:SetAllPoints(search)
+    searchBg:SetColorTexture(0, 0, 0, 0.35)
+    Theme.Border(search, 0.45)
+    search.hint = Theme.Text(search, "text", 14, "muted")
+    search.hint:SetPoint("LEFT", 8, 0)
+    search.hint:SetText(L.SEARCH_PLAYER)
+    search:SetScript("OnTextChanged", function(self)
+        local text = self:GetText() or ""
+        self.hint:SetShown(text == "")
+        MainWindow:SetSearch(text)
+    end)
+    search:SetScript("OnEscapePressed", function(self)
+        if (self:GetText() or "") ~= "" then self:SetText("") else self:ClearFocus() end
+    end)
+    search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    search:Hide()
+    f.search = search
 
     -- Tournaments: Create, Join / Leave and Cancel for the selected one
     local function TourButton(variant, x, onClick)
@@ -597,7 +661,7 @@ end
 
 -- The list starts under the toolbar on tabs with buttons, else right under the header
 local function ListTop()
-    local toolbar = current.tab == "wanted" or current.tab == "duels" or current.tab == "tours"
+    local toolbar = current.tab == "wanted" or current.tab == "tours" or MainWindow.SEARCH_TABS[current.tab]
     return ns.Theme.HEADER_HEIGHT + (toolbar and 44 or 12)
 end
 
@@ -645,7 +709,8 @@ function MainWindow:Refresh()
     local columns = self.COLUMNS[current.tab]
     frame.tabs:Select(current.tab)
     LayoutHeaders(columns)
-    local rows = self.Rows(current.tab, current.sort, nil, self:ListFaction())
+    local search = self:Search()
+    local rows = self.Rows(current.tab, current.sort, nil, self:ListFaction(), search)
     for i, data in ipairs(rows) do
         local row = RowFrame(i)
         row.data = data
@@ -685,9 +750,16 @@ function MainWindow:Refresh()
         end
         frame.count:SetText(count)
     end
-    frame.empty:SetText(#rows == 0 and L["EMPTY_" .. current.tab:upper()] or "")
+    if #rows > 0 then
+        frame.empty:SetText("")
+    elseif search then
+        frame.empty:SetText(string.format(L.SEARCH_EMPTY, (search:gsub("|", "||"))))
+    else
+        frame.empty:SetText(L["EMPTY_" .. current.tab:upper()])
+    end
+    if self.SEARCH_TABS[current.tab] then frame.search:Show() else frame.search:Hide() end
     if current.tab == "duels" or current.tab == "wanted" then
-        frame.faction:SetText(string.format(L.FACTION_BUTTON, ns.Utils.FactionName(self:ListFaction()) or "?"))
+        frame.faction:Select(self:ListFaction())
         frame.faction:Show()
     else
         frame.faction:Hide()
@@ -747,7 +819,27 @@ function MainWindow:SelectTab(tab)
     if tab == "tours" and not self.ToursEnabled() then tab = "wanted" end
     current.tab = tab
     if frame and frame.scroll.SetVerticalScroll then frame.scroll:SetVerticalScroll(0) end
+    -- The box shows this tab's own search
+    if frame and self.SEARCH_TABS[tab] then
+        frame.search:SetText(current.searches[tab] or "")
+        frame.search.hint:SetShown(current.searches[tab] == nil)
+    end
     self:Refresh()
+end
+
+-- The search of the tab on show; empty or only spaces shows the whole list
+function MainWindow:SetSearch(text)
+    if not self.SEARCH_TABS[current.tab] then return end
+    text = (text or ""):match("^%s*(.-)%s*$")
+    local search = text ~= "" and text or nil
+    if search == current.searches[current.tab] then return end
+    current.searches[current.tab] = search
+    if frame and frame.scroll.SetVerticalScroll then frame.scroll:SetVerticalScroll(0) end
+    self:Refresh()
+end
+
+function MainWindow:Search()
+    return self.SEARCH_TABS[current.tab] and current.searches[current.tab] or nil
 end
 
 function MainWindow:SetSort(sortKey)
@@ -770,6 +862,19 @@ function MainWindow:ListFaction()
     if current.tab == "wanted" then return self:WantedFaction() end
     if current.tab == "duels" then return self:DuelFaction() end
     return nil
+end
+
+-- Shows the Alliance or Horde list on the tab on show (WANTED or Duels)
+function MainWindow:SetFaction(faction)
+    if current.tab == "wanted" then
+        current.wantedFaction = faction
+    elseif current.tab == "duels" then
+        current.faction = faction
+    else
+        return
+    end
+    if frame and frame.scroll.SetVerticalScroll then frame.scroll:SetVerticalScroll(0) end
+    self:Refresh()
 end
 
 function MainWindow:SwitchFaction()

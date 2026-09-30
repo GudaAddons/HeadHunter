@@ -346,7 +346,6 @@ local KR = {
     DUEL_RANK_DEADEYE = "백발백중",
     DUEL_RANK_LEGEND = "전설",
     DUEL_RANK_TOPGUN = "탑건",
-    FACTION_BUTTON = "%s 목록",
     DUEL_TITLE = "%s %d위 (%s)",
     DUEL_TITLE_TOPGUN = "|cffff8000탑건|r (%s)",
     DUEL_TITLE_GREENHORN = "%s (결투 %d회)",
@@ -571,6 +570,9 @@ local KR = {
     SET_SCALE = "창 크기",
     SET_SCALE_TIP = "HeadHunter 창과 글자를 크게 또는 작게 만듭니다.",
     SET_PERCENT = "%d%%",
+    -- Duels search
+    SEARCH_PLAYER = "플레이어 찾기",
+    SEARCH_EMPTY = "%s(이)라는 플레이어가 없습니다",
 }
 
 for key, text in pairs(KR) do L[key] = text end

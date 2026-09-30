@@ -70,6 +70,8 @@ Type `/hh` or click the minimap button:
 - **My deaths**: who killed you, when and where.
 - **My bounty**: the bounty you collected and your hunter rank.
 
+On **Hall of Shame**, **Duels** and **My deaths**, a search box finds a player by name. Each tab keeps its own search.
+
 The window has the same look as the website. Too big or too small for your screen? Change **Window size** in the options (90% to 130%).
 
 Hover a name for details, or click it to open their **WANTED poster** in the middle of the window: an old paper poster with a black and white picture of their race, their name, rank, kills, badges and the gold on their head. Next to it: their history, recent kills, the posse, gold bounties and the **Join the posse** and **Post a bounty** buttons.

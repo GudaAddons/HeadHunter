@@ -15,7 +15,6 @@ local TW = {
     WINDOW_ROW_WHISPER = "|cff00ff00點選：密語|r",
     FOREVER_SAVED_VARS = "|cffff8800WoW Forever 處於測試模式：|r此客戶端不會回讀存檔（已知客戶端問題），每次重新載入後清單與設定都會重置。登入時會從其他 HeadHunter 補齊。",
     FOREVER_SAVED_VARS_SHORT = "Forever 測試模式：重新載入後存檔重置（客戶端問題）",
-    FACTION_BUTTON = "%s 名單",
     OPTIONS_BUTTON = "選項",
     MINIMAP_HINT = "左鍵點選：開啟 · 拖曳：移動",
 
@@ -568,6 +567,9 @@ local TW = {
     SET_SCALE = "視窗大小",
     SET_SCALE_TIP = "放大或縮小 HeadHunter 的視窗及其文字。",
     SET_PERCENT = "%d%%",
+    -- Duels search
+    SEARCH_PLAYER = "尋找玩家",
+    SEARCH_EMPTY = "沒有叫 %s 的玩家",
 }
 
 for key, text in pairs(TW) do L[key] = text end

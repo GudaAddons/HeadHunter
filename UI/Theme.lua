@@ -234,6 +234,66 @@ function Theme.Button(parent, text, variant, width, height)
     return button
 end
 
+-- Choices side by side in one frame, the chosen one gold (the website's filter tabs).
+-- options = { { value, label, icon = texture, coords = { l, r, t, b } } }
+-- Returns the frame; frame:Select(value) marks one without calling onSelect.
+function Theme.Segmented(parent, options, onSelect, segmentWidth, height)
+    local C = Theme.COLORS
+    height = height or 24
+    segmentWidth = segmentWidth or 110
+    local set = CreateFrame("Frame", nil, parent)
+    set:SetSize(segmentWidth * #options, height)
+    set.buttons = {}
+
+    local function Paint(button, hover)
+        local chosen = button.value == set.value
+        local alpha = chosen and 1 or (hover and 0.12 or 0)
+        button.bg:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], alpha)
+        local text = chosen and C.parchmentText or (hover and C.gold or C.foreground)
+        button.label:SetTextColor(text[1], text[2], text[3])
+    end
+
+    for i, option in ipairs(options) do
+        local button = CreateFrame("Button", nil, set)
+        button.value = option.value
+        button:SetSize(segmentWidth, height)
+        button:SetPoint("LEFT", (i - 1) * segmentWidth, 0)
+        button.bg = Solid(button, "BACKGROUND", C.gold, 0)
+        button.bg:SetAllPoints(button)
+        if i > 1 then
+            local line = Solid(button, "BORDER", C.gold, 0.5)
+            line:SetPoint("TOPLEFT")
+            line:SetPoint("BOTTOMLEFT")
+            line:SetWidth(1)
+        end
+        button.label = Theme.Text(button, "heading", 12, "foreground")
+        button.label:SetText(option.label)
+        if option.icon then
+            button.label:SetPoint("CENTER", 9, 0)
+            local icon = button:CreateTexture(nil, "ARTWORK")
+            icon:SetTexture(option.icon)
+            if option.coords then icon:SetTexCoord(unpack(option.coords)) end
+            icon:SetSize(16, 16)
+            icon:SetPoint("RIGHT", button.label, "LEFT", -4, 0)
+        else
+            button.label:SetPoint("CENTER")
+        end
+        button:SetScript("OnClick", function()
+            if set.value ~= option.value then onSelect(option.value) end
+        end)
+        button:SetScript("OnEnter", function(self) Paint(self, true) end)
+        button:SetScript("OnLeave", function(self) Paint(self, false) end)
+        set.buttons[i] = button
+    end
+    Theme.Border(set, 0.5)
+
+    function set:Select(value)
+        self.value = value
+        for _, button in ipairs(self.buttons) do Paint(button, false) end
+    end
+    return set
+end
+
 -- A square icon button with a gold hover (the Options gear, the close X)
 local function IconButton(parent, size)
     local button = CreateFrame("Button", nil, parent)
