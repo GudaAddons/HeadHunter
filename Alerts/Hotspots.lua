@@ -100,7 +100,8 @@ function Hotspots:EnemyNames(zone, now)
 end
 
 -- HeadHunters of our faction fighting in the zone, newest first (not us): "Brakka, Zulgar"
-function Hotspots:FighterNames(zone, now)
+-- links: the names as chat links, to whisper them with a click (our faction only)
+function Hotspots:FighterNames(zone, now, links)
     local data = zones[zone]
     if not data then return nil end
     local U = ns.Utils
@@ -114,7 +115,8 @@ function Hotspots:FighterNames(zone, now)
     table.sort(list, function(a, b) return a.t > b.t end)
     local parts = {}
     for i = 1, math.min(#list, ns.Protocol.MAX_PING_NAMES) do
-        parts[i] = U.DisplayName(U.PlayerKey(list[i].sender)) or list[i].sender
+        local key = U.PlayerKey(list[i].sender)
+        parts[i] = (links and U.PlayerLink(key)) or U.DisplayName(key) or list[i].sender
     end
     return table.concat(parts, ", ")
 end
@@ -342,7 +344,8 @@ function Hotspots:OnHelp(record, sender)
     local data = zone and zones[zone]
     local mine = data and data.fighters[U.CompactName(U.UnitKey("player"))]
     if not mine or now - mine.t > self.FIGHT_RECENT * 4 then return end
-    local name = U.DisplayName(U.PlayerKey(sender)) or tostring(sender)
+    -- A link: a click whispers them (the helper is on our faction)
+    local name = U.PlayerLink(U.PlayerKey(sender)) or tostring(sender)
     ns.Alerts:Show({
         key = "help:" .. tostring(U.CompactName(sender)),
         throttle = self.HELP_NOTE_THROTTLE,
@@ -379,12 +382,17 @@ function Hotspots:Evaluate(zone)
     local line = string.format(L.HOTSPOT_LINE, Fire(level), title, zoneName, Hotspots.Describe(a, e, d))
     local names = self:EnemyNames(zone, now)
     if names then line = line .. string.format(L.HOTSPOT_NAMES, names) end
+    -- The chat line names our fighters as links to whisper; the popup cannot be clicked
+    local chat = line
     local fighters = self:FighterNames(zone, now)
-    if fighters then line = line .. string.format(L.HOTSPOT_FIGHTING, fighters) end
+    if fighters then
+        line = line .. string.format(L.HOTSPOT_FIGHTING, fighters)
+        chat = chat .. string.format(L.HOTSPOT_FIGHTING, self:FighterNames(zone, now, true))
+    end
     local alert = {
         key = "hot:" .. zone .. ":" .. level,
         throttle = self.LEVEL_THROTTLE,
-        chat = line,
+        chat = chat,
     }
     local loneOutlaw = self:IsLoneOutlaw(zone, a, e)
     if level >= 2 and not loneOutlaw then

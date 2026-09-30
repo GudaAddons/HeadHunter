@@ -322,6 +322,15 @@ function Utils.DisplayName(key)
     return key
 end
 
+-- A player of our faction as a chat link (author, 2026-10-01): a left click whispers
+-- them, a right click opens the game's player menu. Only for chat lines: popups and
+-- center text cannot be clicked.
+function Utils.PlayerLink(key)
+    local name = Utils.DisplayName(key)
+    if not name or name == "" then return nil end
+    return "|Hplayer:" .. name .. "|h[" .. name .. "]|h"
+end
+
 -------------------------------------------------
 -- Time
 -------------------------------------------------
