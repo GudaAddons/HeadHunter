@@ -160,6 +160,29 @@ local function RefreshLoop()
 end
 C_Timer.After(Organizers.PLATE_REFRESH, RefreshLoop)
 
+-- /hh organizers (not in the help, a check like /hh probe): the tournaments from the
+-- website data, their host and co-organizers, and how the addon sees the target
+ns.SlashCommands:Register("organizers", function()
+    local U = ns.Utils
+    local now = U.ServerTime()
+    local list = ns.SiteData:Tournaments()
+    print(string.format("HeadHunter organizers: %d tournament(s) in the website data, marks %s",
+        #list, Organizers:Enabled() and "on" or "off"))
+    for _, t in ipairs(list) do
+        print(string.format("  %s: starts in %d min, star window %s", t.name, math.floor((t.startsAt - now) / 60),
+            InWindow(t, now) and "open" or "closed"))
+        print("    host: " .. tostring(t.host) .. " (" .. tostring(U.CompactName(t.host)) .. ")")
+        for _, key in ipairs(t.organizers) do
+            print("    co-organizer: " .. tostring(key) .. " (" .. tostring(U.CompactName(key)) .. ")")
+        end
+    end
+    local name, second = U.UnitName("target")
+    local key = U.UnitKey("target")
+    print(string.format("  target: name %s / %s, full %s, key %s (%s), role %s", tostring(name), tostring(second),
+        tostring(U.AccessibleString(U.SafeCall(_G.GetUnitName, "target", true))), tostring(key),
+        tostring(U.CompactName(key)), tostring((Organizers:RoleOf(key, now)))))
+end)
+
 -- Registered at load (the filter does nothing until the database is ready), so no new
 -- HH_INITIALIZED handler changes the login order of the other modules
 do
