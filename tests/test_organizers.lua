@@ -71,4 +71,62 @@ return function(T, H)
         T.eq(other, nil, "nothing changed for others")
         T.noErrors()
     end)
+
+    -- Nameplates: a frame per unit token, as C_NamePlate gives them
+    local function Plates()
+        local plates = {}
+        _G.C_NamePlate = {
+            GetNamePlateForUnit = function(unit) return plates[unit] end,
+            GetNamePlates = function()
+                local list = {}
+                for _, plate in pairs(plates) do list[#list + 1] = plate end
+                return list
+            end,
+        }
+        return function(unit, player)
+            H.units[unit] = player
+            local plate = _G.CreateFrame("Frame")
+            plate.namePlateUnitToken = unit
+            plates[unit] = plate
+            return plate
+        end
+    end
+
+    T.case("a star above the head of the host (gold) and a co-organizer (silver), nobody else", function()
+        local ns = Boot(1800)
+        local AddPlate = Plates()
+        local host = AddPlate("nameplate1", { name = "Tovik", class = "WARRIOR", faction = "Alliance", isPlayer = true })
+        local organizer = AddPlate("nameplate2", { name = "Marla", class = "MAGE", faction = "Alliance", isPlayer = true })
+        local stranger = AddPlate("nameplate3", { name = "Stranger", class = "MAGE", faction = "Alliance", isPlayer = true })
+        H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+        H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate3")
+        T.ok(host.hhStar and host.hhStar:IsShown(), "host star")
+        T.eq(host.hhStar.texture, ns.Organizers.STAR, "the star texture")
+        T.eq(math.floor(host.hhStar.color[1] * 255 + 0.5), 230, "gold")
+        T.ok(organizer.hhStar and organizer.hhStar:IsShown(), "co-organizer star")
+        T.eq(math.floor(organizer.hhStar.color[1] * 255 + 0.5), 192, "silver")
+        T.eq(rawget(stranger, "hhStar"), nil, "no star for others")
+
+        H.Fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+        T.ok(not host.hhStar:IsShown(), "hidden when the nameplate goes")
+        ns.db.settings.organizerMarks = false
+        ns.Organizers:RefreshPlates()
+        T.ok(not organizer.hhStar:IsShown(), "option off")
+        _G.C_NamePlate = nil
+        T.noErrors()
+    end)
+
+    T.case("the star leaves the head when the time window closes", function()
+        local ns = Boot(-4 * 3600 + 30)
+        local AddPlate = Plates()
+        local host = AddPlate("nameplate1", { name = "Tovik", class = "WARRIOR", faction = "Alliance", isPlayer = true })
+        H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        T.ok(host.hhStar:IsShown(), "still in the window")
+        H.serverTime = H.serverTime + 120
+        H.Advance(ns.Organizers.PLATE_REFRESH)
+        T.ok(not host.hhStar:IsShown(), "gone after the window")
+        _G.C_NamePlate = nil
+        T.noErrors()
+    end)
 end

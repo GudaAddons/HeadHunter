@@ -1,6 +1,7 @@
 -- HH-128: a sheriff's star on tournament hosts and co-organizers (docs/addon/tickets.md).
--- Gold for the host, silver for co-organizers, on player tooltips and before their chat
--- lines. Only HeadHunter users see it. Who organizes comes only from the website data
+-- Gold for the host, silver for co-organizers, on player tooltips, before their chat
+-- lines and above their head (the nameplate: friendly nameplates must be on to see it
+-- on your own faction). Only HeadHunter users see it. Who organizes comes only from the website data
 -- (Sync/SiteData.lua: the tournaments HeadHunter Sync brought in), never from a player's
 -- own addon message, which an edited addon could fake.
 --
@@ -89,6 +90,75 @@ function Organizers.ChatFilter(_, _, message, author, ...)
     if not role then return false end
     return false, Organizers.Star(role, 12) .. " " .. message, author, ...
 end
+
+-------------------------------------------------
+-- Above the head (step 2): the star on the nameplate
+-------------------------------------------------
+
+Organizers.PLATE_SIZE = 22
+Organizers.PLATE_REFRESH = 60 -- seconds: the star comes and goes with the time window
+
+local function PlateFor(unit)
+    local api = _G.C_NamePlate
+    if not (api and api.GetNamePlateForUnit and unit) then return nil end
+    local plate = ns.Utils.SafeCall(api.GetNamePlateForUnit, unit)
+    -- Nameplates the game keeps from addons (some instances, WoW Forever in places)
+    if type(plate) ~= "table" or (plate.IsForbidden and plate:IsForbidden()) then return nil end
+    return plate
+end
+
+-- Shows or hides the star on one unit's nameplate
+function Organizers:UpdatePlate(unit)
+    local plate = PlateFor(unit)
+    if not plate then return end
+    local U = ns.Utils
+    local role = self:Enabled() and U.UnitIsPlayer(unit) and self:RoleOf(U.UnitKey(unit))
+    local star = rawget(plate, "hhStar")
+    if not role then
+        if star then star:Hide() end
+        return
+    end
+    if not star then
+        star = plate:CreateTexture(nil, "OVERLAY")
+        star:SetTexture(Organizers.STAR)
+        star:SetSize(Organizers.PLATE_SIZE, Organizers.PLATE_SIZE)
+        star:SetPoint("BOTTOM", plate, "TOP", 0, 2)
+        plate.hhStar = star
+    end
+    local color = Organizers.COLORS[role]
+    star:SetVertexColor(color[1] / 255, color[2] / 255, color[3] / 255, 1)
+    star:Show()
+end
+
+function Organizers:HidePlate(unit)
+    local plate = PlateFor(unit)
+    local star = plate and rawget(plate, "hhStar")
+    if star then star:Hide() end
+end
+
+-- Every nameplate on screen again (the window opens and closes while they are shown)
+function Organizers:RefreshPlates()
+    local api = _G.C_NamePlate
+    local plates = api and api.GetNamePlates and ns.Utils.SafeCall(api.GetNamePlates)
+    for _, plate in ipairs(type(plates) == "table" and plates or {}) do
+        local unit = rawget(plate, "namePlateUnitToken")
+        if unit then self:UpdatePlate(unit) end
+    end
+end
+
+local function Safely(fn, ...)
+    local ok, err = pcall(fn, ...)
+    if not ok then ns:Debug("Organizer star:", tostring(err)) end
+end
+
+ns.Events:Register("NAME_PLATE_UNIT_ADDED", function(_, unit) Safely(Organizers.UpdatePlate, Organizers, unit) end, "Organizers")
+ns.Events:Register("NAME_PLATE_UNIT_REMOVED", function(_, unit) Safely(Organizers.HidePlate, Organizers, unit) end, "Organizers")
+
+local function RefreshLoop()
+    Safely(Organizers.RefreshPlates, Organizers)
+    C_Timer.After(Organizers.PLATE_REFRESH, RefreshLoop)
+end
+C_Timer.After(Organizers.PLATE_REFRESH, RefreshLoop)
 
 -- Registered at load (the filter does nothing until the database is ready), so no new
 -- HH_INITIALIZED handler changes the login order of the other modules
