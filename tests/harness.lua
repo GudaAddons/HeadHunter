@@ -224,7 +224,9 @@ function H.Install(opts)
     -- StaticPopup: H.popups records every StaticPopup_Show
     H.popups = {}
     _G.StaticPopupDialogs = {}
-    _G.StaticPopup_Show = function(which) H.popups[#H.popups + 1] = { which = which, text = _G.StaticPopupDialogs[which].text } end
+    _G.StaticPopup_Show = function(which, _, _, data)
+        H.popups[#H.popups + 1] = { which = which, text = _G.StaticPopupDialogs[which].text, data = data }
+    end
     _G.StaticPopup_Hide = function() end
 
     H.chatSent = {}

@@ -227,6 +227,30 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("the Events list: events are made on the website, Create an event copies its link", function()
+        local ns = H.Boot({ client = "era" })
+        local M = ns.MainWindow
+        H.Slash("")
+        M:SelectSection("events")
+        local f = _G.HeadHunterMainFrame
+        T.ok(f.eventsInfo:IsShown() and f.eventsCreate:IsShown(), "the info and the button")
+        T.eq(M:CopyCreateLink(), false, "no website data yet")
+        T.ok(H.Printed("comes with HeadHunter Sync"), "told where the link comes from")
+
+        _G.HeadHunter_SiteData = { format_version = 1, generated_at = H.serverTime, worlds = {},
+            links = { create_tournament = "https://headhunterwow.com/tournaments/create" } }
+        T.ok(M:CopyCreateLink(), "the link")
+        local dialog = _G.StaticPopupDialogs.HEADHUNTER_LINK
+        T.ok(dialog.text:find("made and joined on the HeadHunter website", 1, true) ~= nil, "what to do")
+        local box = { SetText = function(self, v) self.text = v end, HighlightText = function() end, SetFocus = function() end }
+        dialog.OnShow({ editBox = box }, H.popups[#H.popups].data)
+        T.eq(box.text, "https://headhunterwow.com/tournaments/create", "selected to copy")
+
+        M:SelectSection("board")
+        T.ok(not f.eventsCreate:IsShown(), "only on the Events list")
+        T.noErrors()
+    end)
+
     T.case("nothing is created or joined in game any more", function()
         local ns = H.Boot({ client = "era" })
         T.eq(ns.TournamentDialog, nil, "no create dialog")

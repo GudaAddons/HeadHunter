@@ -290,6 +290,13 @@ function SiteData:Load()
     return true
 end
 
+-- A website page from the download's links ("tournaments", "create_tournament"), or nil
+function SiteData:Link(name)
+    local data = Data()
+    local links = data and type(data.links) == "table" and data.links
+    return links and Text(links[name]) or nil
+end
+
 -- The website's open tournaments of our world, soonest first
 function SiteData:Tournaments()
     return tournaments or {}

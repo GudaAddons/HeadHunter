@@ -658,6 +658,16 @@ local function CreateMainFrame()
     f.eventPrev = Theme.Button(f, "<", "outline", 28, 24)
     f.eventPrev:SetPoint("RIGHT", f.eventRound, "LEFT", -8, 0)
     f.eventPrev:SetScript("OnClick", function() MainWindow:ShowRound(-1) end)
+    -- The Events list: events are made on the website, a link to copy
+    f.eventsCreate = Theme.Button(f, L.EVENTS_CREATE, "gold", 150, 24)
+    f.eventsCreate:SetPoint("TOPRIGHT", -18, toolbarY)
+    f.eventsCreate:SetScript("OnClick", function() MainWindow:CopyCreateLink() end)
+    f.eventsInfo = Theme.Text(f, "text", 13, "muted")
+    f.eventsInfo:SetPoint("RIGHT", f.eventsCreate, "LEFT", -12, 0)
+    f.eventsInfo:SetJustifyH("RIGHT")
+    f.eventsInfo:SetText(L.EVENTS_INFO)
+    f.eventsCreate:Hide()
+    f.eventsInfo:Hide()
     -- Our confirmed results to the website: a quick UI reload saves them, then HeadHunter
     -- Sync sends them (an addon cannot reach the website itself)
     f.eventSend = Theme.Button(f, "", "gold", 140, 24)
@@ -966,6 +976,10 @@ function MainWindow:LayoutToolbar(section, event)
             frame.eventPrev }) do
         if event then w:Show() else w:Hide() end
     end
+    local eventsList = section.id == "events" and not event
+    for _, w in ipairs({ frame.eventsCreate, frame.eventsInfo }) do
+        if eventsList then w:Show() else w:Hide() end
+    end
     local unsent = event and ns.Matches:Unsent() or 0
     if unsent > 0 then
         frame.eventSend:SetText(string.format(L.EVENT_SEND, unsent))
@@ -1027,9 +1041,24 @@ function MainWindow:CopyEventLink()
         ns:Print(L.EVENT_NO_LINK)
         return
     end
+    self:ShowLink(L.EVENT_LINK_TEXT, t.url)
+end
+
+-- The website's page to make an event, to copy
+function MainWindow:CopyCreateLink()
+    local url = ns.SiteData:Link("create_tournament")
+    if not url then
+        ns:Print(L.EVENTS_NO_LINK)
+        return false
+    end
+    self:ShowLink(L.EVENTS_CREATE_TEXT, url)
+    return true
+end
+
+-- A popup with a link selected in a box, for Ctrl+C
+function MainWindow:ShowLink(text, url)
     if not StaticPopupDialogs.HEADHUNTER_LINK then
         StaticPopupDialogs.HEADHUNTER_LINK = {
-            text = L.EVENT_LINK_TEXT,
             button1 = OKAY or "OK",
             hasEditBox = true,
             editBoxWidth = 360,
@@ -1049,7 +1078,8 @@ function MainWindow:CopyEventLink()
             preferredIndex = 3,
         }
     end
-    StaticPopup_Show("HEADHUNTER_LINK", nil, nil, t.url)
+    StaticPopupDialogs.HEADHUNTER_LINK.text = text
+    StaticPopup_Show("HEADHUNTER_LINK", nil, nil, url)
 end
 
 -- Reload the UI (a click, after a yes) so the game saves our results for HeadHunter Sync
