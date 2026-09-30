@@ -5,7 +5,8 @@
 --
 -- The file keeps the website's names (the /api/v1/sync/download answer):
 --   worlds["era|eu|Firemaw"] / ["forever|us|pvp"] = { generated_at, wanted = {...},
---     duels = { alliance = {...}, horde = {...} }, deadbeats = {...}, bullies = {...} }
+--     duels = { alliance = {...}, horde = {...} }, deadbeats = {...}, bullies = {...},
+--     tournaments = {...} (WEB-080; for now the organizer stars read them, HH-128) }
 --   forever_servers = { ["4620"] = "pve", ... }: WoW Forever server numbers and their realm type
 --   characters = { { world, name, deaths, duels, catches, bounty = { total, events } } }
 -- This module picks our world, maps names to the addon's (player keys, "ROGUE",
@@ -37,7 +38,7 @@ local RACES = {
 }
 local FACTIONS = { alliance = "Alliance", horde = "Horde" }
 
-local world, wanted, duelists, deadbeats, bullies
+local world, wanted, duelists, deadbeats, bullies, tournaments
 
 -------------------------------------------------
 -- Names
@@ -185,8 +186,22 @@ function SiteData.Duelist(d, faction)
     }
 end
 
+-- A tournament from the website (WEB-080): what the organizer stars need so far (HH-128)
+-- { id, name, startsAt, host = key, organizers = { key ... } }
+function SiteData.Tournament(t)
+    local id, startsAt = Text(t.id), Number(t.starts_at)
+    if not id or not startsAt then return nil end
+    local organizers = {}
+    for _, person in ipairs(type(t.organizers) == "table" and t.organizers or {}) do
+        local key = SiteData.Key(person)
+        if key then organizers[#organizers + 1] = key end
+    end
+    return { id = id, name = Text(t.name) or "?", startsAt = startsAt, host = SiteData.Key(t.host),
+        organizers = organizers }
+end
+
 function SiteData:Load()
-    world, wanted, duelists, deadbeats, bullies = nil, nil, nil, nil, nil
+    world, wanted, duelists, deadbeats, bullies, tournaments = nil, nil, nil, nil, nil, nil
     local data = Data()
     world = data and FindWorld(data)
     if not world then return false end
@@ -216,7 +231,18 @@ function SiteData:Load()
         local entry = type(b) == "table" and SiteData.BullyEntry(b)
         if entry then bullies[entry.id] = entry end
     end
+    -- WEB-080: the world's open tournaments
+    tournaments = {}
+    for _, t in ipairs(type(world.tournaments) == "table" and world.tournaments or {}) do
+        local tournament = type(t) == "table" and SiteData.Tournament(t)
+        if tournament then tournaments[#tournaments + 1] = tournament end
+    end
     return true
+end
+
+-- The website's open tournaments of our world, soonest first
+function SiteData:Tournaments()
+    return tournaments or {}
 end
 
 -- The website's Hall of Shame bullies: id -> entry

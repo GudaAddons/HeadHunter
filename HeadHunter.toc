@@ -86,6 +86,7 @@ Rules\HighNoon.lua
 Tournament\Arena.lua
 Tournament\Brackets.lua
 Tournament\Tournaments.lua
+Tournament\Organizers.lua
 
 # Alerts (M4)
 Alerts\Alerts.lua

@@ -30,6 +30,8 @@ SettingsPanel.OPTIONS = {
     { section = "SET_SECTION_DISPLAY" },
     { key = "mapPins", kind = "toggle", path = "mapPins", label = "SET_MAP", tip = "SET_MAP_TIP" },
     { key = "tooltip", kind = "toggle", path = "tooltip", label = "SET_TOOLTIP", tip = "SET_TOOLTIP_TIP" },
+    { key = "organizerMarks", kind = "toggle", path = "organizerMarks", label = "SET_ORGANIZER_MARKS",
+        tip = "SET_ORGANIZER_MARKS_TIP" },
     { key = "minimap", kind = "toggle", path = "minimap.hidden", invert = true, label = "SET_MINIMAP",
         tip = "SET_MINIMAP_TIP" },
     -- HH-125: the HeadHunter windows (UI/Theme.lua), in %
