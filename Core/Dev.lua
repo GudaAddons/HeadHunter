@@ -38,3 +38,27 @@ function Dev.Trusts(name)
     end
     return false
 end
+
+-- Test marks (author, 2026-09-30): /hh dev wanted and /hh dev shame (UI/Nameplates.lua)
+-- put the WANTED or Hall of Shame mark above the target's head, only on this client and
+-- only with a HeadHunter_Dev config. Nothing else changes: no list, alert or sharing.
+-- Memory only, so a /reload clears them.
+local testMarks = { wanted = {}, shame = {} }
+
+function Dev.TestMark(kind, key)
+    return Config() ~= nil and key ~= nil and testMarks[kind] ~= nil and testMarks[kind][key] == true
+end
+
+-- Turns the mark on or off; returns true when it is now on
+function Dev.ToggleTestMark(kind, key)
+    testMarks[kind][key] = not testMarks[kind][key] or nil
+    return testMarks[kind][key] == true
+end
+
+function Dev.ClearTestMarks()
+    testMarks = { wanted = {}, shame = {} }
+end
+
+function Dev.Enabled()
+    return Config() ~= nil
+end

@@ -10,4 +10,5 @@ poster.tga   the website's poster-paper script (resources/art/poster-paper.php) 
 divider.tga, glow.tga, pin.tga and mark.tga are drawn by the same script.
 star.tga     the sheriff's star for tournament organizers (HH-128), drawn by us with a
              script: white, tinted gold for the host and silver for co-organizers
+feather.tga  the white feather above Hall of Shame players, drawn by us with a script
 CC0: no attribution is required; the sources are kept here so they can be checked.

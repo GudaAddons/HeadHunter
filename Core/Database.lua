@@ -59,6 +59,8 @@ local DEFAULTS = {
         mapPins = true, -- HH-046: hotspot and WANTED pins on the world map
         tooltip = true, -- HH-062: WANTED line on enemy player tooltips
         organizerMarks = true, -- HH-128: the star on tournament hosts and co-organizers
+        wantedMarks = true, -- the HeadHunter crosshair above WANTED players (UI/Nameplates.lua)
+        shameMarks = true, -- the white feather above Hall of Shame players
         minimap = { angle = 200, hidden = false }, -- HH-060 minimap button
         uiScale = 100, -- HH-125: Window size, 90..130 %
     },
