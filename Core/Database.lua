@@ -27,7 +27,7 @@ DB.FALLBACK_HOME = "unknown"
 -- Per home; anything else in ns.db is the root's
 DB.HOME_TABLES = {
     deaths = true, reports = true, enemies = true, justice = true, posters = true, posse = true,
-    bountyPay = true, duels = true, marks = true, demoMarks = true, player = true,
+    bountyPay = true, duels = true, eventResults = true, marks = true, demoMarks = true, player = true,
 }
 
 DB.LIMITS = {
@@ -66,9 +66,6 @@ local DEFAULTS = {
     },
     zones = {}, -- zone mapID -> { name, continent, locale }: names for the website (Alerts/Zones.lua)
     homes = {}, -- home key -> HOME_DEFAULTS
-    -- Tournament match results confirmed in game (Tournament/Matches.lua), for every
-    -- HeadHunter's bracket and, our own, for the website (HeadHunter Sync)
-    eventResults = {},
 }
 
 local HOME_DEFAULTS = {
@@ -80,6 +77,9 @@ local HOME_DEFAULTS = {
     posse = {}, -- outlaw id -> our own join { t, mapID, layer, hunterRank }, kept over a reload
     bountyPay = {}, -- poster id -> claim and payment of that bounty (HH-118)
     duels = {},   -- High Noon: duel id -> duel someone saw (HH-091)
+    -- Tournament match results confirmed in game (Tournament/Matches.lua): every
+    -- HeadHunter's bracket; our own go to the website with HeadHunter Sync
+    eventResults = {},
     marks = { total = 0, events = {} }, -- HH-050
 }
 
