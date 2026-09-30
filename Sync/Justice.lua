@@ -13,6 +13,10 @@
 --            an honorable kill to everyone who helped)
 --   Forever  no combat log: our target, a WANTED enemy player, died while we were
 --            in combat (less exact: we may not have landed the blow)
+--   Both     the honorable kill line (author, 2026-10-01): "X dies, honorable kill ..."
+--            comes to everyone who earned honor for the kill, we and our group nearby,
+--            whoever landed the blow. On Forever it is the one sign of a group's kill
+--            (enemy health is hidden there); the name may be the given name only.
 -- Sync: the automatic routes. On Era the realm-wide channel needs a click, so the
 -- hunter gets [Announce] (a typed /hh justice works too).
 -- Peer catches are accepted with a plausible time, under a per-sender rate limit.
@@ -185,6 +189,71 @@ function Justice:OnCombatLog()
     end
 end
 
+-- A client format ("%s dies, honorable kill Rank: %s (Estimated Honor Points: %d)") as
+-- a Lua pattern; the first capture is the first %s
+local function FormatPattern(format)
+    local out, pos = "^", 1
+    while true do
+        local s, e, conv = format:find("%%%d*%$?([sd])", pos)
+        local literal = format:sub(pos, s and s - 1 or nil)
+        out = out .. (literal:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"))
+        if not s then break end
+        out = out .. (conv == "s" and "(.-)" or "%d+")
+        pos = e + 1
+    end
+    return out .. "$"
+end
+
+Justice.HONOR_FORMATS = {
+    "%s dies, honorable kill Rank: %s (Estimated Honor Points: %d)",
+    "%s dies, honorable kill (Estimated Honor Points: %d)",
+}
+
+local honorPatterns
+local function HonorPatterns()
+    if honorPatterns then return honorPatterns end
+    honorPatterns = {}
+    local formats = { _G.COMBATLOG_HONORGAIN or false, _G.COMBATLOG_HONORGAIN_NO_RANK or false }
+    for _, format in ipairs(Justice.HONOR_FORMATS) do formats[#formats + 1] = format end
+    for _, format in ipairs(formats) do
+        if type(format) == "string" then honorPatterns[#honorPatterns + 1] = FormatPattern(format) end
+    end
+    return honorPatterns
+end
+
+-- The victim of an honorable kill line as a player key. Forever may give the given name
+-- only: then the one watched outlaw with that given name
+function Justice.HonorVictim(name)
+    local U = ns.Utils
+    name = U.AccessibleString(name)
+    if not name then return nil end
+    local key = U.PlayerKey(name)
+    if key then return key end
+    local found
+    local given = name:lower()
+    for _, entry in pairs(ns.Wanted:All()) do
+        local first = entry.key and entry.key:match("^(%S+) ")
+        if first and first:lower() == given and (ns.Wanted.Hunted(entry) or ns.Bounties:ActiveOn(entry)) then
+            if found and found ~= entry.key then return nil end -- two of that name: not sure
+            found = entry.key
+        end
+    end
+    return found
+end
+
+function Justice:OnHonorGain(text)
+    text = ns.Utils.AccessibleString(text)
+    if not text then return nil end
+    for _, pattern in ipairs(HonorPatterns()) do
+        local name = text:match(pattern)
+        if name then
+            local key = Justice.HonorVictim(name)
+            return key and self:OnEnemyKilled(key, nil, "honor") or nil
+        end
+    end
+    return nil
+end
+
 -- Forever: our target died while we were fighting
 function Justice:CheckTarget()
     local U = ns.Utils
@@ -289,6 +358,7 @@ ns.Events:Register("HH_INITIALIZED", function()
     local Events = ns.Events
     Justice:Prune()
     ns.Transport:RegisterHandler(ns.Protocol.TYPES.JUSTICE, function(record, sender) Justice:OnPeer(record, sender) end)
+    Events:Register("CHAT_MSG_COMBAT_HONOR_GAIN", function(_, text) Justice:OnHonorGain(text) end, OWNER)
     if ns.Features.HasCLEU then
         Events:Register("COMBAT_LOG_EVENT_UNFILTERED", function() Justice:OnCombatLog() end, OWNER)
     else
