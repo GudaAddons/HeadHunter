@@ -1,6 +1,8 @@
 -- HH-060: the main window. /hh (no arguments) or the minimap button toggles it.
 --
--- Tabs:
+-- Sections (author, 2026-10-01): the top tabs, each with its own sub-tabs in the
+-- toolbar: Bounty board (WANTED · Hall of Shame), Duels, Events (Ongoing · Upcoming),
+-- Me (My deaths · My marks). The views:
 --   WANTED         players' bounties first (HH-118, merged per target, newest first),
 --                  then who is WANTED now; sort by rank, kills or last kill; Alliance or
 --                  Horde (the switch top left, the enemy faction first)
@@ -9,8 +11,9 @@
 --   High Noon      the best duelists (HH-093), Alliance or Horde (the switch top left)
 --   My deaths      our own PvP deaths, newest first
 --   My marks       our HeadHunter rank and what earned or cost marks (HH-050)
---   Tournaments    the website's tournaments on our world (WEB-080), read only: they
---                  are made and joined on the website (Tournament/Tournaments.lua)
+--   Events         the website's tournaments on our world (WEB-080), being played or
+--                  to come; a click opens the event: its rounds, who meets who, the
+--                  scores, and its website link to copy (Tournament/Tournaments.lua)
 -- A row click opens the outlaw's poster (UI/Poster.lua).
 -- Hall of Shame, Duels and My deaths have a search by name (top right), one per tab;
 -- the rows keep their place.
@@ -35,7 +38,16 @@ MainWindow.MAX_ROWS = 300
 MainWindow.BOARD_MIN = 25    -- the WANTED tab fills up to this many rows with outlaws at large
 MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 
-MainWindow.TABS = { "wanted", "shame", "duels", "deaths", "marks", "tours" }
+-- The top tabs and their views (the sub-tabs); a view is what the list shows
+MainWindow.SECTIONS = {
+    { id = "board", views = { "wanted", "shame" } },
+    { id = "duels", views = { "duels" } },
+    { id = "events", views = { "ongoing", "upcoming" } },
+    { id = "me", views = { "deaths", "marks" } },
+}
+MainWindow.TABS = { "wanted", "shame", "duels", "ongoing", "upcoming", "deaths", "marks" }
+-- Tabs of older versions
+MainWindow.OLD_TABS = { tours = "ongoing" }
 -- The faction crests in the Alliance / Horde switch: the game's PvP flag icons,
 -- cut to the crest
 MainWindow.FACTION_ICONS = {
@@ -71,15 +83,23 @@ MainWindow.COLUMNS = {
         { key = "net", header = "COL_NET", width = 80 },
         { key = "lastDuel", header = "COL_LAST_DUEL", width = 190 },
     },
-    tours = {
-        { key = "name", header = "COL_TOUR", width = 165 },
+    events = {
+        { key = "name", header = "COL_TOUR", width = 180 },
         { key = "format", header = "COL_FORMAT", width = 50 },
-        { key = "series", header = "COL_SERIES", width = 90 },
-        { key = "start", header = "COL_START", width = 120 },
+        { key = "series", header = "COL_SERIES", width = 100 },
+        { key = "start", header = "COL_START", width = 135 },
         { key = "level", header = "COL_LEVEL", width = 55 },
-        { key = "teams", header = "COL_ENTRANTS", width = 60 },
-        { key = "organizer", header = "COL_HOST", width = 115, font = "name" },
-        { key = "status", header = "COL_STATUS", width = 125 },
+        { key = "teams", header = "COL_ENTRANTS", width = 70 },
+        { key = "organizer", header = "COL_HOST", width = 110, font = "name" },
+        { key = "status", header = "COL_STATUS", width = 80 },
+    },
+    -- One event's round: who meets who
+    event = {
+        { key = "match", header = "COL_MATCH", width = 40 },
+        { key = "a", header = "COL_ENTRANT", width = 230, font = "name" },
+        { key = "score", header = "COL_SCORE", width = 70 },
+        { key = "b", header = "COL_OPPONENT", width = 230, font = "name" },
+        { key = "status", header = "COL_STATUS", width = 210 },
     },
     marks = {
         { key = "time", header = "COL_WHEN", width = 125 },
@@ -372,28 +392,67 @@ local function DeathRows(now)
     return rows
 end
 
--- The website's tournaments (WEB-080), soonest first; a tooltip with the details
-local function TourRows(now)
+-- The website's tournaments (WEB-080), soonest first, being played (ongoing) or to come
+-- (upcoming); a tooltip with the details, a click opens the event
+local function EventRows(view, now)
     local TN = ns.Tournaments
     local rows = {}
     for _, t in ipairs(TN:List(now)) do
-        local host = ns.Utils.DisplayName(t.host) or t.host or "?"
-        local status = L["TOUR_STATUS_" .. TN.State(t, now):upper()]
-        local format = t.teamSize .. "v" .. t.teamSize
-        local tooltip = {
-            "|cffffd100" .. t.name .. "|r",
-            format .. " · " .. TN.Series(t),
-            string.format(L.TIP_TOUR_VENUE, TN.Where(t)),
-            string.format(L.TIP_TOUR_START, TN.Start(t, now)),
-        }
-        if #t.days > 1 then tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_DAYS, #t.days) end
-        tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_ENTRANTS, TN.Entrants(t), TN.Levels(t))
-        tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_HOST, host)
-        tooltip[#tooltip + 1] = status
-        tooltip[#tooltip + 1] = "|cffaaaaaa" .. L.TIP_TOUR_WEBSITE .. "|r"
+        if TN.Ongoing(t, now) == (view == "ongoing") then
+            local host = ns.Utils.DisplayName(t.host) or t.host or "?"
+            local status = L["TOUR_STATUS_" .. TN.State(t, now):upper()]
+            local format = t.teamSize .. "v" .. t.teamSize
+            local tooltip = {
+                "|cffffd100" .. t.name .. "|r",
+                format .. " · " .. TN.Series(t),
+                string.format(L.TIP_TOUR_VENUE, TN.Where(t)),
+                string.format(L.TIP_TOUR_START, TN.Start(t, now)),
+            }
+            if #t.days > 1 then tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_DAYS, #t.days) end
+            tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_ENTRANTS, TN.Entrants(t), TN.Levels(t))
+            tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_HOST, host)
+            tooltip[#tooltip + 1] = status
+            tooltip[#tooltip + 1] = "|cffaaaaaa" .. L.TIP_EVENT_OPEN .. "|r"
+            rows[#rows + 1] = {
+                event = t.id, name = t.name, format = format, series = TN.Series(t), start = TN.Start(t, now),
+                level = TN.Levels(t), teams = TN.Entrants(t), organizer = host, status = status, tooltip = tooltip,
+            }
+        end
+    end
+    return rows
+end
+
+-- One round of an event: who meets who, the score, what is left (pure, tested offline)
+function MainWindow.MatchRows(t, roundNumber)
+    local TN = ns.Tournaments
+    local rounds = TN.Bracket(t)
+    local round = rounds[roundNumber]
+    local rows = {}
+    if not round then return rows end
+    for _, m in ipairs(round.matches) do
+        local a, b = TN.SideName(t, m.a), TN.SideName(t, m.b)
+        local played = m.winner ~= nil and not m.bye
+        local status
+        if m.bye then
+            status = L.EVENT_FREE_PASS
+        elseif not (m.a and m.b) then
+            status = L.EVENT_NOT_DECIDED
+        elseif m.forfeit then
+            status = string.format(L.EVENT_NO_SHOW, m.forfeit == "a" and a or b)
+        elseif played then
+            status = L.EVENT_PLAYED
+        else
+            status = L.EVENT_TO_PLAY
+        end
+        if m.thirdPlace then status = L.EVENT_THIRD_PLACE .. " · " .. status end
+        local gold = "|cffffd100%s|r"
         rows[#rows + 1] = {
-            name = t.name, format = format, series = TN.Series(t), start = TN.Start(t, now),
-            level = TN.Levels(t), teams = TN.Entrants(t), organizer = host, status = status, tooltip = tooltip,
+            eventMatch = { round = round.number, match = m.match },
+            match = "#" .. m.match,
+            a = a and (played and m.winner == "a" and string.format(gold, a) or a) or "",
+            b = b and (played and m.winner == "b" and string.format(gold, b) or b) or "",
+            score = m.forfeit and L.EVENT_FF or (played and (m.winsA .. " - " .. m.winsB)) or (m.bye and "" or "vs"),
+            status = status,
         }
     end
     return rows
@@ -415,8 +474,8 @@ end
 function MainWindow.Rows(tab, sortKey, now, faction, search)
     now = now or ns.Utils.ServerTime()
     local rows
-    if tab == "tours" then
-        rows = TourRows(now)
+    if tab == "ongoing" or tab == "upcoming" then
+        rows = EventRows(tab, now)
     elseif tab == "duels" then
         rows = DuelRows(faction, now)
     elseif tab == "marks" then
@@ -440,7 +499,19 @@ end
 local frame
 -- faction: High Noon list, wantedFaction: WANTED list (nil = the default of each tab)
 -- searches: tab -> the text in its search box
-local current = { tab = "wanted", sort = "rank", faction = nil, wantedFaction = nil, searches = {} }
+-- event: the open event's id (Events), round: the round shown in it (nil: the one played)
+-- lastView: section -> the view last shown there
+local current = { tab = "wanted", sort = "rank", faction = nil, wantedFaction = nil, searches = {},
+    event = nil, round = nil, lastView = {} }
+
+function MainWindow.SectionOf(view)
+    for _, section in ipairs(MainWindow.SECTIONS) do
+        for _, v in ipairs(section.views) do
+            if v == view then return section end
+        end
+    end
+    return MainWindow.SECTIONS[1]
+end
 local rowFrames = {}
 local sinceRefresh = 0
 
@@ -461,13 +532,10 @@ local function CreateMainFrame()
     local Theme = ns.Theme
     Theme.StyleFrame(f, L.WINDOW_TITLE)
     local tabs = {}
-    for i, tab in ipairs(MainWindow.TABS) do tabs[i] = { id = tab, label = L["TAB_" .. tab:upper()] } end
-    f.tabs = Theme.CreateTopTabs(f, tabs, function(tab) MainWindow:SelectTab(tab) end)
-    -- Under development: the Tournaments tab (the last one) only with /hh debug tours on
-    for _, button in ipairs(f.tabs.buttons) do
-        if button.id == "tours" then f.toursTab = button end
+    for i, section in ipairs(MainWindow.SECTIONS) do
+        tabs[i] = { id = section.id, label = L["SECTION_" .. section.id:upper()] }
     end
-    f.tabs:SetTabShown("tours", MainWindow.ToursEnabled())
+    f.tabs = Theme.CreateTopTabs(f, tabs, function(id) MainWindow:SelectSection(id) end)
 
     f.options = Theme.HeaderGear(f, function() ns.SettingsPanel:Open() end)
     f.options:SetScript("OnEnter", function(self)
@@ -490,6 +558,42 @@ local function CreateMainFrame()
     }, function(faction) MainWindow:SetFaction(faction) end)
     f.faction:SetPoint("TOPLEFT", 16, toolbarY)
     f.faction:Hide()
+
+    -- A section's sub-tabs, top left
+    f.subtabs = {}
+    for _, section in ipairs(MainWindow.SECTIONS) do
+        if #section.views > 1 then
+            local options = {}
+            for i, view in ipairs(section.views) do options[i] = { value = view, label = L["TAB_" .. view:upper()] } end
+            local set = Theme.Segmented(f, options, function(view) MainWindow:SelectTab(view) end)
+            set:SetPoint("TOPLEFT", 16, toolbarY)
+            set.width = 110 * #options
+            set:Hide()
+            f.subtabs[section.id] = set
+        end
+    end
+
+    -- An open event: Back, its name, the round switch, Copy link
+    f.eventBack = Theme.Button(f, L.EVENT_BACK, "outline", 80, 24)
+    f.eventBack:SetPoint("TOPLEFT", 16, toolbarY)
+    f.eventBack:SetScript("OnClick", function() MainWindow:CloseEvent() end)
+    f.eventTitle = Theme.Text(f, "heading", 15, "gold")
+    f.eventTitle:SetPoint("LEFT", f.eventBack, "RIGHT", 12, 0)
+    f.eventTitle:SetWidth(330)
+    f.eventTitle:SetJustifyH("LEFT")
+    f.eventTitle:SetWordWrap(false)
+    f.eventLink = Theme.Button(f, L.EVENT_COPY_LINK, "gold", 110, 24)
+    f.eventLink:SetPoint("TOPRIGHT", -18, toolbarY)
+    f.eventLink:SetScript("OnClick", function() MainWindow:CopyEventLink() end)
+    f.eventNext = Theme.Button(f, ">", "outline", 28, 24)
+    f.eventNext:SetPoint("RIGHT", f.eventLink, "LEFT", -12, 0)
+    f.eventNext:SetScript("OnClick", function() MainWindow:ShowRound(1) end)
+    f.eventRound = Theme.Text(f, "text", 14, "foreground")
+    f.eventRound:SetPoint("RIGHT", f.eventNext, "LEFT", -8, 0)
+    f.eventPrev = Theme.Button(f, "<", "outline", 28, 24)
+    f.eventPrev:SetPoint("RIGHT", f.eventRound, "LEFT", -8, 0)
+    f.eventPrev:SetScript("OnClick", function() MainWindow:ShowRound(-1) end)
+    for _, w in ipairs({ f.eventBack, f.eventTitle, f.eventLink, f.eventNext, f.eventRound, f.eventPrev }) do w:Hide() end
 
     -- Search tabs: find a player by name (Esc clears it, a second Esc leaves the box)
     local search = CreateFrame("EditBox", nil, f)
@@ -606,10 +710,9 @@ local function Cell(row, c)
     return cell
 end
 
--- The list starts under the toolbar on tabs with buttons, else right under the header
+-- The list starts under the toolbar (every section has one)
 local function ListTop()
-    local toolbar = current.tab == "wanted" or MainWindow.SEARCH_TABS[current.tab]
-    return ns.Theme.HEADER_HEIGHT + (toolbar and 44 or 12)
+    return ns.Theme.HEADER_HEIGHT + 44
 end
 
 local function LayoutHeaders(columns)
@@ -653,11 +756,20 @@ end
 function MainWindow:Refresh()
     sinceRefresh = 0
     if not (frame and frame:IsShown()) then return end
-    local columns = self.COLUMNS[current.tab]
-    frame.tabs:Select(current.tab)
+    local event = self:OpenEvent()
+    local columns = event and self.COLUMNS.event or self.COLUMNS[current.tab] or self.COLUMNS.events
+    local section = self.SectionOf(current.tab)
+    frame.tabs:Select(section.id)
     LayoutHeaders(columns)
-    local search = self:Search()
-    local rows = self.Rows(current.tab, current.sort, nil, self:ListFaction(), search)
+    local search = not event and self:Search() or nil
+    local rows
+    if event then
+        local count = #ns.Tournaments.Bracket(event)
+        current.round = current.round and math.max(1, math.min(current.round, count)) or nil
+        rows = self.MatchRows(event, self:EventRound(event))
+    else
+        rows = self.Rows(current.tab, current.sort, nil, self:ListFaction(), search)
+    end
     for i, data in ipairs(rows) do
         local row = RowFrame(i)
         row.data = data
@@ -698,37 +810,140 @@ function MainWindow:Refresh()
     end
     if #rows > 0 then
         frame.empty:SetText("")
+    elseif event then
+        frame.empty:SetText(L.EMPTY_EVENT)
     elseif search then
         frame.empty:SetText(string.format(L.SEARCH_EMPTY, (search:gsub("|", "||"))))
     else
         frame.empty:SetText(L["EMPTY_" .. current.tab:upper()])
     end
-    if self.SEARCH_TABS[current.tab] then frame.search:Show() else frame.search:Hide() end
-    if current.tab == "duels" or current.tab == "wanted" then
+    self:LayoutToolbar(section, event)
+    self.shownRows = rows
+end
+
+-- The toolbar of the section on show: its sub-tabs, the faction switch, the search; an
+-- open event has its own (Back, name, round switch, Copy link)
+function MainWindow:LayoutToolbar(section, event)
+    for id, set in pairs(frame.subtabs) do
+        if id == section.id and not event then
+            set:Select(current.tab)
+            set:Show()
+        else
+            set:Hide()
+        end
+    end
+    local sub = not event and frame.subtabs[section.id]
+    local faction = not event and (current.tab == "duels" or current.tab == "wanted")
+    if faction then
+        frame.faction:ClearAllPoints()
+        frame.faction:SetPoint("TOPLEFT", 16 + (sub and (sub.width + 12) or 0), -(ns.Theme.HEADER_HEIGHT + 10))
         frame.faction:Select(self:ListFaction())
         frame.faction:Show()
     else
         frame.faction:Hide()
     end
-    self.shownRows = rows
+    if not event and self.SEARCH_TABS[current.tab] then frame.search:Show() else frame.search:Hide() end
+    for _, w in ipairs({ frame.eventBack, frame.eventTitle, frame.eventLink, frame.eventNext, frame.eventRound,
+            frame.eventPrev }) do
+        if event then w:Show() else w:Hide() end
+    end
+    if event then
+        local TN = ns.Tournaments
+        local count = #TN.Bracket(event)
+        local round = self:EventRound(event)
+        frame.eventTitle:SetText(event.name .. " · " .. event.teamSize .. "v" .. event.teamSize .. " · " .. TN.Series(event))
+        frame.eventRound:SetText(count > 0 and string.format(L.EVENT_ROUND_OF, TN.RoundName(round, count), round, count) or "")
+        if frame.eventPrev.SetEnabled then
+            frame.eventPrev:SetEnabled(round > 1)
+            frame.eventNext:SetEnabled(round < count)
+        end
+    end
 end
 
--- The Tournaments tab is under development: hidden unless /hh debug tours on
-function MainWindow.ToursEnabled()
-    return ns.db and ns.db.settings.devTournaments and true or false
+-- The open event, or nil (it may have ended since)
+function MainWindow:OpenEvent()
+    if not current.event then return nil end
+    local t = ns.Tournaments:Get(current.event)
+    if not t then current.event = nil end
+    return t
 end
 
--- Shows or hides the Tournaments tab after /hh debug tours on|off
-function MainWindow:ApplyToursTab()
-    local on = self.ToursEnabled()
-    if not on and current.tab == "tours" then current.tab = "wanted" end
-    if frame and frame.tabs then frame.tabs:SetTabShown("tours", on) end
+-- The round shown in the open event: the one picked, else the one being played
+function MainWindow:EventRound(t)
+    return current.round or ns.Tournaments.CurrentRound(ns.Tournaments.Bracket(t))
+end
+
+function MainWindow:ShowEvent(id)
+    current.event, current.round = id, nil
+    if frame and frame.scroll.SetVerticalScroll then frame.scroll:SetVerticalScroll(0) end
     self:Refresh()
 end
 
+function MainWindow:CloseEvent()
+    current.event, current.round = nil, nil
+    self:Refresh()
+end
+
+-- The previous (-1) or next (1) round of the open event
+function MainWindow:ShowRound(step)
+    local t = self:OpenEvent()
+    if not t then return end
+    local count = #ns.Tournaments.Bracket(t)
+    current.round = math.max(1, math.min(count, self:EventRound(t) + step))
+    self:Refresh()
+end
+
+-- The open event's page on the website, to copy: an addon cannot open a browser
+function MainWindow:CopyEventLink()
+    local t = self:OpenEvent()
+    if not t then return end
+    if not t.url then
+        ns:Print(L.EVENT_NO_LINK)
+        return
+    end
+    if not StaticPopupDialogs.HEADHUNTER_LINK then
+        StaticPopupDialogs.HEADHUNTER_LINK = {
+            text = L.EVENT_LINK_TEXT,
+            button1 = OKAY or "OK",
+            hasEditBox = true,
+            editBoxWidth = 360,
+            OnShow = function(dialog, url)
+                local box = dialog.editBox or dialog.EditBox
+                if box then
+                    box:SetText(url or "")
+                    box:HighlightText()
+                    box:SetFocus()
+                end
+            end,
+            EditBoxOnEscapePressed = function(box) box:GetParent():Hide() end,
+            EditBoxOnEnterPressed = function(box) box:GetParent():Hide() end,
+            timeout = 0,
+            whileDead = true,
+            hideOnEscape = true,
+            preferredIndex = 3,
+        }
+    end
+    StaticPopup_Show("HEADHUNTER_LINK", nil, nil, t.url)
+end
+
+function MainWindow:SelectSection(id)
+    for _, section in ipairs(self.SECTIONS) do
+        if section.id == id then
+            self:SelectTab(current.lastView[id] or section.views[1])
+            return
+        end
+    end
+end
+
 function MainWindow:SelectTab(tab)
-    if tab == "tours" and not self.ToursEnabled() then tab = "wanted" end
+    tab = self.OLD_TABS[tab] or tab
+    local section = self.SectionOf(tab)
+    local known = false
+    for _, view in ipairs(section.views) do known = known or view == tab end
+    if not known then tab = section.views[1] end
     current.tab = tab
+    current.lastView[section.id] = tab
+    current.event, current.round = nil, nil
     if frame and frame.scroll.SetVerticalScroll then frame.scroll:SetVerticalScroll(0) end
     -- The box shows this tab's own search
     if frame and self.SEARCH_TABS[tab] then
@@ -801,9 +1016,11 @@ function MainWindow:Current()
     return current.tab, current.sort
 end
 
--- A row opens the outlaw's poster (HH-061)
+-- A row opens the outlaw's poster (HH-061), or the event (Events)
 function MainWindow:OnRowClick(data)
-    if data and data.whisper then
+    if data and data.event then
+        self:ShowEvent(data.event)
+    elseif data and data.whisper then
         ns.Utils.OpenWhisper(data.whisper)
     elseif data and data.id then
         ns.Poster:Show(data.id)

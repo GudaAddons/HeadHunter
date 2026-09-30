@@ -7,6 +7,7 @@
 --
 -- Tournaments:List(now) -> the website's tournaments not over yet, soonest first
 -- Tournaments.State(t, now) -> "open" | "closed" | "locked" | "running"
+-- Tournaments.Bracket(t) -> the rounds as the website builds them (Brackets.Build)
 
 local addonName, ns = ...
 local L = ns.L
@@ -39,6 +40,56 @@ function Tournaments:List(now)
         return a.id < b.id
     end)
     return list
+end
+
+function Tournaments:Get(id, now)
+    for _, t in ipairs(self:List(now)) do
+        if t.id == id then return t end
+    end
+    return nil
+end
+
+-- Events tab (author, 2026-10-01): being played now, or still to come
+function Tournaments.Ongoing(t, now)
+    return Tournaments.State(t, now) == "running"
+end
+
+-- The bracket as the website builds it (Brackets.Build), with the website's results and
+-- the ones confirmed in game since (Tournament/Matches.lua)
+function Tournaments.Bracket(t)
+    local B = ns.Brackets
+    local results = {}
+    for _, r in ipairs(t.results or {}) do results[#results + 1] = r end
+    local live = ns.Matches and ns.Matches:Results(t.id) or {}
+    for _, r in ipairs(live) do results[#results + 1] = r end
+    return B.Build(B.Seed(t.drawn or {}, nil, t.bracketSeed), results,
+        { bestOf = t.bestOf, finalBestOf = t.finalBestOf, thirdPlace = t.thirdPlace })
+end
+
+-- The round being played: the first with a match to play, else the last
+function Tournaments.CurrentRound(rounds)
+    for _, round in ipairs(rounds) do
+        for _, m in ipairs(round.matches) do
+            if not m.bye and m.a and m.b and not m.winner then return round.number end
+        end
+    end
+    return #rounds > 0 and #rounds or 1
+end
+
+-- "Round 2", "Quarterfinals", "Semifinals", "Final"
+function Tournaments.RoundName(number, count)
+    local fromEnd = count - number
+    if count > 1 and fromEnd == 0 then return L.EVENT_FINAL end
+    if count > 2 and fromEnd == 1 then return L.EVENT_SEMIFINALS end
+    if count > 3 and fromEnd == 2 then return L.EVENT_QUARTERFINALS end
+    return string.format(L.EVENT_ROUND, number)
+end
+
+-- A side of a match to show: the player's name (short on our realm) or the team's
+function Tournaments.SideName(t, entrant)
+    local person = entrant and t.people and t.people[entrant]
+    if not person then return nil end
+    return person.key and ns.Utils.DisplayName(person.key) or person.name
 end
 
 -- "Best of 3" or "Best of 3, final Best of 5"
@@ -85,5 +136,5 @@ ns.SlashCommands:Register("tour", function()
         print(string.format(L.TOUR_LINE, i, t.name, t.teamSize, t.teamSize, Tournaments.Series(t),
             Tournaments.Where(t), start, Tournaments.Entrants(t), ns.Utils.DisplayName(t.host) or t.host or "?"))
     end
-    if #list == 0 then print(L.EMPTY_TOURS) end
+    if #list == 0 then print(L.EMPTY_UPCOMING) end
 end, L.HELP_TOUR)

@@ -53,15 +53,14 @@ return function(T, H)
         T.noErrors()
     end)
 
-    T.case("the tabs sit in the header; a hidden tab makes room", function()
-        local ns = H.Boot({ client = "era" })
+    T.case("the tabs sit in the header", function()
+        H.Boot({ client = "era" })
         H.Slash("")
         local tabs = _G.HeadHunterMainFrame.tabs
         local header = _G.HeadHunterMainFrame.header
         for _, tab in ipairs(tabs.buttons) do
-            if not tabs.hidden[tab.id] then T.eq(tab.point[2], header, tab.id .. " in the header") end
+            T.eq(tab.point[2], header, tab.id .. " in the header")
         end
-        T.ok(tabs.hidden.tours, "Tournaments hidden while under development")
         T.noErrors()
     end)
 end

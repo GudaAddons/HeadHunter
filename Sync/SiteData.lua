@@ -188,8 +188,9 @@ end
 
 -- A tournament from the website (WEB-080): tournaments are made and joined only there
 -- (Tournament/Tournaments.lua lists them, Tournament/Organizers.lua marks their hosts)
--- { id, name, venue, teamSize, bestOf, finalBestOf, faction, minLevel, maxLevel, places,
---   entrants, startsAt, days, locksAt, signupsClosed, host = key, organizers = { key ... } }
+-- { id, name, venue, teamSize, bestOf, finalBestOf, thirdPlace, bracketSeed, faction,
+--   minLevel, maxLevel, places, entrants (count), drawn (entrant ids), people, results,
+--   url, startsAt, days, locksAt, signupsClosed, host = key, organizers = { key ... } }
 function SiteData.Tournament(t)
     local id, startsAt = Text(t.id), Number(t.starts_at)
     if not id or not startsAt then return nil end
@@ -203,16 +204,45 @@ function SiteData.Tournament(t)
     for _, day in ipairs(type(t.days) == "table" and t.days or {}) do
         if Number(day) and Number(day) > days[#days] then days[#days + 1] = Number(day) end
     end
+    local teamSize = tonumber((Text(t.format) or "1v1"):match("^(%d)v")) or 1
+    local places = Number(t.places)
+    -- Who is drawn, as the website draws them (TournamentBracketService::entrants): the
+    -- players with a place, or the full teams among those with a place, in sign-up
+    -- order (author, 2026-10-01). people: entrant id -> { name, key, class, team }
+    local drawn, people = {}, {}
+    local teams = type(t.teams) == "table" and #t.teams > 0
+    for i, e in ipairs(teams and t.teams or (type(t.players) == "table" and t.players or {})) do
+        local entrant = type(e) == "table" and Text(e.entrant)
+        if entrant and (not places or i <= places) then
+            if teams then
+                if type(e.members) == "table" and #e.members >= teamSize then drawn[#drawn + 1] = entrant end
+                people[entrant] = { name = Text(e.name) or entrant, team = true }
+            else
+                drawn[#drawn + 1] = entrant
+                people[entrant] = { name = Text(e.name) or entrant, key = SiteData.Key(e), class = SiteData.Class(e.class) }
+            end
+        end
+    end
+    local results = {}
+    for _, r in ipairs(type(t.results) == "table" and t.results or {}) do
+        if type(r) == "table" and Number(r.round) and Number(r.match) and Text(r.a) and Text(r.b) then
+            results[#results + 1] = { round = r.round, match = r.match, a = r.a, b = r.b,
+                winsA = Number(r.wins_a) or 0, winsB = Number(r.wins_b) or 0,
+                forfeit = (r.forfeit == "a" or r.forfeit == "b") and r.forfeit or nil }
+        end
+    end
     -- Players, or teams in team formats
     local entrants = type(t.teams) == "table" and #t.teams > 0 and #t.teams
         or type(t.players) == "table" and #t.players or 0
     return {
         id = id, name = Text(t.name) or "?", venue = Text(t.venue) or "gurubashi",
-        teamSize = tonumber((Text(t.format) or "1v1"):match("^(%d)v")) or 1,
+        teamSize = teamSize,
         bestOf = Number(t.best_of) or 1, finalBestOf = Number(t.final_best_of),
+        thirdPlace = t.third_place_match == true, bracketSeed = Number(t.bracket_seed) or 1,
         faction = Text(t.faction) and FACTIONS[t.faction] or nil,
         minLevel = Number(t.min_level), maxLevel = Number(t.max_level),
-        places = Number(t.places), entrants = entrants,
+        places = places, entrants = entrants, drawn = drawn, people = people, results = results,
+        url = Text(t.url),
         startsAt = startsAt, days = days, locksAt = Number(t.locks_at) or startsAt - 3600,
         signupsClosed = t.signups_closed == true,
         host = SiteData.Key(t.host), organizers = organizers,

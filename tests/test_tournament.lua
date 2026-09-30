@@ -129,19 +129,101 @@ return function(T, H)
         T.noErrors()
     end)
 
-    T.case("the Tournaments tab lists them read only; /hh tour prints them", function()
-        local ns = H.Boot({ client = "era", siteData = Data({ Tournament() }) })
-        local rows = ns.MainWindow.Rows("tours")
-        T.eq(#rows, 1, "one row")
+    T.case("Events lists them, ongoing apart from upcoming; /hh tour prints them", function()
+        local ns = H.Boot({ client = "era", siteData = Data({ Tournament(),
+            Tournament({ id = "live", name = "Live Brawl", starts_at = H.serverTime - 600, locks_at = H.serverTime - 4200 }) }) })
+        local rows = ns.MainWindow.Rows("upcoming")
+        T.eq(#rows, 1, "one to come")
         local row = rows[1]
         T.eq(row.name .. "|" .. row.format .. "|" .. row.series .. "|" .. row.level .. "|" .. row.teams,
             "Gate Brawl|1v1|Best of 3|50-59|2/16", "columns")
         T.ok(row.status:find("Open") ~= nil, "status")
-        T.eq(row.id, nil, "a click opens no poster")
-        T.ok(table.concat(row.tooltip, "\n"):find("Join on the HeadHunter website", 1, true) ~= nil, "joined on the website")
+        T.eq(row.event, "gatebrawl", "a click opens the event")
+        T.eq(row.id, nil, "no poster")
+        local ongoing = ns.MainWindow.Rows("ongoing")
+        T.eq(#ongoing, 1, "one being played")
+        T.eq(ongoing[1].name, "Live Brawl", "the running one")
         H.Slash("tour")
-        T.ok(H.Printed("Tournaments from the website: 1"), "header")
+        T.ok(H.Printed("Tournaments from the website: 2"), "header")
         T.ok(H.Printed("Gate Brawl.*1v1.*Best of 3.*2/16.*by Tovik"), "the line")
+        T.noErrors()
+    end)
+
+    T.case("the bracket is the website's: the same draw, winners on, final series, 3rd place", function()
+        local ns = H.Boot({ client = "era" })
+        local B = ns.Brackets
+        -- The website's own test (TournamentTest "draws round 1 exactly as the addon does")
+        local seeds = B.Seed({ "Tovik-Firemaw", "Marla-Firemaw", "Grimtusk-Firemaw", "Ashfang-Firemaw", "Moonsong-Firemaw" }, nil, 123456789)
+        T.eq(Ids(seeds), "Ashfang-Firemaw,Tovik-Firemaw,Marla-Firemaw,Moonsong-Firemaw,Grimtusk-Firemaw", "same seeds")
+        local rounds = B.Build(seeds, {}, { bestOf = 3, finalBestOf = 5 })
+        T.eq(#rounds, 3, "8 places: 3 rounds")
+        local r1 = rounds[1].matches
+        T.eq(r1[1].a .. "/" .. tostring(r1[1].b), "Ashfang-Firemaw/nil", "a bye")
+        T.eq(r1[2].a .. "/" .. r1[2].b, "Moonsong-Firemaw/Grimtusk-Firemaw", "the one real match")
+        T.eq(rounds[2].matches[1].a, "Ashfang-Firemaw", "the bye went on")
+        T.eq(rounds[3].bestOf, 5, "the final's series")
+
+        rounds = B.Build(seeds, { { round = 1, match = 2, a = "Moonsong-Firemaw", b = "Grimtusk-Firemaw", winsA = 1, winsB = 2 } },
+            { bestOf = 3 })
+        T.eq(rounds[2].matches[1].b, "Grimtusk-Firemaw", "the winner went on")
+        local stale = B.Build(seeds, { { round = 1, match = 2, a = "Someone-Else", b = "Grimtusk-Firemaw", winsA = 2, winsB = 0 } }, {})
+        T.eq(stale[1].matches[2].winner, nil, "a result for other entrants does not count")
+
+        local four = B.Build({ "A", "B", "C", "D" }, {
+            { round = 1, match = 1, a = "A", b = "D", winsA = 1, winsB = 0 },
+            { round = 1, match = 2, a = "B", b = "C", winsA = 0, winsB = 0, forfeit = "a" },
+        }, { thirdPlace = true })
+        local third = four[2].matches[2]
+        T.ok(third.thirdPlace, "match 2 of the final round")
+        T.eq(third.a .. "/" .. third.b, "D/B", "the semifinal losers")
+        T.ok(not B.NextIsPlayed(four, 1, 1), "nothing played after the semifinals")
+        four = B.Build({ "A", "B", "C", "D" }, {
+            { round = 1, match = 1, a = "A", b = "D", winsA = 1, winsB = 0 },
+            { round = 1, match = 2, a = "B", b = "C", winsA = 1, winsB = 0 },
+            { round = 2, match = 2, a = "D", b = "C", winsA = 1, winsB = 0 },
+        }, { thirdPlace = true })
+        T.ok(B.NextIsPlayed(four, 1, 1), "a semifinal is locked once the 3rd place match has a result")
+        T.noErrors()
+    end)
+
+    T.case("an event opens on the round being played, with who meets who and the link to copy", function()
+        local ns = H.Boot({ client = "era", siteData = Data({ Tournament({
+            starts_at = H.serverTime - 600, locks_at = H.serverTime - 4200, best_of = 1,
+            url = "https://headhunterwow.com/tournaments/gatebrawl?tab=bracket",
+            players = { { entrant = "p1", name = "Grimtusk", realm = "Firemaw" }, { entrant = "p2", name = "Marla", realm = "Firemaw" },
+                { entrant = "p3", name = "Tovik", realm = "Firemaw" }, { entrant = "p4", name = "Ashfang", realm = "Firemaw" } },
+        }) }) })
+        local M, TN = ns.MainWindow, ns.Tournaments
+        local t = TN:Get("gatebrawl")
+        local first = TN.Bracket(t)[1].matches[1]
+        t.results = { { round = 1, match = 1, a = first.a, b = first.b, winsA = 1, winsB = 0 } }
+        T.eq(TN.CurrentRound(TN.Bracket(t)), 1, "round 1 still has a match to play")
+        local rows = M.MatchRows(t, 1)
+        T.eq(#rows, 2, "two matches")
+        T.eq(rows[1].score, "1 - 0", "the score")
+        T.ok(rows[1].a:find("|cffffd100", 1, true) ~= nil, "the winner in gold")
+        T.eq(rows[1].status, "Played", "played")
+        T.eq(rows[2].score, "vs", "to play")
+        local final = M.MatchRows(t, 2)
+        T.eq(final[1].status, "Not decided yet", "the final waits")
+
+        H.Slash("")
+        M:SelectSection("events")
+        M:OnRowClick(M.Rows("ongoing")[1])
+        local f = _G.HeadHunterMainFrame
+        T.ok(f.eventBack:IsShown() and f.eventLink:IsShown(), "the event's toolbar")
+        T.ok(f.eventRound.shownText:find("Round 1", 1, true) ~= nil, "on the round being played")
+        M:CopyEventLink()
+        local dialog = _G.StaticPopupDialogs.HEADHUNTER_LINK
+        T.ok(dialog ~= nil and dialog.hasEditBox, "a box to copy from")
+        T.eq(H.popups[#H.popups].which, "HEADHUNTER_LINK", "shown")
+        local box = { SetText = function(self, v) self.text = v end, HighlightText = function() end, SetFocus = function() end }
+        dialog.OnShow({ editBox = box }, t.url)
+        T.eq(box.text, "https://headhunterwow.com/tournaments/gatebrawl?tab=bracket", "the link, selected")
+        M:ShowRound(1)
+        T.ok(f.eventRound.shownText:find("Final", 1, true) ~= nil, "the next round")
+        M:CloseEvent()
+        T.ok(not f.eventBack:IsShown() and f.subtabs.events:IsShown(), "back to the list")
         T.noErrors()
     end)
 
