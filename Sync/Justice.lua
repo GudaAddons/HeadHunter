@@ -230,7 +230,7 @@ function Justice.HonorVictim(name)
     local key = U.PlayerKey(name)
     if key then return key end
     local found
-    local given = name:lower()
+    local given = (name:match("^([^%-%s]+)") or name):lower() -- "Given-Realm" on Forever too
     for _, entry in pairs(ns.Wanted:All()) do
         local first = entry.key and entry.key:match("^(%S+) ")
         if first and first:lower() == given and (ns.Wanted.Hunted(entry) or ns.Bounties:ActiveOn(entry)) then
@@ -248,9 +248,11 @@ function Justice:OnHonorGain(text)
         local name = text:match(pattern)
         if name then
             local key = Justice.HonorVictim(name)
+            ns.Log:Add("info", "Honor line: " .. text .. " -> " .. (key or "no watched outlaw"))
             return key and self:OnEnemyKilled(key, nil, "honor") or nil
         end
     end
+    ns.Log:Add("info", "Honor line not understood: " .. text)
     return nil
 end
 

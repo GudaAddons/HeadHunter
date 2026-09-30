@@ -242,8 +242,8 @@ return function(T, H)
         H.Fire("CHAT_MSG_COMBAT_HONOR_GAIN", "Some Body dies, honorable kill Rank: Scout (Estimated Honor Points: 10)")
         Settle()
         T.eq(#ns.Wanted:List(), 1, "another player's death: no catch")
-        -- the given name only, as the game may give it
-        H.Fire("CHAT_MSG_COMBAT_HONOR_GAIN", "Grim dies, honorable kill Rank: Scout (Estimated Honor Points: 10)")
+        -- the given name only, with the realm as Forever's death recap gives it
+        H.Fire("CHAT_MSG_COMBAT_HONOR_GAIN", "Grim-ClassicBetaPvP2 dies, honorable kill Rank: Scout (Estimated Honor Points: 10)")
         Settle()
         T.eq(#ns.Wanted:List(), 0, "caught with the group")
         T.eq(#H.forbidden, 0, "never touched the combat log")
