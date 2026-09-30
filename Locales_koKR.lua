@@ -181,6 +181,7 @@ local KR = {
     DEMO_DONE = "데모 데이터 추가: 처치 %d, 결투 %d, 현상금 이벤트 %d. 아무것도 전송하지 않았습니다. |cffffff00/hh sim demo clear|r 로 제거합니다.",
     DEMO_CLEARED = "데모 데이터를 제거했습니다 (%d개 기록). 현상금이 원래대로 돌아왔습니다.",
     DEMO_ERA_ONLY = "데모는 Classic Era 이름 (이름-서버)을 쓰므로 Classic Era에서만 실행됩니다.",
+    DEV_NO_SHARING = "|cffff8000테스트 모드|r (HeadHunter_Dev noSharing): 다른 플레이어에게 아무것도 보내지 않습니다. 다른 플레이어의 데이터는 계속 받습니다.",
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300PvP 지역|r · |cffff9933%s|r, %s",

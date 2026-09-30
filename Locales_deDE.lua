@@ -181,6 +181,7 @@ local DE = {
     DEMO_DONE = "Demodaten hinzugefügt: Kills %d, Duelle %d, Kopfgeld-Ereignisse %d. Nichts wurde gesendet. |cffffff00/hh sim demo clear|r entfernt sie.",
     DEMO_CLEARED = "Demodaten entfernt (Einträge: %d). Dein Kopfgeld ist wieder wie vorher.",
     DEMO_ERA_ONLY = "Die Demo nutzt Classic-Era-Namen (Name-Realm) und läuft deshalb nur auf Classic Era.",
+    DEV_NO_SHARING = "|cffff8000Testmodus|r (HeadHunter_Dev noSharing): Es wird nichts an andere Spieler gesendet. Ihre Daten empfängst du weiter.",
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300PvP-Gebiet|r · |cffff9933%s|r in %s",

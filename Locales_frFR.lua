@@ -181,6 +181,7 @@ local FR = {
     DEMO_DONE = "Données de démo ajoutées : victimes %d, duels %d, événements de prime %d. Rien n'a été envoyé. |cffffff00/hh sim demo clear|r les retire.",
     DEMO_CLEARED = "Données de démo retirées (entrées : %d). Votre prime est revenue comme avant.",
     DEMO_ERA_ONLY = "La démo utilise des noms de Classic Era (Nom-Royaume), elle ne tourne donc que sur Classic Era.",
+    DEV_NO_SHARING = "|cffff8000Mode test|r (HeadHunter_Dev noSharing) : rien n'est envoyé aux autres joueurs. Tu reçois toujours leurs données.",
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300Zone JcJ|r · |cffff9933%s|r à %s",

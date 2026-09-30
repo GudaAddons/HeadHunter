@@ -181,6 +181,7 @@ local BR = {
     DEMO_DONE = "Dados de demonstração adicionados: abates %d, duelos %d, eventos de recompensa %d. Nada foi enviado. |cffffff00/hh sim demo clear|r tira tudo.",
     DEMO_CLEARED = "Dados de demonstração removidos (registros: %d). Sua recompensa voltou ao que era.",
     DEMO_ERA_ONLY = "A demonstração usa nomes do Classic Era (Nome-Reino), então só roda no Classic Era.",
+    DEV_NO_SHARING = "|cffff8000Modo de teste|r (HeadHunter_Dev noSharing): nada é enviado a outros jogadores. Você continua recebendo os dados deles.",
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300Zona de PvP|r · |cffff9933%s|r em %s",

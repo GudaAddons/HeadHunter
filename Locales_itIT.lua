@@ -182,6 +182,7 @@ local IT = {
     DEMO_DONE = "Dati demo aggiunti: uccisioni %d, duelli %d, eventi di taglia %d. Non è stato inviato nulla. |cffffff00/hh sim demo clear|r li toglie.",
     DEMO_CLEARED = "Dati demo tolti (voci: %d). La tua taglia è tornata com'era.",
     DEMO_ERA_ONLY = "La demo usa nomi di Classic Era (Nome-Reame), quindi funziona solo su Classic Era.",
+    DEV_NO_SHARING = "|cffff8000Modalità test|r (HeadHunter_Dev noSharing): non viene inviato nulla agli altri giocatori. Continui a ricevere i loro dati.",
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300Zona PvP|r · |cffff9933%s|r a %s",

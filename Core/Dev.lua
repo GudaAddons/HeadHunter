@@ -10,6 +10,11 @@
 --
 -- locale: show a translation on any client: "zhCN", "zhTW", "koKR", "ruRU", "ptBR", "esES", "esMX", "frFR", "deDE" or "itIT" (read by Locales.lua).
 -- Class and faction names still come from the client, so they stay in its language.
+--
+-- noSharing = true: test mode, for example with the local development sync app (author,
+-- 2026-09-30). Nothing leaves this client: no addon messages and no channel text
+-- (Sync/Transport.lua), so local test data never reaches other players. Receiving still
+-- works. A chat line at login says it is on (Core/Main.lua).
 
 local addonName, ns = ...
 
@@ -18,6 +23,11 @@ local Dev = ns:RegisterModule("Dev", {})
 local function Config()
     local config = _G.HeadHunter_Dev
     return type(config) == "table" and config or nil
+end
+
+function Dev.NoSharing()
+    local config = Config()
+    return config ~= nil and config.noSharing == true
 end
 
 function Dev.Trusts(name)

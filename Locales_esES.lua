@@ -182,6 +182,7 @@ local ES = {
     DEMO_DONE = "Datos de demostración añadidos: víctimas %d, duelos %d, eventos de recompensa %d. No se envió nada. |cffffff00/hh sim demo clear|r los quita.",
     DEMO_CLEARED = "Datos de demostración quitados (registros: %d). Tu recompensa volvió a como estaba.",
     DEMO_ERA_ONLY = "La demostración usa nombres de Classic Era (Nombre-Reino), así que solo funciona en Classic Era.",
+    DEV_NO_SHARING = "|cffff8000Modo de prueba|r (HeadHunter_Dev noSharing): no se envía nada a otros jugadores. Sigues recibiendo lo suyo.",
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300Zona JcJ|r · |cffff9933%s|r en %s",

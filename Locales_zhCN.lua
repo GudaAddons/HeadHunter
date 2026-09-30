@@ -449,6 +449,7 @@ local CN = {
     DEMO_DONE = "已加入演示数据：%d 次击杀、%d 场决斗、%d 条赏金事件。没有发送任何内容。|cffffff00/hh sim demo clear|r 可移除。",
     DEMO_CLEARED = "已移除演示数据（%d 条记录）。你的赏金已恢复原状。",
     DEMO_ERA_ONLY = "演示使用 Classic Era 的名字格式（名字-服务器），因此只能在 Classic Era 上运行。",
+    DEV_NO_SHARING = "|cffff8000测试模式|r（HeadHunter_Dev noSharing）：不会向其他玩家发送任何内容。你仍会收到他们的数据。",
     HELP_MAP = "|cffffff00/hh map [on|off]|r：世界地图上的热点与通缉标记",
     JUSTICE_LINE = "|cff40ff40正法！|r %s |cffff4040%s|r（击杀 %d）被 %s 在 %s 击倒。",
     JUSTICE_CENTER = "|cff40ff40正法！|r 你击倒了 |cffff4040%s|r",

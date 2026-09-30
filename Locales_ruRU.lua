@@ -181,6 +181,7 @@ local RU = {
     DEMO_DONE = "Демо-данные добавлены: убийств %d, дуэлей %d, событий награды %d. Ничего не отправлено. |cffffff00/hh sim demo clear|r уберёт их.",
     DEMO_CLEARED = "Демо-данные удалены (записей: %d). Ваша награда снова как была.",
     DEMO_ERA_ONLY = "Демо использует имена Classic Era (Имя-Сервер), поэтому работает только в Classic Era.",
+    DEV_NO_SHARING = "|cffff8000Тестовый режим|r (HeadHunter_Dev noSharing): другим игрокам ничего не отправляется. Их данные ты по-прежнему получаешь.",
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300PvP-зона|r · |cffff9933%s|r, %s",

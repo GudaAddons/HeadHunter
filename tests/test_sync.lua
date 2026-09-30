@@ -532,4 +532,31 @@ return function(T, H)
         T.ok(H.Printed("Shared reports: 1"), "/hh reports")
         T.noErrors()
     end)
+
+    T.case("test mode (HeadHunter_Dev noSharing): nothing is sent, and the chat says so", function()
+        local ns = H.Boot({ client = "era", dev = { noSharing = true } })
+        H.inGuild = true
+        T.ok(H.Printed("Test mode"), "login line")
+        H.units.target = { name = "Gank", level = 31, class = "ROGUE", race = "Dwarf", faction = "Alliance", isPlayer = true }
+        H.units.mouseover = { name = "Bob", level = 29, class = "MAGE", race = "Gnome", faction = "Alliance", isPlayer = true }
+        H.Fire("CHAT_MSG_SYSTEM", "Gank has defeated Bob in a duel")
+        for _ = 1, 30 do H.Advance(1) end
+        T.eq(ns.Duels:Count(), 1, "still stored")
+        T.eq(#H.sent, 0, "no addon message")
+        T.eq(ns.Transport:SendRealmWide("U", { "x" }), 0, "no channel text")
+        T.noErrors()
+    end)
+
+    T.case("without test mode the same duel is shared", function()
+        local ns = H.Boot({ client = "era", dev = { trust = { "Tester-Firemaw" } } })
+        H.inGuild = true
+        T.ok(not H.Printed("Test mode"), "no login line")
+        H.units.target = { name = "Gank", level = 31, class = "ROGUE", race = "Dwarf", faction = "Alliance", isPlayer = true }
+        H.units.mouseover = { name = "Bob", level = 29, class = "MAGE", race = "Gnome", faction = "Alliance", isPlayer = true }
+        H.Fire("CHAT_MSG_SYSTEM", "Gank has defeated Bob in a duel")
+        for _ = 1, 30 do H.Advance(1) end
+        T.eq(ns.Duels:Count(), 1, "stored")
+        T.ok(#H.sent > 0, "shared")
+        T.noErrors()
+    end)
 end

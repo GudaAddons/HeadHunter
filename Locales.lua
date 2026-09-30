@@ -184,6 +184,7 @@ L.SIM_CLEARED = "Test data removed: %d simulated report(s), %d of your simulated
 L.DEMO_DONE = "Demo data added: %d kills, %d duels, %d bounty events. Nothing was sent. |cffffff00/hh sim demo clear|r takes it out."
 L.DEMO_CLEARED = "Demo data removed (%d records). Your bounty is back as it was."
 L.DEMO_ERA_ONLY = "The demo uses Classic Era names (Name-Realm), so it only runs on Classic Era."
+L.DEV_NO_SHARING = "|cffff8000Test mode|r (HeadHunter_Dev noSharing): nothing is sent to other players. You still receive theirs."
 
 -- Map markers (HH-046)
 L.MAP_HOTSPOT_TITLE = "|cffff3300PvP zone|r · |cffff9933%s|r in %s"

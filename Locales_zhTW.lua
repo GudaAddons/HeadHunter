@@ -450,6 +450,7 @@ local TW = {
     DEMO_DONE = "已加入示範資料：%d 次擊殺、%d 場決鬥、%d 條賞金事件。沒有傳送任何內容。|cffffff00/hh sim demo clear|r 可移除。",
     DEMO_CLEARED = "已移除示範資料（%d 條記錄）。你的賞金已恢復原狀。",
     DEMO_ERA_ONLY = "示範使用 Classic Era 的名字格式（名字-伺服器），因此只能在 Classic Era 上執行。",
+    DEV_NO_SHARING = "|cffff8000測試模式|r（HeadHunter_Dev noSharing）：不會向其他玩家傳送任何內容。你仍會收到他們的資料。",
     HELP_MAP = "|cffffff00/hh map [on|off]|r：世界地圖上的熱點與通緝標記",
     JUSTICE_LINE = "|cff40ff40正法！|r %s |cffff4040%s|r（擊殺 %d）被 %s 在 %s 擊倒。",
     JUSTICE_CENTER = "|cff40ff40正法！|r 你擊倒了 |cffff4040%s|r",
