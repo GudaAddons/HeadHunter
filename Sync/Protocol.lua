@@ -32,6 +32,7 @@ Protocol.TYPES = {
     PING = "T", -- /hh sync ping: manual connectivity test
     PRESENCE = "N", -- HH-110: "here" with our version, counts who is online; both factions
     HELP = "B",     -- HH-111: "help on the way" to a Battle hotspot
+    SPOTTED = "L",  -- a watched outlaw spotted there (Alerts/Spotted.lua)
     POSTER = "W",   -- HH-118: a player's bounty poster on their killer
     PAYMENT = "R",  -- HH-118: a bounty claimed, paid or unpaid (sent by the hunter)
 }
@@ -512,6 +513,25 @@ function Protocol.DecodeHelp(s)
     if type(s) ~= "string" then return nil end
     local mapID, t = s:match("^(%w+);(%w+)$")
     return mapID and Protocol.FromB36(mapID), t and Protocol.FromB36(t)
+end
+
+-------------------------------------------------
+-- Spotted (author, 2026-10-01): outlawId ; mapID ; time ; x ; y. The sender saw a
+-- watched outlaw (WANTED, at large, or with a player's bounty) there.
+-------------------------------------------------
+
+function Protocol.EncodeSpotted(outlawId, mapID, t, x, y)
+    return table.concat({ outlawId, Protocol.ToB36(mapID), Protocol.ToB36(t), EncodeCoord(x), EncodeCoord(y) }, ";")
+end
+
+-- Returns outlawId, mapID, time, x, y
+function Protocol.DecodeSpotted(s)
+    if type(s) ~= "string" then return nil end
+    local f = Split(s, ";")
+    if #f ~= 5 or Blank(f[1]) then return nil end
+    local mapID, t = Protocol.FromB36(f[2]), Protocol.FromB36(f[3])
+    if not mapID or not t then return nil end
+    return f[1], mapID, t, DecodeCoord(f[4]), DecodeCoord(f[5])
 end
 
 -------------------------------------------------
