@@ -7,7 +7,10 @@
 -- Every client derives WANTED from reports + catches, so all agree.
 --
 -- Detection (only for an enemy that is WANTED right now):
---   Era      combat log PARTY_KILL by us, our pet or a group member
+--   Era      combat log PARTY_KILL by us, our pet or a group member; or an assist
+--            (author, 2026-10-01): someone else landed the blow, but we, our pet or
+--            our group hit them in the last ASSIST_WINDOW seconds (as the game gives
+--            an honorable kill to everyone who helped)
 --   Forever  no combat log: our target, a WANTED enemy player, died while we were
 --            in combat (less exact: we may not have landed the blow)
 -- Sync: the automatic routes. On Era the realm-wide channel needs a click, so the
@@ -27,6 +30,10 @@ Justice.DEDUPE = 60            -- one catch per outlaw per minute (group members
 Justice.SENDER_LIMIT = 5       -- catches accepted per sender per window
 Justice.SENDER_WINDOW = 600
 Justice.COMBAT_GRACE = 5       -- Forever: seconds after combat a target death still counts
+Justice.ASSIST_WINDOW = 60     -- Era: our hit this recent makes someone else's kill our catch
+
+-- Combat log damage that counts as helping
+local HITS = { SWING_DAMAGE = true, RANGE_DAMAGE = true, SPELL_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true }
 
 -- COMBATLOG_OBJECT_* bits
 local AFFILIATION_OURS = 0x00000007 -- MINE | PARTY | RAID
@@ -36,6 +43,7 @@ local REACTION_HOSTILE = 0x00000040
 local senderLog = {}
 local toAnnounce = {}           -- Era: our catch ids waiting for the [Announce] click
 local lastCombat = 0
+local hits = {}                 -- Era: enemy GUID -> Now() of our side's last hit on them
 
 local function Store()
     return ns.db and ns.db.justice
@@ -139,16 +147,42 @@ function Justice:OnEnemyKilled(key, guid, how, killer)
     return self:Record(entry, how, killer)
 end
 
--- Era: PARTY_KILL is logged for kills by us, our pet or a group member
+-- Enemies we hit but who did not die: forgotten after the window (a new one is added
+-- only now and then, so this stays cheap)
+function Justice.ForgetOldHits()
+    local now = ns.Utils.Now()
+    for guid, at in pairs(hits) do
+        if now - at > Justice.ASSIST_WINDOW then hits[guid] = nil end
+    end
+end
+
+-- Era: PARTY_KILL is logged for kills by us, our pet or a group member. Someone else's
+-- kill (UNIT_DIED) is our catch too when our side hit them in the last ASSIST_WINDOW.
 function Justice:OnCombatLog()
     local _, subevent, _, _, sourceName, sourceFlags, _, destGUID, destName, destFlags = CombatLogGetCurrentEventInfo()
-    if subevent ~= "PARTY_KILL" then return end
-    if type(sourceFlags) ~= "number" or type(destFlags) ~= "number" then return end
-    if bit.band(sourceFlags, AFFILIATION_OURS) == 0 then return end
+    if subevent ~= "PARTY_KILL" and subevent ~= "UNIT_DIED" and not HITS[subevent] then return end
+    if type(destFlags) ~= "number" then return end
     if bit.band(destFlags, TYPE_PLAYER) == 0 or bit.band(destFlags, REACTION_HOSTILE) == 0 then return end
     -- Duel opponents are flagged hostile too
     if ns.Utils.IsSameFactionGUID(destGUID) then return end
-    self:OnEnemyKilled(ns.Utils.PlayerKey(destName), destGUID, "combatlog", ns.Utils.PlayerKey(sourceName))
+    local ours = type(sourceFlags) == "number" and bit.band(sourceFlags, AFFILIATION_OURS) ~= 0
+    local U = ns.Utils
+    if HITS[subevent] then
+        if ours and destGUID then
+            if not hits[destGUID] then Justice.ForgetOldHits() end
+            hits[destGUID] = U.Now()
+        end
+    elseif subevent == "PARTY_KILL" then
+        if not ours then return end
+        if destGUID then hits[destGUID] = nil end
+        self:OnEnemyKilled(U.PlayerKey(destName), destGUID, "combatlog", U.PlayerKey(sourceName))
+    else
+        local hit = destGUID and hits[destGUID]
+        if destGUID then hits[destGUID] = nil end
+        if hit and U.Now() - hit <= self.ASSIST_WINDOW then
+            self:OnEnemyKilled(U.PlayerKey(destName), destGUID, "assist")
+        end
+    end
 end
 
 -- Forever: our target died while we were fighting
