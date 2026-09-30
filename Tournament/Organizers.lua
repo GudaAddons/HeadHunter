@@ -6,7 +6,8 @@
 --
 -- When (author, 2026-09-30): from 1 hour before the start (the lock), during the
 -- tournament, until 30 minutes after it ends. The addon does not know the end yet (no
--- match results), so the star stops AFTER seconds after the start.
+-- match results), so the star stops AFTER seconds after the start. A tournament of
+-- several days has the same window on each day.
 --
 -- Organizers:RoleOf(key, now) -> "host" | "organizer", tournament; or nil
 -- Organizers.Star(role, size) -> the star as chat and tooltip text (|T...|t)
@@ -39,9 +40,13 @@ function Organizers:Enabled()
     return ns.db ~= nil and ns.db.settings.organizerMarks ~= false
 end
 
+-- The start of the day whose window is open now, or nil. A tournament of several days
+-- (author, 2026-09-30) has a window on each day.
 local function InWindow(tournament, now)
-    return tournament.startsAt and now >= tournament.startsAt - Organizers.BEFORE
-        and now <= tournament.startsAt + Organizers.AFTER
+    for _, start in ipairs(tournament.days or { tournament.startsAt }) do
+        if now >= start - Organizers.BEFORE and now <= start + Organizers.AFTER then return start end
+    end
+    return nil
 end
 
 -- The role of a player now: "host" before "organizer" when both
@@ -61,10 +66,11 @@ function Organizers:RoleOf(key, now)
     return found, foundTournament
 end
 
--- "starts in 45 min" or "in progress"
+-- "starts in 45 min" or "in progress", for the day whose window is open
 function Organizers.Status(tournament, now)
-    if now < tournament.startsAt then
-        return string.format(L.TOURNAMENT_STARTS_IN, math.max(1, math.ceil((tournament.startsAt - now) / 60)))
+    local start = InWindow(tournament, now) or tournament.startsAt
+    if now < start then
+        return string.format(L.TOURNAMENT_STARTS_IN, math.max(1, math.ceil((start - now) / 60)))
     end
     return L.TOURNAMENT_IN_PROGRESS
 end

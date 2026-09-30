@@ -196,7 +196,12 @@ function SiteData.Tournament(t)
         local key = SiteData.Key(person)
         if key then organizers[#organizers + 1] = key end
     end
-    return { id = id, name = Text(t.name) or "?", startsAt = startsAt, host = SiteData.Key(t.host),
+    -- Every day's start, day 1 first: a tournament may run over several days (author, 2026-09-30)
+    local days = { startsAt }
+    for _, day in ipairs(type(t.days) == "table" and t.days or {}) do
+        if Number(day) and Number(day) > days[#days] then days[#days + 1] = Number(day) end
+    end
+    return { id = id, name = Text(t.name) or "?", startsAt = startsAt, days = days, host = SiteData.Key(t.host),
         organizers = organizers }
 end
 

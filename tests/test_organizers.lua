@@ -46,6 +46,19 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("a tournament of several days has the star on each day, not between them", function()
+        local data = Data(-2 * 86400)
+        data.worlds["era|eu|Firemaw"].tournaments[1].days = { H.serverTime - 86400, H.serverTime + 1800 }
+        local ns = H.Boot({ client = "era", siteData = data })
+        local O = ns.Organizers
+        T.eq((O:RoleOf("Tovik-Firemaw")), "host", "30 min before day 3")
+        local _, tournament = O:RoleOf("Tovik-Firemaw")
+        T.eq(O.Status(tournament, H.serverTime), "starts in 30 min", "counts to that day")
+        T.eq((O:RoleOf("Tovik-Firemaw", H.serverTime - 86400 + 3600)), "host", "during day 2")
+        T.eq((O:RoleOf("Tovik-Firemaw", H.serverTime - 12 * 3600)), nil, "between the days")
+        T.noErrors()
+    end)
+
     T.case("the tooltip of an organizer says so, friend or foe", function()
         local ns = Boot(1800, { tooltip = "script" })
         H.units.mouseover = { name = "Tovik", level = 30, class = "WARRIOR", race = "Human", faction = "Alliance",
