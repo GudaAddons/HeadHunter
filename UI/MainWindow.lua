@@ -644,7 +644,7 @@ local function CreateMainFrame()
     f.eventBack:SetScript("OnClick", function() MainWindow:CloseEvent() end)
     f.eventTitle = Theme.Text(f, "heading", 15, "gold")
     f.eventTitle:SetPoint("LEFT", f.eventBack, "RIGHT", 12, 0)
-    f.eventTitle:SetWidth(330)
+    f.eventTitle:SetWidth(240)
     f.eventTitle:SetJustifyH("LEFT")
     f.eventTitle:SetWordWrap(false)
     f.eventLink = Theme.Button(f, L.EVENT_COPY_LINK, "gold", 110, 24)
@@ -658,7 +658,14 @@ local function CreateMainFrame()
     f.eventPrev = Theme.Button(f, "<", "outline", 28, 24)
     f.eventPrev:SetPoint("RIGHT", f.eventRound, "LEFT", -8, 0)
     f.eventPrev:SetScript("OnClick", function() MainWindow:ShowRound(-1) end)
-    for _, w in ipairs({ f.eventBack, f.eventTitle, f.eventLink, f.eventNext, f.eventRound, f.eventPrev }) do w:Hide() end
+    -- Our confirmed results to the website: a quick UI reload saves them, then HeadHunter
+    -- Sync sends them (an addon cannot reach the website itself)
+    f.eventSend = Theme.Button(f, "", "gold", 140, 24)
+    f.eventSend:SetPoint("RIGHT", f.eventPrev, "LEFT", -12, 0)
+    f.eventSend:SetScript("OnClick", function() MainWindow:SendToWebsite() end)
+    for _, w in ipairs({ f.eventBack, f.eventTitle, f.eventLink, f.eventNext, f.eventRound, f.eventPrev, f.eventSend }) do
+        w:Hide()
+    end
 
     -- Search tabs: find a player by name (Esc clears it, a second Esc leaves the box)
     local search = CreateFrame("EditBox", nil, f)
@@ -959,6 +966,13 @@ function MainWindow:LayoutToolbar(section, event)
             frame.eventPrev }) do
         if event then w:Show() else w:Hide() end
     end
+    local unsent = event and ns.Matches:Unsent() or 0
+    if unsent > 0 then
+        frame.eventSend:SetText(string.format(L.EVENT_SEND, unsent))
+        frame.eventSend:Show()
+    else
+        frame.eventSend:Hide()
+    end
     if event then
         local TN = ns.Tournaments
         local count = #TN.Bracket(event)
@@ -1036,6 +1050,26 @@ function MainWindow:CopyEventLink()
         }
     end
     StaticPopup_Show("HEADHUNTER_LINK", nil, nil, t.url)
+end
+
+-- Reload the UI (a click, after a yes) so the game saves our results for HeadHunter Sync
+function MainWindow:SendToWebsite()
+    local unsent = ns.Matches:Unsent()
+    if unsent == 0 then return false end
+    if not StaticPopupDialogs.HEADHUNTER_SEND then
+        StaticPopupDialogs.HEADHUNTER_SEND = {
+            button1 = YES or "Yes",
+            button2 = NO or "No",
+            OnAccept = function() ReloadUI() end,
+            timeout = 0,
+            whileDead = true,
+            hideOnEscape = true,
+            preferredIndex = 3,
+        }
+    end
+    StaticPopupDialogs.HEADHUNTER_SEND.text = string.format(L.EVENT_SEND_CONFIRM, unsent)
+    StaticPopup_Show("HEADHUNTER_SEND")
+    return true
 end
 
 function MainWindow:SelectSection(id)

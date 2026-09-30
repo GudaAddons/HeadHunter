@@ -31,6 +31,7 @@ Matches.PREPARE = 180      -- seconds to be ready (author, 2026-10-01)
 Matches.GAME_DEDUPE = 10   -- reports of one game from both players and the organizer
 Matches.TICK = 5           -- the event view's countdown
 
+local unsent = 0  -- results we confirmed since the last reload: saved to disk only at a reload
 local calls = {}  -- organizer: match id -> { t, round, match, a, b, aKey, bKey, readyBy, ready, go, wins, games }
 local mine        -- player: { tid, round, match, organizer, opponent, readyBy, ready }
 
@@ -190,8 +191,16 @@ function Matches:Confirm(t, round, number, winsA, winsB, forfeit)
         if key then ns.Transport:SendDirect(P.TYPES.MATCH, { record }, Target(key)) end
     end
     calls[id] = nil
+    unsent = unsent + 1
+    ns:Print(L.EVENT_SAVED_HINT)
     Changed()
     return true
+end
+
+-- Results we confirmed that the website does not have yet (author, 2026-10-01): the game
+-- writes them to disk only at a reload or logout, and HeadHunter Sync sends them then
+function Matches:Unsent()
+    return unsent
 end
 
 -------------------------------------------------

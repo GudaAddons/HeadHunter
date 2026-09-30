@@ -116,6 +116,31 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("Sync to website: shown once we confirmed a result; yes reloads the interface", function()
+        local ns = H.Boot({ client = "era", siteData = Data("Vati") })
+        local t, m = OtherMatch(ns)
+        H.Slash("")
+        local M = ns.MainWindow
+        M:ShowEvent("gatebrawl")
+        local f = _G.HeadHunterMainFrame
+        T.ok(not f.eventSend:IsShown(), "nothing to sync yet")
+        T.eq(M:SendToWebsite(), false, "nothing to ask")
+        ns.Matches:Confirm(t, 1, m.match, 2, 0)
+        T.ok(H.Printed("Sync to website in the event view"), "told how to put it on the website")
+        M:Refresh()
+        T.ok(f.eventSend:IsShown(), "the button")
+        T.eq(f.eventSend.shownText, "Sync to website (1)", "with the count")
+        local reloaded = false
+        _G.ReloadUI = function() reloaded = true end
+        T.ok(M:SendToWebsite(), "asks first")
+        T.eq(H.popups[#H.popups].which, "HEADHUNTER_SEND", "a yes / no")
+        T.ok(not reloaded, "not before the yes")
+        _G.StaticPopupDialogs.HEADHUNTER_SEND.OnAccept()
+        T.ok(reloaded, "the yes reloads, the game saves, the app syncs")
+        _G.ReloadUI = nil
+        T.noErrors()
+    end)
+
     T.case("the match for 3rd place says so in the # column, not in the status", function()
         local ns = H.Boot({ client = "era", siteData = Data("Vati", { third_place_match = true }) })
         local TN = ns.Tournaments
