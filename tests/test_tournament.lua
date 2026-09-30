@@ -272,6 +272,13 @@ return function(T, H)
         T.eq(value, "a", "picked")
         select:Choose("b")
         T.eq(value, "b", "Choose")
+        -- Choices filled after the dropdown was made (the result dialog): Refresh has them
+        local later = {}
+        local filled = ns.Select.Create(UIParent, { options = later, get = function() return value end, set = function() end })
+        T.eq(#radio.entries, 0, "empty at first")
+        later[1], later[2], later[3] = { value = "x", label = "X" }, { value = "y", label = "Y" }, { value = "z", label = "Z" }
+        filled:Refresh()
+        T.eq(#radio.entries, 3, "the choices after Refresh")
         _G.DoesTemplateExist, _G.MenuUtil = nil, nil
         T.noErrors()
     end)
