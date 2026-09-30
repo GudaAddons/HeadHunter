@@ -6,7 +6,7 @@
 -- The file keeps the website's names (the /api/v1/sync/download answer):
 --   worlds["era|eu|Firemaw"] / ["forever|us|pvp"] = { generated_at, wanted = {...},
 --     duels = { alliance = {...}, horde = {...} }, deadbeats = {...}, bullies = {...},
---     tournaments = {...} (WEB-080; for now the organizer stars read them, HH-128) }
+--     tournaments = {...} (WEB-080: the Tournaments tab and the organizer stars read them) }
 --   forever_servers = { ["4620"] = "pve", ... }: WoW Forever server numbers and their realm type
 --   characters = { { world, name, deaths, duels, catches, bounty = { total, events } } }
 -- This module picks our world, maps names to the addon's (player keys, "ROGUE",
@@ -186,8 +186,10 @@ function SiteData.Duelist(d, faction)
     }
 end
 
--- A tournament from the website (WEB-080): what the organizer stars need so far (HH-128)
--- { id, name, startsAt, host = key, organizers = { key ... } }
+-- A tournament from the website (WEB-080): tournaments are made and joined only there
+-- (Tournament/Tournaments.lua lists them, Tournament/Organizers.lua marks their hosts)
+-- { id, name, venue, teamSize, bestOf, finalBestOf, faction, minLevel, maxLevel, places,
+--   entrants, startsAt, days, locksAt, signupsClosed, host = key, organizers = { key ... } }
 function SiteData.Tournament(t)
     local id, startsAt = Text(t.id), Number(t.starts_at)
     if not id or not startsAt then return nil end
@@ -201,8 +203,20 @@ function SiteData.Tournament(t)
     for _, day in ipairs(type(t.days) == "table" and t.days or {}) do
         if Number(day) and Number(day) > days[#days] then days[#days + 1] = Number(day) end
     end
-    return { id = id, name = Text(t.name) or "?", startsAt = startsAt, days = days, host = SiteData.Key(t.host),
-        organizers = organizers }
+    -- Players, or teams in team formats
+    local entrants = type(t.teams) == "table" and #t.teams > 0 and #t.teams
+        or type(t.players) == "table" and #t.players or 0
+    return {
+        id = id, name = Text(t.name) or "?", venue = Text(t.venue) or "gurubashi",
+        teamSize = tonumber((Text(t.format) or "1v1"):match("^(%d)v")) or 1,
+        bestOf = Number(t.best_of) or 1, finalBestOf = Number(t.final_best_of),
+        faction = Text(t.faction) and FACTIONS[t.faction] or nil,
+        minLevel = Number(t.min_level), maxLevel = Number(t.max_level),
+        places = Number(t.places), entrants = entrants,
+        startsAt = startsAt, days = days, locksAt = Number(t.locks_at) or startsAt - 3600,
+        signupsClosed = t.signups_closed == true,
+        host = SiteData.Key(t.host), organizers = organizers,
+    }
 end
 
 function SiteData:Load()

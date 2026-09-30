@@ -40,7 +40,7 @@ return function(T, H)
                 T.eq(Codes(translated, "%%[%-%d%.]*[sdf]"), Codes(text, "%%[%-%d%.]*[sdf]"), "format codes of " .. key)
                 T.eq(Codes(translated, "|[cr]"), Codes(text, "|[cr]"), "color codes of " .. key)
             end
-            T.ok(count > 500, "English keys read")
+            T.ok(count > 400, "English keys read")
             T.noErrors()
         end)
     end

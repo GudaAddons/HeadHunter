@@ -27,7 +27,8 @@ Protocol.TYPES = {
     JUSTICE = "K", -- a WANTED outlaw killed by a HeadHunter or their group (HH-048)
     OFFER = "O",   -- catch-up: "I have N records for you" (HH-023)
     DUEL = "U",    -- High Noon: a duel someone saw (HH-091); also accepted from the other faction
-    TOURNAMENT = "V", -- Gurubashi Tournament: announce, entrants, requests (HH-101)
+    -- "V" was the in-game tournament (HH-101, removed 2026-09-30): not used again, as older
+    -- addons may still send it
     PING = "T", -- /hh sync ping: manual connectivity test
     PRESENCE = "N", -- HH-110: "here" with our version, counts who is online; both factions
     HELP = "B",     -- HH-111: "help on the way" to a Battle hotspot

@@ -15,7 +15,7 @@ local addonName, ns = ...
 
 local DB = ns:RegisterModule("Database", {})
 
-DB.SCHEMA_VERSION = 2
+DB.SCHEMA_VERSION = 3
 
 -- Old saved data mixed every realm. On WoW Forever it goes to the PvP realm, where the
 -- author played most (author, 2026-09-29); Era takes the realm of the last character.
@@ -27,7 +27,7 @@ DB.FALLBACK_HOME = "unknown"
 -- Per home; anything else in ns.db is the root's
 DB.HOME_TABLES = {
     deaths = true, reports = true, enemies = true, justice = true, posters = true, posse = true,
-    bountyPay = true, duels = true, tournaments = true, marks = true, demoMarks = true, player = true,
+    bountyPay = true, duels = true, marks = true, demoMarks = true, player = true,
 }
 
 DB.LIMITS = {
@@ -77,7 +77,6 @@ local HOME_DEFAULTS = {
     posse = {}, -- outlaw id -> our own join { t, mapID, layer, hunterRank }, kept over a reload
     bountyPay = {}, -- poster id -> claim and payment of that bounty (HH-118)
     duels = {},   -- High Noon: duel id -> duel someone saw (HH-091)
-    tournaments = {}, -- Gurubashi Tournament: id -> tournament (HH-101)
     marks = { total = 0, events = {} }, -- HH-050
 }
 
@@ -128,6 +127,15 @@ MIGRATIONS[2] = function(db)
     end
     db.wanted = nil
     db.meta.home = db.meta.home or key
+end
+
+-- The tournaments players made in game are gone (author, 2026-09-30): they come only
+-- from the website now (Tournament/Tournaments.lua)
+MIGRATIONS[3] = function(db)
+    db.tournaments = nil
+    for _, home in pairs(db.homes) do
+        if type(home) == "table" then home.tournaments = nil end
+    end
 end
 
 -- Use this home's data. Returns true when the home changed.
