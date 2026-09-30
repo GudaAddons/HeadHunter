@@ -496,12 +496,13 @@ function MainWindow.MatchRows(t, roundNumber, now)
             actions = { { kind = "set", label = L.EVENT_ACT_CHANGE } }
         end
         if m.thirdPlace then status = L.EVENT_THIRD_PLACE .. " · " .. status end
-        local gold = "|cffffd100%s|r"
+        -- The winner: a green check before the name (the name keeps its class color)
+        local won = "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t %s"
         rows[#rows + 1] = {
             eventMatch = { round = round.number, match = m.match },
             match = "#" .. m.match,
-            a = a and (played and m.winner == "a" and string.format(gold, a) or a) or "",
-            b = b and (played and m.winner == "b" and string.format(gold, b) or b) or "",
+            a = a and (played and m.winner == "a" and string.format(won, TN.SideLabel(t, m.a)) or TN.SideLabel(t, m.a)) or "",
+            b = b and (played and m.winner == "b" and string.format(won, TN.SideLabel(t, m.b)) or TN.SideLabel(t, m.b)) or "",
             score = m.forfeit and L.EVENT_FF or (played and (m.winsA .. " - " .. m.winsB)) or (m.bye and "" or "vs"),
             status = status,
             actions = actions,

@@ -219,7 +219,8 @@ function SiteData.Tournament(t)
                 people[entrant] = { name = Text(e.name) or entrant, team = true }
             else
                 drawn[#drawn + 1] = entrant
-                people[entrant] = { name = Text(e.name) or entrant, key = SiteData.Key(e), class = SiteData.Class(e.class) }
+                people[entrant] = { name = Text(e.name) or entrant, key = SiteData.Key(e), class = SiteData.Class(e.class),
+                    race = SiteData.Race(e.race), sex = Number(e.sex) }
             end
         end
     end
