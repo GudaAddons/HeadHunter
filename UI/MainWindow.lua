@@ -481,7 +481,7 @@ function MainWindow.MatchRows(t, roundNumber, now)
         elseif not (m.a and m.b) then
             status = L.EVENT_NOT_DECIDED
         elseif m.forfeit then
-            status = string.format(L.EVENT_NO_SHOW, m.forfeit == "a" and a or b)
+            status = L.EVENT_ST_NO_SHOW
         elseif played then
             status = L.EVENT_PLAYED
         else
@@ -495,14 +495,26 @@ function MainWindow.MatchRows(t, roundNumber, now)
         elseif played and organizer and not ns.Brackets.NextIsPlayed(rounds, round.number, m.match) then
             actions = { { kind = "set", label = L.EVENT_ACT_CHANGE } }
         end
-        if m.thirdPlace then status = L.EVENT_THIRD_PLACE .. " · " .. status end
-        -- The winner: a green check before the name (the name keeps its class color)
+        -- The winner: a green check before the name (the name keeps its class color); a
+        -- side that did not come in grey. The details in the tooltip (the columns are short)
         local won = "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t %s"
+        local function Side(side, entrant, name)
+            if not name then return "" end
+            if m.forfeit == side then return "|cff808080" .. name .. "|r" end
+            local label = TN.SideLabel(t, entrant)
+            return played and m.winner == side and string.format(won, label) or label
+        end
+        local tooltip = { m.thirdPlace and L.EVENT_THIRD_PLACE
+            or string.format(L.EVENT_MATCH_TITLE, TN.RoundName(round.number, #rounds), m.match) }
+        if a and b then tooltip[#tooltip + 1] = a .. " vs " .. b end
+        if m.forfeit then tooltip[#tooltip + 1] = string.format(L.EVENT_NO_SHOW, m.forfeit == "a" and a or b) end
+        tooltip[#tooltip + 1] = status
         rows[#rows + 1] = {
             eventMatch = { round = round.number, match = m.match },
-            match = "#" .. m.match,
-            a = a and (played and m.winner == "a" and string.format(won, TN.SideLabel(t, m.a)) or TN.SideLabel(t, m.a)) or "",
-            b = b and (played and m.winner == "b" and string.format(won, TN.SideLabel(t, m.b)) or TN.SideLabel(t, m.b)) or "",
+            match = m.thirdPlace and L.EVENT_THIRD_SHORT or ("#" .. m.match),
+            a = Side("a", m.a, a),
+            b = Side("b", m.b, b),
+            tooltip = tooltip,
             score = m.forfeit and L.EVENT_FF or (played and (m.winsA .. " - " .. m.winsB)) or (m.bye and "" or "vs"),
             status = status,
             actions = actions,

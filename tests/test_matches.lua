@@ -108,6 +108,27 @@ return function(T, H)
         ns.MainWindow:OnMatchAction(row, row.actions[1])
         local stored = ns.db.eventResults["gatebrawl:1:" .. m.match]
         T.eq(stored and stored.forfeit, "b", "a no-show")
+        local shown = ns.MainWindow.MatchRows(t, 1)[m.match]
+        T.eq(shown.status, "No-show", "a short status")
+        T.eq(shown.score, "FF", "FF")
+        T.ok(shown.b:find("|cff808080" .. b, 1, true) ~= nil, "the absent side in grey")
+        T.ok(table.concat(shown.tooltip, "\n"):find(b .. " did not come", 1, true) ~= nil, "the details in the tooltip")
+        T.noErrors()
+    end)
+
+    T.case("the match for 3rd place says so in the # column, not in the status", function()
+        local ns = H.Boot({ client = "era", siteData = Data("Vati", { third_place_match = true }) })
+        local TN = ns.Tournaments
+        local t = TN:Get("gatebrawl")
+        local semis = TN.Bracket(t)[1].matches
+        for i, m in ipairs(semis) do
+            t.results[#t.results + 1] = { round = 1, match = i, a = m.a, b = m.b, winsA = 2, winsB = 0 }
+        end
+        local rows = ns.MainWindow.MatchRows(t, 2)
+        T.eq(#rows, 2, "the final and the match for 3rd place")
+        T.eq(rows[1].match .. "|" .. rows[2].match, "#1|3rd", "3rd in the # column")
+        T.ok(not rows[2].status:find("3rd", 1, true), "not in the status: " .. rows[2].status)
+        T.eq(rows[2].tooltip[1], "3rd place", "the tooltip says it")
         T.noErrors()
     end)
 
