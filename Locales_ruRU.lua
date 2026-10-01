@@ -237,6 +237,7 @@ local RU = {
     TIP_KILLED_YOU = "Убил вас %s, место: %s (%s)",
     TAB_WANTED = "РОЗЫСК",
     TAB_SHAME = "Доска позора",
+    FACTION_ALL = "Все",
     TAB_DEATHS = "Мои смерти",
     COL_RANK = "Ранг",
     COL_NAME = "Имя",

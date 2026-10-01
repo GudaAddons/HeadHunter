@@ -153,7 +153,7 @@ return function(T, H)
         ns.MainWindow:OnRowClick(fern)
         T.eq(told, "Fernwick-Gehennas", "another realm keeps it")
 
-        ns.MainWindow:SwitchFaction()
+        ns.MainWindow:SetFaction("Horde")
         for _, row in ipairs(ns.MainWindow.shownRows) do
             T.eq(row.whisper, nil, "the other faction cannot be whispered")
         end

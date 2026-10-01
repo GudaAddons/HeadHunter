@@ -238,6 +238,7 @@ local IT = {
     TIP_KILLED_YOU = "Ti ha ucciso %s a %s (%s)",
     TAB_WANTED = "RICERCATI",
     TAB_SHAME = "Muro della vergogna",
+    FACTION_ALL = "Tutti",
     TAB_DEATHS = "Le mie morti",
     COL_RANK = "Grado",
     COL_NAME = "Nome",

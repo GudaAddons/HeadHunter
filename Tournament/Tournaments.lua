@@ -92,15 +92,14 @@ function Tournaments.SideName(t, entrant)
     return person.key and ns.Utils.DisplayName(person.key) or person.name
 end
 
--- A side as the event view shows it (author, 2026-10-01): race and class icons, the
--- name in its class color; a team's name as it is
+-- A side as the event view shows it (author, 2026-10-01): like the other lists, faction
+-- crest, race icon, the name in its class color, class icon; a team's name as it is
 function Tournaments.SideLabel(t, entrant)
     local name = Tournaments.SideName(t, entrant)
     local person = name and t.people[entrant]
     if not person or person.team then return name end
-    local U = ns.Utils
-    local icons = U.RaceIcon(person.race, person.sex) .. U.ClassIcon(person.class)
-    return (icons ~= "" and (icons .. " ") or "") .. ns.MainWindow.ClassColored(name, person.class)
+    local faction = person.faction or ns.Utils.RaceFaction(person.race) or t.faction
+    return ns.MainWindow.Labeled(name, person, faction)
 end
 
 -- "Best of 3" or "Best of 3, final Best of 5"

@@ -21,6 +21,7 @@ local TW = {
     -- Tabs
     TAB_WANTED = "通緝",
     TAB_SHAME = "恥辱柱",
+    FACTION_ALL = "全部",
     TAB_DUELS = "決鬥",
     TAB_DEATHS = "我的死亡",
     TAB_MARKS = "我的賞金",

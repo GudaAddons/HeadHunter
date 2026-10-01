@@ -220,7 +220,7 @@ function SiteData.Tournament(t)
             else
                 drawn[#drawn + 1] = entrant
                 people[entrant] = { name = Text(e.name) or entrant, key = SiteData.Key(e), class = SiteData.Class(e.class),
-                    race = SiteData.Race(e.race), sex = Number(e.sex) }
+                    race = SiteData.Race(e.race), sex = Number(e.sex), faction = SiteData.Faction(e.faction) }
             end
         end
     end

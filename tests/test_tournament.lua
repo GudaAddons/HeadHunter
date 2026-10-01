@@ -227,6 +227,23 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("a player in an event: faction crest, race icon, the name in class color, class icon", function()
+        local ns = H.Boot({ client = "era", siteData = Data({ Tournament({
+            faction = false,
+            players = { { entrant = "p1", name = "Grimtusk", faction = "horde", race = "orc", class = "rogue", sex = 2 },
+                { entrant = "p2", name = "Marla" } },
+        }) }) })
+        local TN = ns.Tournaments
+        local t = TN:Get("gatebrawl")
+        local label = TN.SideLabel(t, "p1")
+        T.ok(label:find("^|TInterface\\TargetingFrame\\UI%-PVP%-Horde") ~= nil, "Horde crest first: " .. label)
+        T.ok(label:find("|t|A:raceicon%-orc%-male") ~= nil, "then the race: " .. label)
+        T.ok(label:find("|a |c%x+Grimtusk|r |TInterface\\WorldStateFrame\\ICONS%-CLASSES") ~= nil,
+            "then the name in class color and the class icon: " .. label)
+        T.eq(TN.SideLabel(t, "p2"), "Marla", "nothing known: the name alone")
+        T.noErrors()
+    end)
+
     T.case("the Events list: events are made on the website, Create an event copies its link", function()
         local ns = H.Boot({ client = "era" })
         local M = ns.MainWindow

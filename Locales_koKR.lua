@@ -237,6 +237,7 @@ local KR = {
     TIP_KILLED_YOU = "%s, %s에서 나를 처치 (%s)",
     TAB_WANTED = "현상수배",
     TAB_SHAME = "수치의 전당",
+    FACTION_ALL = "전체",
     TAB_DEATHS = "내 죽음",
     COL_RANK = "등급",
     COL_NAME = "이름",

@@ -20,6 +20,7 @@ local CN = {
     -- Tabs
     TAB_WANTED = "通缉",
     TAB_SHAME = "耻辱柱",
+    FACTION_ALL = "全部",
     TAB_DUELS = "决斗",
     TAB_DEATHS = "我的死亡",
     TAB_MARKS = "我的赏金",

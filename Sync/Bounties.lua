@@ -191,12 +191,17 @@ function Bounties:IsBlocked(owner, now)
 end
 
 -- Hall of Shame (author, 2026-09-28): every blocked owner we know of, longest block
--- first: { owner, unpaid, blockedUntil }
+-- first: { owner, faction, unpaid, blockedUntil }; faction is ours for owners whose
+-- bounties we saw, the race's for a known enemy, else nil
 function Bounties:Shamed(now)
     now = now or ns.Utils.ServerTime()
     local seen, list = {}, {}
-    local owners = {}
-    for posterId in pairs(Payments() or {}) do owners[#owners + 1] = self.OwnerOf(posterId) end
+    local owners, ours = {}, {}
+    for posterId in pairs(Payments() or {}) do
+        local owner = self.OwnerOf(posterId)
+        owners[#owners + 1] = owner
+        ours[owner] = true
+    end
     for _, site in pairs(ns.SiteData:Deadbeats()) do owners[#owners + 1] = site.key end
     for _, owner in ipairs(owners) do
         local id = ns.Utils.CompactName(owner)
@@ -205,7 +210,11 @@ function Bounties:Shamed(now)
             local untilT = self:BlockedUntil(owner, now)
             if untilT then
                 local _, unpaid = self:Standing(owner)
-                list[#list + 1] = { owner = owner, unpaid = math.max(unpaid, #UnpaidTimes(owner)), blockedUntil = untilT }
+                local known = ns.Wanted:Get(id)
+                local faction = ours[owner] and ns.Utils.UnitFaction("player")
+                    or (known and ns.Utils.RaceFaction(known.race)) or nil
+                list[#list + 1] = { owner = owner, faction = faction, unpaid = math.max(unpaid, #UnpaidTimes(owner)),
+                    blockedUntil = untilT }
             end
         end
     end
