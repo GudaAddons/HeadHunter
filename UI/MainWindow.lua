@@ -1,7 +1,7 @@
 -- HH-060: the main window. /hh (no arguments) or the minimap button toggles it.
 --
 -- Sections (author, 2026-10-01): the top tabs, each with its own sub-tabs in the
--- toolbar: Bounty board (WANTED · Hall of Shame), Duels, Events (Ongoing · Upcoming),
+-- toolbar: Bounty board (WANTED · Hall of Shame), Duels, Events (Ongoing · Upcoming · Finished),
 -- Me (My deaths · My marks). The views:
 --   WANTED         players' bounties first (HH-118, merged per target, newest first),
 --                  then who is WANTED now; sort by rank, kills or last kill
@@ -12,9 +12,10 @@
 -- All, Alliance or Horde, All first; the board's views share one choice, Duels has its own
 --   My deaths      our own PvP deaths, newest first
 --   My marks       our HeadHunter rank and what earned or cost marks (HH-050)
---   Events         the website's tournaments on our world (WEB-080), being played or
---                  to come; a click opens the event: its rounds, who meets who, the
---                  scores, and its website link to copy (Tournament/Tournaments.lua)
+--   Events         the website's tournaments on our world (WEB-080), being played, to
+--                  come, or over (the final decided or ended by the host); a click opens
+--                  the event: its rounds, who meets who, the scores, the places once
+--                  finished, and its website link to copy (Tournament/Tournaments.lua)
 -- A row click opens the outlaw's poster (UI/Poster.lua).
 -- Sub-tabs on the left; the filters on the right: the search by name (WANTED, Hall of
 -- Shame, Duels, My deaths; one per tab), then the faction switch at the edge;
@@ -44,10 +45,10 @@ MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 MainWindow.SECTIONS = {
     { id = "board", views = { "wanted", "shame" } },
     { id = "duels", views = { "duels" } },
-    { id = "events", views = { "ongoing", "upcoming" } },
+    { id = "events", views = { "ongoing", "upcoming", "finished" } },
     { id = "me", views = { "deaths", "marks" } },
 }
-MainWindow.TABS = { "wanted", "shame", "duels", "ongoing", "upcoming", "deaths", "marks" }
+MainWindow.TABS = { "wanted", "shame", "duels", "ongoing", "upcoming", "finished", "deaths", "marks" }
 -- Tabs of older versions
 MainWindow.OLD_TABS = { tours = "ongoing" }
 -- The faction crests in the Alliance / Horde switch: the game's PvP flag icons,
@@ -149,11 +150,13 @@ function MainWindow.FactionIcon(faction, size)
 end
 
 -- Faction crest, race icon, the name in class color, then the class icon (author,
--- 2026-10-01); no crest when faction is nil
-function MainWindow.Labeled(name, who, faction)
+-- 2026-10-01); no crest when faction is nil; muted: the name in grey (a side that did
+-- not come), the icons kept
+function MainWindow.Labeled(name, who, faction, muted)
     local icons = MainWindow.FactionIcon(faction) .. ns.Utils.RaceIcon(who.race, who.sex)
     local class = ns.Utils.ClassIcon(who.class)
-    return (icons ~= "" and (icons .. " ") or "") .. ClassColored(name, who.class) .. (class ~= "" and (" " .. class) or "")
+    local shown = muted and ("|cff808080" .. name .. "|r") or ClassColored(name, who.class)
+    return (icons ~= "" and (icons .. " ") or "") .. shown .. (class ~= "" and (" " .. class) or "")
 end
 
 -- A player in the lists: without a faction of its own, an outlaw's is the one of its
@@ -439,8 +442,11 @@ local function EventRows(view, now)
     local TN = ns.Tournaments
     local rows = {}
     for _, t in ipairs(TN:List(now)) do
-        if TN.Ongoing(t, now) == (view == "ongoing") then
-            local host = ns.Utils.DisplayName(t.host) or t.host or "?"
+        local kind = (TN.Over(t, now) and "finished") or (TN.Ongoing(t, now) and "ongoing") or "upcoming"
+        if kind == view then
+            local hostName = ns.Utils.DisplayName(t.host) or t.host or "?"
+            local who = t.hostInfo or {}
+            local host = ClassColored(hostName, who.class)
             local status = L["TOUR_STATUS_" .. TN.State(t, now):upper()]
             local format = t.teamSize .. "v" .. t.teamSize
             local tooltip = {
@@ -451,7 +457,7 @@ local function EventRows(view, now)
             }
             if #t.days > 1 then tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_DAYS, #t.days) end
             tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_ENTRANTS, TN.Entrants(t), TN.Levels(t))
-            tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_HOST, host)
+            tooltip[#tooltip + 1] = string.format(L.TIP_TOUR_HOST, MainWindow.Labeled(hostName, who, who.faction or t.faction))
             tooltip[#tooltip + 1] = status
             tooltip[#tooltip + 1] = "|cffaaaaaa" .. L.TIP_EVENT_OPEN .. "|r"
             rows[#rows + 1] = {
@@ -461,6 +467,27 @@ local function EventRows(view, now)
         end
     end
     return rows
+end
+
+-- A finished event's places on one line: "1st X   2nd Y   3rd Z, W" (players with their
+-- icons); an event the host ended before its final says so; nil while it is not over
+MainWindow.PLACES_HEIGHT = 24
+function MainWindow.PlacesLine(t)
+    local TN = ns.Tournaments
+    local places = TN.Finished(t) and TN.Places(t)
+    if not places then
+        return t.ended and ("|cffaaaaaa" .. L.EVENT_ENDED .. "|r") or nil
+    end
+    local parts = {
+        string.format(L.EVENT_PLACE_1, TN.SideLabel(t, places.first) or "?"),
+        string.format(L.EVENT_PLACE_2, TN.SideLabel(t, places.second) or "?"),
+    }
+    if #places.third > 0 then
+        local third = {}
+        for i, entrant in ipairs(places.third) do third[i] = TN.SideLabel(t, entrant) or "?" end
+        parts[#parts + 1] = string.format(L.EVENT_PLACE_3, table.concat(third, ", "))
+    end
+    return table.concat(parts, "     ")
 end
 
 -- The live state of a match to play, and its buttons: the organizer's call, ready,
@@ -511,7 +538,8 @@ function MainWindow.MatchRows(t, roundNumber, now)
     local rows = {}
     if not round then return rows end
     -- Matches are called once the tournament has started
-    local organizer = ns.Matches.IsOrganizer(t) and TN.Ongoing(t, now)
+    local state = TN.State(t, now)
+    local organizer = ns.Matches.IsOrganizer(t) and (state == "running" or state == "finished")
     for _, m in ipairs(round.matches) do
         local a, b = TN.SideName(t, m.a), TN.SideName(t, m.b)
         local played = m.winner ~= nil and not m.bye
@@ -540,7 +568,7 @@ function MainWindow.MatchRows(t, roundNumber, now)
         local won = "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t %s"
         local function Side(side, entrant, name)
             if not name then return "" end
-            if m.forfeit == side then return "|cff808080" .. name .. "|r" end
+            if m.forfeit == side then return TN.SideLabel(t, entrant, true) end
             local label = TN.SideLabel(t, entrant)
             return played and m.winner == side and string.format(won, label) or label
         end
@@ -580,7 +608,7 @@ end
 function MainWindow.Rows(tab, sortKey, now, faction, search)
     now = now or ns.Utils.ServerTime()
     local rows
-    if tab == "ongoing" or tab == "upcoming" then
+    if tab == "ongoing" or tab == "upcoming" or tab == "finished" then
         rows = EventRows(tab, now)
     elseif tab == "duels" then
         rows = DuelRows(faction, now)
@@ -712,6 +740,13 @@ local function CreateMainFrame()
     -- Our confirmed results to the website: a quick UI reload saves them, then HeadHunter
     -- Sync sends them (an addon cannot reach the website itself)
     f.eventSend = Theme.Button(f, "", "gold", 140, 24)
+    -- A finished event: 1st, 2nd and 3rd over its matches (or that the host ended it)
+    f.eventPlaces = Theme.Text(f, "text", 14, "foreground")
+    f.eventPlaces:SetPoint("TOPLEFT", f, "TOPLEFT", 18, -(Theme.HEADER_HEIGHT + 46))
+    f.eventPlaces:SetPoint("RIGHT", f, "RIGHT", -18, 0)
+    f.eventPlaces:SetJustifyH("LEFT")
+    f.eventPlaces:SetWordWrap(false)
+    f.eventPlaces:Hide()
     f.eventSend:SetPoint("RIGHT", f.eventPrev, "LEFT", -12, 0)
     f.eventSend:SetScript("OnClick", function() MainWindow:SendToWebsite() end)
     for _, w in ipairs({ f.eventBack, f.eventTitle, f.eventLink, f.eventNext, f.eventRound, f.eventPrev, f.eventSend }) do
@@ -846,14 +881,15 @@ local function Cell(row, c)
 end
 
 -- The list starts under the toolbar (every section has one)
-local function ListTop()
-    return ns.Theme.HEADER_HEIGHT + 44
+-- extra: room for a line over the list (a finished event's places)
+local function ListTop(extra)
+    return ns.Theme.HEADER_HEIGHT + 44 + (extra or 0)
 end
 
-local function LayoutHeaders(columns)
+local function LayoutHeaders(columns, extra)
     local Theme = ns.Theme
     for _, header in ipairs(frame.headers) do header:Hide() end
-    local top = ListTop()
+    local top = ListTop(extra)
     local x = 16
     for c, column in ipairs(columns) do
         local header = frame.headers[c]
@@ -895,7 +931,10 @@ function MainWindow:Refresh()
     local columns = event and self.COLUMNS.event or self.COLUMNS[current.tab] or self.COLUMNS.events
     local section = self.SectionOf(current.tab)
     frame.tabs:Select(section.id)
-    LayoutHeaders(columns)
+    local places = event and self.PlacesLine(event) or nil
+    frame.eventPlaces:SetText(places or "")
+    if places then frame.eventPlaces:Show() else frame.eventPlaces:Hide() end
+    LayoutHeaders(columns, places and MainWindow.PLACES_HEIGHT or 0)
     local search = not event and self:Search() or nil
     local rows
     if event then
