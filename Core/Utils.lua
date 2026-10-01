@@ -323,12 +323,20 @@ function Utils.DisplayName(key)
 end
 
 -- A player of our faction as a chat link (author, 2026-10-01): a left click whispers
--- them, a right click opens the game's player menu. Only for chat lines: popups and
--- center text cannot be clicked.
+-- them, a right click opens the game's player menu. In the whisper color, so it shows
+-- it can be clicked. Only for chat lines: popups and center text cannot be clicked.
 function Utils.PlayerLink(key)
     local name = Utils.DisplayName(key)
     if not name or name == "" then return nil end
-    return "|Hplayer:" .. name .. "|h[" .. name .. "]|h"
+    return Utils.WhisperColor() .. "|Hplayer:" .. name .. "|h[" .. name .. "]|h|r"
+end
+
+-- The chat's whisper color as a color code (the player's own setting, else the game's pink)
+function Utils.WhisperColor()
+    local info = ChatTypeInfo and ChatTypeInfo.WHISPER
+    local r, g, b = 1, 0.5, 1
+    if info and info.r then r, g, b = info.r, info.g, info.b end
+    return string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
 end
 
 -------------------------------------------------

@@ -74,7 +74,7 @@ return function(T, H)
     T.case("others nearby get one line, with where, when and who, and a link to whisper the spotter", function()
         local ns = Boot()
         Spot(ns, "Gank-Stonespine", 1436, "Scout-Firemaw", 60)
-        T.ok(H.Printed("SPOTTED.*Gank.*in Westfall %(30%.0, 70%.0%), 1 min ago, by |Hplayer:Scout|h%[Scout%]|h"), "the line")
+        T.ok(H.Printed("SPOTTED.*Gank.*in Westfall %(30%.0, 70%.0%), 1 min ago, by |cffff7fff|Hplayer:Scout|h%[Scout%]|h|r"), "the line")
         H.printed = {}
         H.Advance(400)
         Spot(ns, "Gank-Stonespine", 1436, "Other-Firemaw")
