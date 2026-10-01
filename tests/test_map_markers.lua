@@ -311,6 +311,7 @@ return function(T, H)
         T.eq(inner.color[4], M.AREA_ALPHA[2], "Battle shade in the middle")
         T.ok(drawn.discs[1].color[4] < inner.color[4], "lighter at the edge")
         T.eq(drawn.label.text.shownText, "PVP", "PVP in the middle")
+        T.eq(rawget(drawn.label.icon, "texture"), M.SWORDS_ICON, "under crossed swords")
         T.eq(drawn.label.data.kind, "hotspot", "label carries tooltip and click")
 
         canvas.scale = 2 -- zoom in

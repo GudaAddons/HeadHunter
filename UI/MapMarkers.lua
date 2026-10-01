@@ -21,6 +21,10 @@ local OWNER = "MapMarkers"
 MapMarkers.SKULL_ICON = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
 MapMarkers.CIRCLE = "Interface\\CHARACTERFRAME\\TempPortraitAlphaMask" -- white disc
 MapMarkers.AREA_COLOR = { 1, 0.1, 0.05 }
+-- The PvP mark in the middle of an area: crossed swords over a small "PVP" in gold
+MapMarkers.SWORDS_ICON = "Interface\\AddOns\\HeadHunter\\Assets\\Textures\\swords"
+MapMarkers.SWORDS_SIZE = 18
+MapMarkers.LABEL_COLOR = { 1, 0.82, 0.4 }
 MapMarkers.AREA_ALPHA = { 0.22, 0.36, 0.52 } -- by fire level: darker = more PvP
 MapMarkers.AREA_WIDTH = 0.10               -- diameter, as a share of the zone's width
 MapMarkers.AREA_MIN_PX = 32                -- never smaller on screen (continent view)
@@ -282,8 +286,9 @@ local function NewSkull()
 end
 
 -- PvP area: stacked translucent red discs (darker towards the middle) that cover a
--- patch of the map and zoom with it, plus a "PVP" label of fixed size on screen.
--- Only the label takes the mouse, so the area never blocks clicks on the map.
+-- patch of the map and zoom with it, plus crossed swords over a small "PVP" of fixed
+-- size on screen. Only that mark takes the mouse, so the area never blocks clicks on
+-- the map.
 local DISCS = { { size = 1, alpha = 0.45 }, { size = 0.66, alpha = 0.7 }, { size = 0.33, alpha = 1 } }
 
 local function NewArea()
@@ -298,11 +303,17 @@ local function NewArea()
     end
     local label = CreateFrame("Button", nil, pin)
     label:SetPoint("CENTER", pin, "CENTER")
-    label:SetSize(40, 18)
-    label.text = label:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    label.text:SetPoint("CENTER", label, "CENTER")
+    label:SetSize(32, MapMarkers.SWORDS_SIZE + 12)
+    label.icon = label:CreateTexture(nil, "OVERLAY")
+    label.icon:SetTexture(MapMarkers.SWORDS_ICON)
+    label.icon:SetSize(MapMarkers.SWORDS_SIZE, MapMarkers.SWORDS_SIZE)
+    label.icon:SetPoint("TOP", label, "TOP")
+    label.text = label:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label.text:SetPoint("TOP", label.icon, "BOTTOM", 0, 1)
     label.text:SetText(L.MAP_PVP)
-    label.text:SetTextColor(1, 0.9, 0.8)
+    label.text:SetTextColor(unpack(MapMarkers.LABEL_COLOR))
+    label.text:SetShadowColor(0, 0, 0, 1)
+    label.text:SetShadowOffset(1, -1)
     MakeInteractive(label)
     pin.label = label
     return pin
