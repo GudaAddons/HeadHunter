@@ -96,16 +96,18 @@ return function(T, H)
             T.eq(m.target, "Newbie-Firemaw", "to the requester")
             for _, record in ipairs(select(3, ns.Protocol.Unpack(m.message))) do all[#all + 1] = record end
         end
-        local deaths, catches, fake = 0, 0, false
+        local deaths, catches, witnesses, fake = 0, 0, 0, false
         for _, record in ipairs(all) do
             if record:sub(1, 1) == "D" then deaths = deaths + 1 end
             if record:sub(1, 1) == "K" then catches = catches + 1 end
+            if record:sub(1, 1) == "X" then witnesses = witnesses + 1 end
             if record:find("Fake", 1, true) then fake = true end
         end
         T.eq(deaths, 5, "five reports")
         T.eq(catches, 1, "one catch")
+        T.eq(witnesses, 1, "and our own witness record of it (HH-121)")
         T.eq(fake, false, "simulated report kept to ourselves")
-        T.eq(all[#all], "E" .. B36(6), "end marker last")
+        T.eq(all[#all], "E" .. B36(7), "end marker last")
 
         H.sent = {}
         Query(ns, "p", H.serverTime - 3600)

@@ -187,6 +187,8 @@ function CatchUp:OnData(record, sender)
         ns.Bounties:AddRelayedPoster(body, sender)
     elseif kind == "R" then
         ns.Bounties:AddRelayedPayment(body, sender)
+    elseif kind == "X" then
+        ns.Witness:AddRelayed(body, sender)
     elseif kind == "E" then
         pending[ns.Utils.CompactName(sender)] = nil
         if next(pending) == nil then self:Finish("complete") end
@@ -212,6 +214,8 @@ function CatchUp.Records(sinceTime)
     end
     -- Player bounties (HH-118) after the reports they rest on
     for _, record in ipairs(ns.Bounties:Records(sinceTime)) do records[#records + 1] = record end
+    -- Witness records (HH-121): the evidence for those bounties
+    for _, w in ipairs(ns.Witness:Since(sinceTime)) do records[#records + 1] = "X" .. Protocol.EncodeWitness(w) end
     -- High Noon duels (HH-091) after the reports: they matter less
     for _, duel in ipairs(ns.Duels:Since(sinceTime, CatchUp.MAX_DUELS)) do
         if #records >= CatchUp.MAX_RECORDS + CatchUp.MAX_DUELS then break end

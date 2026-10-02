@@ -76,6 +76,7 @@ Sync\Duels.lua
 Sync\SiteData.lua
 Sync\Presence.lua
 Sync\Bounties.lua
+Sync\Witness.lua
 
 # Rules (M3)
 Rules\Engine.lua

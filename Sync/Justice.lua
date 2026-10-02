@@ -115,7 +115,11 @@ function Justice:Record(entry, how, killer)
     local U = ns.Utils
     local now = U.ServerTime()
     local latest = self:Latest(entry.id)
-    if latest and math.abs(now - latest.t) < self.DEDUPE then return nil end
+    if latest and math.abs(now - latest.t) < self.DEDUPE then
+        -- A group member's catch came first: we were there, so we are a witness (HH-121)
+        if latest.origin ~= "local" then ns.Witness:Saw(entry.id, now, killer) end
+        return nil
+    end
     local me = U.UnitKey("player")
     local record = {
         id = entry.id .. ":" .. now, outlaw = entry.id, t = now,
