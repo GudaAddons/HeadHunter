@@ -410,6 +410,42 @@ function Utils.ContinentOf(mapID)
 end
 
 -------------------------------------------------
+-- Distances in yards (HH-121 step 2)
+-------------------------------------------------
+
+Utils.MAX_SPEED = 14          -- yards a second: a fast mount, with margin
+Utils.POSITION_MARGIN = 100   -- yards: a sighting stands for a player about nameplate range away
+
+-- A map position in world yards: { continent, x, y }, or nil. Every zone map of one
+-- continent (a city map and its zone too) gives yards on the same grid (spike 2026-10-02).
+function Utils.WorldPos(mapID, x, y)
+    local toWorld = C_Map and C_Map.GetWorldPosFromMapPos
+    if not (toWorld and CreateVector2D and mapID and x and y) then return nil end
+    local continent, pos = SafeCall(toWorld, mapID, CreateVector2D(x, y))
+    if type(pos) ~= "table" or not pos.GetXY then return nil end
+    local wx, wy = SafeCall(pos.GetXY, pos)
+    continent, wx, wy = tonumber(Accessible(continent)), tonumber(Accessible(wx)), tonumber(Accessible(wy))
+    if not (continent and wx and wy) then return nil end
+    return { continent = continent, x = wx, y = wy }
+end
+
+-- Yards between two world positions, or nil when one is unknown or they are on
+-- different continents
+function Utils.Yards(a, b)
+    if not (a and b) or a.continent ~= b.continent then return nil end
+    local dx, dy = a.x - b.x, a.y - b.y
+    return math.sqrt(dx * dx + dy * dy)
+end
+
+-- Could nobody have gone from a to b in `seconds`? Unknown positions and different
+-- continents are never too far (a flight or a portal can do that).
+function Utils.TooFar(a, b, seconds)
+    local yards = Utils.Yards(a, b)
+    if not yards then return false end
+    return yards > Utils.MAX_SPEED * math.max(0, seconds or 0) + Utils.POSITION_MARGIN
+end
+
+-------------------------------------------------
 -- Race icons (as in GudaBags Core/Utils.lua)
 -------------------------------------------------
 
