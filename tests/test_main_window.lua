@@ -291,7 +291,7 @@ return function(T, H)
             buttons[i].scripts.OnEnter(buttons[i])
             T.eq(H.tooltipLines[1], ns.L[M.TAB_TIPS[view]], view .. " explained")
         end
-        T.ok(H.tooltipLines[1]:find("small on purpose", 1, true) ~= nil, "Deadbeats: why the reward is small")
+        T.ok(ns.L.TIP_TAB_WANTED:find("small on purpose", 1, true) ~= nil, "WANTED: why a gold bounty is small")
         T.noErrors()
     end)
 
