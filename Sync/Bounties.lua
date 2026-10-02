@@ -150,7 +150,7 @@ end
 local function UnpaidTimes(owner)
     local byHunter = {}
     for posterId, pay in pairs(Payments() or {}) do
-        if pay.status == "unpaid" and ns.Utils.SameCharacter(Bounties.OwnerOf(posterId), owner)
+        if pay.status == "unpaid" and ns.Relay.Counts(pay) and ns.Utils.SameCharacter(Bounties.OwnerOf(posterId), owner)
                 and not Bounties:LooksLikeAlt(posterId) then
             local hunter = ns.Utils.CompactName(pay.hunter)
             if hunter then byHunter[hunter] = math.max(byHunter[hunter] or 0, pay.t) end
@@ -232,7 +232,7 @@ function Bounties:Standing(owner)
         if ns.Utils.SameCharacter(self.OwnerOf(posterId), owner) then
             if pay.status == "paid" then
                 paid = paid + 1
-            elseif pay.status == "unpaid" and not self:LooksLikeAlt(posterId) then
+            elseif pay.status == "unpaid" and ns.Relay.Counts(pay) and not self:LooksLikeAlt(posterId) then
                 unpaid = unpaid + 1
             end
         end
@@ -242,10 +242,11 @@ function Bounties:Standing(owner)
     return paid, unpaid
 end
 
--- Running: not run out, not claimed, the owner not blocked
+-- Running: not run out, not claimed, the owner not blocked; a relayed poster only
+-- once a second source has it (HH-121)
 function Bounties:IsActive(poster, now)
     now = now or ns.Utils.ServerTime()
-    return poster ~= nil and now < poster["until"] and not self:Payment(poster.id)
+    return poster ~= nil and now < poster["until"] and ns.Relay.Counts(poster) and not self:Payment(poster.id)
         and not self:IsBlocked(poster.owner, now)
 end
 
@@ -359,6 +360,8 @@ function Bounties:AddPayment(pay, origin)
         local sameHunter = ns.Utils.SameCharacter(have.hunter, pay.hunter)
         if sameHunter and (STATUS_RANK[pay.status] or 0) <= (STATUS_RANK[have.status] or 0) then return nil end
         if not sameHunter and pay.claimedAt >= have.claimedAt then return nil end
+        -- An unconfirmed relay never takes a claim away from another hunter (HH-121)
+        if not sameHunter and ns.Relay.Counts(have) and not ns.Relay.Counts(pay) then return nil end
     end
     pay.origin = origin
     store[pay.posterId] = pay
@@ -501,18 +504,32 @@ end
 
 function Bounties:OnPeerPoster(record, sender)
     local poster = ns.Protocol.DecodePoster(record)
-    if not poster or not ValidPoster(poster) or self:Get(poster.id) then return nil end
+    if not poster or not ValidPoster(poster) then return nil end
     if not ns.Utils.SameCharacter(sender, poster.owner) then return nil end
+    local have = self:Get(poster.id)
+    if have then
+        -- The owner's own copy of a poster we only had relayed (HH-121)
+        if ns.Relay.Confirm(have, "peer", sender) then Changed() end
+        return nil
+    end
     -- Only your own killer: nobody can post an innocent player
     if not self.KilledBy(poster.owner, poster.target, poster.t) then return nil end
     if self:OwnerLimit(poster) or not UnderRateLimit(sender) then return nil end
     return self:Add(poster, "peer", sender)
 end
 
--- Passed on at login catch-up (HH-023): taken on the relaying peer's word, as reports are
+-- Passed on at login catch-up (HH-023): stored on the relaying peer's word, as reports
+-- are, but active only once a second source has it (HH-121, Sync/Relay.lua)
 function Bounties:AddRelayedPoster(record, sender)
     local poster = ns.Protocol.DecodePoster(record)
-    if not poster or not ValidPoster(poster) or self:Get(poster.id) then return nil end
+    if not poster or not ValidPoster(poster) then return nil end
+    local have = self:Get(poster.id)
+    if have then
+        if ns.Relay.Vouch(have, sender, have.owner) then Changed() end
+        return nil
+    end
+    poster.origin = "relay"
+    ns.Relay.Vouch(poster, sender, poster.owner)
     return self:Add(poster, "relay", sender)
 end
 
@@ -535,7 +552,9 @@ end
 -- Our poster was claimed: tell us who brought the target down and that we owe gold
 function Bounties:NotifyOwner(pay)
     local poster = self:Get(pay.posterId)
-    if not (poster and pay.status == "claimed" and ns.Utils.SameCharacter(poster.owner, Me())) then return end
+    if not (poster and pay.status == "claimed" and ns.Relay.Counts(pay) and ns.Utils.SameCharacter(poster.owner, Me())) then
+        return
+    end
     local U = ns.Utils
     local hunter, target = U.DisplayName(pay.hunter), self.TargetName(poster.target)
     local alert = { key = "bounty-owner:" .. poster.id, throttle = 0,
@@ -559,14 +578,34 @@ function Bounties:OnPeerPayment(record, sender, faction)
     -- Only the hunter: they are the one who gets the gold
     if not ns.Utils.SameCharacter(sender, pay.hunter) or not UnderRateLimit(sender) then return nil end
     pay.faction = theirs and faction or nil
+    -- The hunter's own copy of a payment we only had relayed (HH-121)
+    local have = self:Payment(pay.posterId)
+    if have and have.status == pay.status and ns.Utils.SameCharacter(have.hunter, pay.hunter)
+            and ns.Relay.Confirm(have, "peer", sender) then
+        Changed()
+        self:NotifyOwner(have)
+        return have
+    end
     local added = self:AddPayment(pay, "peer")
     if added then self:NotifyOwner(added) end
     return added
 end
 
-function Bounties:AddRelayedPayment(record)
+-- Passed on at login catch-up: it counts for Deadbeats, and the owner is asked to pay,
+-- only once a second source has it (HH-121, Sync/Relay.lua)
+function Bounties:AddRelayedPayment(record, sender)
     local pay = ns.Protocol.DecodePayment(record)
     if not pay or not ValidPayment(pay) then return nil end
+    local have = self:Payment(pay.posterId)
+    if have and have.status == pay.status and ns.Utils.SameCharacter(have.hunter, pay.hunter) then
+        if ns.Relay.Vouch(have, sender, have.hunter) then
+            Changed()
+            self:NotifyOwner(have)
+        end
+        return nil
+    end
+    pay.origin = "relay"
+    ns.Relay.Vouch(pay, sender, pay.hunter)
     local added = self:AddPayment(pay, "relay")
     if added then self:NotifyOwner(added) end
     return added
@@ -739,7 +778,8 @@ function Bounties:ToPay()
     local list = {}
     for _, poster in self:All() do
         local pay = self:Payment(poster.id)
-        if pay and pay.status ~= "paid" and not poster.sentAt and ns.Utils.SameCharacter(poster.owner, me) then
+        if pay and pay.status ~= "paid" and ns.Relay.Counts(pay) and not poster.sentAt
+                and ns.Utils.SameCharacter(poster.owner, me) then
             list[#list + 1] = poster.id
         end
     end

@@ -167,7 +167,7 @@ return function(T, H)
         T.eq(ns.CatchUp.Since(), H.serverTime - 7200 - 600, "only what is newer than the website data")
     end)
 
-    T.case("after login: hello, then the pull goes to the peer with the most records", function()
+    T.case("after login: hello, then pulls go to the two peers with the most records", function()
         local ns = H.Boot({ client = "era" })
         H.inGuild = true
         Run(25)
@@ -177,10 +177,12 @@ return function(T, H)
 
         H.Deliver(ns.Protocol.Pack("A", "O", { B36(3) }), "Small-Firemaw")
         H.Deliver(ns.Protocol.Pack("A", "O", { B36(7) }), "Big-Firemaw")
+        H.Deliver(ns.Protocol.Pack("A", "O", { B36(5) }), "Middle-Firemaw")
         Run(10)
         local pull = Sent("^1AQ:p", "WHISPER")
-        T.eq(#pull, 1, "one pull")
+        T.eq(#pull, 2, "two pulls (a relayed record needs two sources)")
         T.eq(pull[1].target, "Big-Firemaw", "from the peer with the most")
+        T.eq(pull[2].target, "Middle-Firemaw", "and the next one")
         T.eq(ns.CatchUp:State(), "pulling", "pulling")
     end)
 
@@ -271,17 +273,23 @@ return function(T, H)
         for _, m in ipairs(Sent("^1AS:", "WHISPER")) do answer[#answer + 1] = m.message end
         T.ok(#answer > 0, "peer answered")
 
-        -- Fresh client logs in, asks, gets the offer, pulls, receives the answer
+        -- Fresh client logs in, asks, gets two offers, pulls from both, receives the answers
         local ns = H.Boot({ client = "era" })
         H.inGuild = true
         Run(25)
         H.Deliver(ns.Protocol.Pack("A", "O", { B36(11) }), "Helper-Firemaw")
+        H.Deliver(ns.Protocol.Pack("A", "O", { B36(11) }), "Second-Firemaw")
         Run(10)
         H.Deliver(answer, "Stranger-Firemaw")
         T.eq(ns.Reports:Count(), 0, "data from a peer we did not pull from is ignored")
         H.Deliver(answer, "Helper-Firemaw")
         Settle()
         T.eq(ns.Reports:Count(), 10, "all ten reports")
+        T.eq(ns.CatchUp:State(), "pulling", "waiting for the second peer")
+        T.eq(#ns.Wanted:List(), 0, "one peer's word alone makes nobody WANTED (HH-121)")
+        H.Deliver(answer, "Second-Firemaw")
+        Settle()
+        T.eq(ns.Reports:Count(), 10, "the same ten reports")
         T.eq(ns.CatchUp:State(), "done", "complete")
         T.eq(ns.CatchUp.last.catches, 1, "the catch")
         local list = ns.Wanted:List()

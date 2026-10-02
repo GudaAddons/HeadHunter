@@ -540,10 +540,16 @@ return function(T, H)
         Settle()
         local mine = fresh.Bounties:Post("Grim-Stonespine", 1, 12, 3)
         H.centerTexts = {}
-        fresh.Bounties:AddRelayedPayment(fresh.Protocol.EncodePayment({ posterId = mine.id, hunter = "Kestrel-Firemaw",
-            status = "claimed", claimedAt = H.serverTime, t = H.serverTime }))
+        H.printed = {}
+        local relayed = fresh.Protocol.EncodePayment({ posterId = mine.id, hunter = "Kestrel-Firemaw",
+            status = "claimed", claimedAt = H.serverTime, t = H.serverTime })
+        fresh.Bounties:AddRelayedPayment(relayed, "Helper-Firemaw")
+        T.ok(not H.Printed("Your bounty is claimed"), "one relaying peer: not told yet")
+        T.eq(#fresh.Bounties:ToPay(), 0, "and not asked to pay")
+        fresh.Bounties:AddRelayedPayment(relayed, "Other-Firemaw")
         T.eq(#H.centerTexts, 0, "no center text for old news")
-        T.ok(H.Printed("Your bounty is claimed"), "the chat line")
+        T.ok(H.Printed("Your bounty is claimed"), "the chat line once a second peer has it")
+        T.eq(#fresh.Bounties:ToPay(), 1, "then asked to pay")
         T.noErrors()
     end)
 

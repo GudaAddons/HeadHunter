@@ -67,6 +67,7 @@ Detection\ForeverDeaths.lua
 # Sync (M2)
 Sync\Protocol.lua
 Sync\Transport.lua
+Sync\Relay.lua
 Sync\Reports.lua
 Sync\ReportPrompt.lua
 Sync\Justice.lua
