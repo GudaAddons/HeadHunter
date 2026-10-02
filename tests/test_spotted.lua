@@ -25,10 +25,10 @@ return function(T, H)
         local ns = H.Boot({ client = "era" })
         H.inGuild = true
         H.playerMap, H.playerX, H.playerY = 1436, 0.45, 0.6 -- Westfall
-        Spree(ns, "Gank-Stonespine", 4)
-        Spree(ns, "Other-Stonespine", 4)
-        Spree(ns, "Third-Stonespine", 4)
-        Spree(ns, "Fourth-Stonespine", 4)
+        Spree(ns, "Gank-Stonespine", 5)
+        Spree(ns, "Other-Stonespine", 5)
+        Spree(ns, "Third-Stonespine", 5)
+        Spree(ns, "Fourth-Stonespine", 5)
         Settle()
         return ns
     end

@@ -81,7 +81,7 @@ return function(T, H)
 
     T.case("a pull gets reports and catches by whisper, then an end marker; simulated ones never", function()
         local ns = H.Boot({ client = "era" })
-        Spree(ns, "Gank-Stonespine", 4)
+        Spree(ns, "Gank-Stonespine", 5)
         Settle()
         ns.Justice:Record(ns.Wanted:ByKey("Gank-Stonespine"), "test")
         ns.Reports:Add({ id = "Sim:1", t = H.serverTime - 5, victim = { key = "Vati-Firemaw", level = 30 },
@@ -102,10 +102,10 @@ return function(T, H)
             if record:sub(1, 1) == "K" then catches = catches + 1 end
             if record:find("Fake", 1, true) then fake = true end
         end
-        T.eq(deaths, 4, "four reports")
+        T.eq(deaths, 5, "five reports")
         T.eq(catches, 1, "one catch")
         T.eq(fake, false, "simulated report kept to ourselves")
-        T.eq(all[#all], "E" .. B36(5), "end marker last")
+        T.eq(all[#all], "E" .. B36(6), "end marker last")
 
         H.sent = {}
         Query(ns, "p", H.serverTime - 3600)
@@ -260,7 +260,7 @@ return function(T, H)
         -- Peer: Gank is WANTED, Burner was WANTED and caught
         local peer = H.Boot({ client = "era" })
         Spree(peer, "Gank-Stonespine", 5, 600)
-        Spree(peer, "Burner-Stonespine", 4, 1200)
+        Spree(peer, "Burner-Stonespine", 5, 1200)
         Settle()
         peer.Justice:Record(peer.Wanted:ByKey("Burner-Stonespine"), "test")
         Settle()
@@ -275,13 +275,13 @@ return function(T, H)
         local ns = H.Boot({ client = "era" })
         H.inGuild = true
         Run(25)
-        H.Deliver(ns.Protocol.Pack("A", "O", { B36(10) }), "Helper-Firemaw")
+        H.Deliver(ns.Protocol.Pack("A", "O", { B36(11) }), "Helper-Firemaw")
         Run(10)
         H.Deliver(answer, "Stranger-Firemaw")
         T.eq(ns.Reports:Count(), 0, "data from a peer we did not pull from is ignored")
         H.Deliver(answer, "Helper-Firemaw")
         Settle()
-        T.eq(ns.Reports:Count(), 9, "all nine reports")
+        T.eq(ns.Reports:Count(), 10, "all ten reports")
         T.eq(ns.CatchUp:State(), "done", "complete")
         T.eq(ns.CatchUp.last.catches, 1, "the catch")
         local list = ns.Wanted:List()
