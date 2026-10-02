@@ -17,7 +17,7 @@
 -- claim without it. A later "paid" beats "unpaid"; the earliest claim wins a poster.
 -- Blocked: an owner with an unpaid claim (author, 2026-09-28: one is enough), for 30
 -- days from the newest one turning unpaid; every client derives it the same way, ignores the owner's
--- posters and lists them in the Hall of Shame (author, 2026-09-28). The other faction's
+-- posters and lists them on the Deadbeats tab (author, 2026-09-28). The other faction's
 -- unpaid and paid records cross over too: their Deadbeats are listed, alerted and
 -- worth bounty points when we bring them down.
 -- A claim is a catch (Sync/Justice.lua, record K) of the target by our own killing
@@ -190,17 +190,18 @@ function Bounties:IsBlocked(owner, now)
     return self:BlockedUntil(owner, now) ~= nil
 end
 
--- Hall of Shame (author, 2026-09-28): every blocked owner we know of, longest block
--- first: { owner, faction, unpaid, blockedUntil }; faction is ours for owners whose
--- bounties we saw, the race's for a known enemy, else nil
+-- The Deadbeats tab (author, 2026-09-28): every blocked owner we know of, longest block
+-- first: { owner, faction, unpaid, blockedUntil }; faction is the one of the records'
+-- sender (the other faction's records keep theirs, ours have none), the race's for a
+-- known enemy, else nil
 function Bounties:Shamed(now)
     now = now or ns.Utils.ServerTime()
     local seen, list = {}, {}
-    local owners, ours = {}, {}
-    for posterId in pairs(Payments() or {}) do
+    local owners, sides = {}, {}
+    for posterId, pay in pairs(Payments() or {}) do
         local owner = self.OwnerOf(posterId)
         owners[#owners + 1] = owner
-        ours[owner] = true
+        sides[owner] = sides[owner] or (type(pay) == "table" and pay.faction) or ns.Utils.UnitFaction("player")
     end
     for _, site in pairs(ns.SiteData:Deadbeats()) do owners[#owners + 1] = site.key end
     for _, owner in ipairs(owners) do
@@ -211,8 +212,7 @@ function Bounties:Shamed(now)
             if untilT then
                 local _, unpaid = self:Standing(owner)
                 local known = ns.Wanted:Get(id)
-                local faction = ours[owner] and ns.Utils.UnitFaction("player")
-                    or (known and ns.Utils.RaceFaction(known.race)) or nil
+                local faction = sides[owner] or (known and ns.Utils.RaceFaction(known.race)) or nil
                 list[#list + 1] = { owner = owner, faction = faction, unpaid = math.max(unpaid, #UnpaidTimes(owner)),
                     blockedUntil = untilT }
             end

@@ -1,12 +1,13 @@
 -- HH-060: the main window. /hh (no arguments) or the minimap button toggles it.
 --
 -- Sections (author, 2026-10-01): the top tabs, each with its own sub-tabs in the
--- toolbar: Bounty board (WANTED · Hall of Shame), Duels, Events (Ongoing · Upcoming · Finished),
+-- toolbar: Bounty board (WANTED · Bullies · Deadbeats), Duels, Events (Ongoing · Upcoming · Finished),
 -- Me (My deaths · My marks). The views:
 --   WANTED         players' bounties first (HH-118, merged per target, newest first),
 --                  then who is WANTED now; sort by rank, kills or last kill
---   Hall of Shame  every enemy with the Coward badge (killed lowbies), WANTED or not;
---                  then players who did not pay their bounties (HH-118, blocked 30 days)
+--   Bullies        every enemy with the Coward badge (killed lowbies), WANTED or not
+--   Deadbeats      players who did not pay their bounties (HH-118, blocked 30 days)
+--   (the Hall of Shame of older versions, split as on the website: author, 2026-10-02)
 --   High Noon      the best duelists (HH-093); All ranks both factions in one list
 -- The Bounty board and Duels have the faction switch top right (author, 2026-10-01):
 -- All, Alliance or Horde, All first; the board's views share one choice, Duels has its own
@@ -17,8 +18,8 @@
 --                  the event: its rounds, who meets who, the scores, the places once
 --                  finished, and its website link to copy (Tournament/Tournaments.lua)
 -- A row click opens the outlaw's poster (UI/Poster.lua).
--- Sub-tabs on the left; the filters on the right: the search by name (WANTED, Hall of
--- Shame, Duels, My deaths; one per tab), then the faction switch at the edge;
+-- Sub-tabs on the left; the filters on the right: the search by name (WANTED, Bullies,
+-- Deadbeats, Duels, My deaths; one per tab), then the faction switch at the edge;
 -- the rows keep their place.
 --
 -- MainWindow.Rows(tab, sortKey, now) is the pure part (tested offline): one table per
@@ -43,14 +44,14 @@ MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 
 -- The top tabs and their views (the sub-tabs); a view is what the list shows
 MainWindow.SECTIONS = {
-    { id = "board", views = { "wanted", "shame" } },
+    { id = "board", views = { "wanted", "bullies", "deadbeats" } },
     { id = "duels", views = { "duels" } },
     { id = "events", views = { "ongoing", "upcoming", "finished" } },
     { id = "me", views = { "deaths", "marks" } },
 }
-MainWindow.TABS = { "wanted", "shame", "duels", "ongoing", "upcoming", "finished", "deaths", "marks" }
+MainWindow.TABS = { "wanted", "bullies", "deadbeats", "duels", "ongoing", "upcoming", "finished", "deaths", "marks" }
 -- Tabs of older versions
-MainWindow.OLD_TABS = { tours = "ongoing" }
+MainWindow.OLD_TABS = { tours = "ongoing", shame = "bullies" }
 -- The faction crests in the Alliance / Horde switch: the game's PvP flag icons,
 -- cut to the crest
 MainWindow.FACTION_ICONS = {
@@ -60,9 +61,11 @@ MainWindow.FACTION_ICONS = {
 MainWindow.FACTION_ICON_COORDS = { 0.03, 0.62, 0.02, 0.62 }
 -- The faction switch: both factions or one; All lists everyone (no faction)
 MainWindow.ALL = "All"
-MainWindow.BOARD_TABS = { wanted = true, shame = true }
+MainWindow.BOARD_TABS = { wanted = true, bullies = true, deadbeats = true }
 -- Tabs with a search box, each with its own search (the long lists)
-MainWindow.SEARCH_TABS = { wanted = true, shame = true, duels = true, deaths = true }
+MainWindow.SEARCH_TABS = { wanted = true, bullies = true, deadbeats = true, duels = true, deaths = true }
+-- The box fits between three sub-tabs and the faction switch on one row
+MainWindow.SEARCH_WIDTH = 140
 
 -- Columns per tab: key, header, width, sort key (WANTED only); name columns use the
 -- name font, like the website's player cells
@@ -74,12 +77,17 @@ MainWindow.COLUMNS = {
         { key = "lastKill", header = "COL_LAST_KILL", width = 245, sort = "last" },
         { key = "badges", header = "COL_BADGES", width = 135 },
     },
-    shame = {
+    bullies = {
         { key = "name", header = "COL_NAME", width = 215, font = "name" },
         { key = "desc", header = "COL_WHO", width = 180 },
         { key = "coward", header = "COL_COWARD_KILLS", width = 115 },
         { key = "kills", header = "COL_KILLS", width = 70 },
         { key = "status", header = "COL_STATUS", width = 210 },
+    },
+    deadbeats = {
+        { key = "name", header = "COL_NAME", width = 300, font = "name" },
+        { key = "unpaid", header = "COL_UNPAID", width = 190 },
+        { key = "blocked", header = "COL_BLOCKED", width = 300 },
     },
     duels = {
         { key = "position", header = "COL_POSITION", width = 40 },
@@ -296,9 +304,8 @@ function MainWindow.BountyRow(entry, summary, now)
     }
 end
 
--- faction: "Alliance" | "Horde" or nil for both; a Deadbeat of an unknown faction only
--- shows with both
-local function ShameRows(now, faction)
+-- faction: "Alliance" | "Horde" or nil for both
+local function BullyRows(now, faction)
     local list = {}
     for _, entry in pairs(ns.Wanted:All()) do
         if entry.badges and entry.badges.coward and (not faction or MainWindow.EntryFaction(entry) == faction) then
@@ -329,18 +336,23 @@ local function ShameRows(now, faction)
             tooltip = MainWindow.EntryTooltip(entry, now),
         }
     end
-    -- HH-118: owners blocked for unpaid bounties
+    return rows
+end
+
+-- HH-118: owners blocked for unpaid bounties, longest block first; faction: "Alliance" |
+-- "Horde" or nil for both; a Deadbeat of an unknown faction only shows with both
+local function DeadbeatRows(now, faction)
+    local rows = {}
     for _, shamed in ipairs(ns.Bounties:Shamed(now)) do
         if not faction or shamed.faction == faction then
-            local name = ns.Utils.DisplayName(shamed.owner) or shamed.owner
+            local plain = ns.Utils.DisplayName(shamed.owner) or shamed.owner
+            local name = MainWindow.Labeled(plain, {}, shamed.faction)
             local daysLeft = math.max(1, math.ceil((shamed.blockedUntil - now) / 86400))
             rows[#rows + 1] = {
-                plain = name,
+                plain = plain,
                 name = name,
-                desc = L.SHAME_UNPAID_WHO,
-                coward = "-",
-                kills = "-",
-                status = string.format(L.SHAME_UNPAID, shamed.unpaid, daysLeft),
+                unpaid = tostring(shamed.unpaid),
+                blocked = string.format(L.BOUNTY_DAYS, daysLeft),
                 tooltip = { name, L.SHAME_UNPAID_TIP, string.format(L.SHAME_UNPAID, shamed.unpaid, daysLeft) },
             }
         end
@@ -591,8 +603,8 @@ function MainWindow.MatchRows(t, roundNumber, now)
     return rows
 end
 
--- tab: one of TABS; sortKey (WANTED): "rank" | "kills" | "last"; faction (WANTED, Hall of
--- Shame, High Noon): "Alliance" | "Horde", nil for both (not High Noon)
+-- tab: one of TABS; sortKey (WANTED): "rank" | "kills" | "last"; faction (WANTED, Bullies,
+-- Deadbeats, High Noon): "Alliance" | "Horde", nil for both (not High Noon)
 -- Rows keep their place (the Duels # column) and are only left out, so a search by
 -- part of a name, any case, finds players far down the list too
 local function Matching(rows, search)
@@ -614,8 +626,10 @@ function MainWindow.Rows(tab, sortKey, now, faction, search)
         rows = DuelRows(faction, now)
     elseif tab == "marks" then
         rows = MarksRows()
-    elseif tab == "shame" then
-        rows = ShameRows(now, faction)
+    elseif tab == "bullies" then
+        rows = BullyRows(now, faction)
+    elseif tab == "deadbeats" then
+        rows = DeadbeatRows(now, faction)
     elseif tab == "deaths" then
         rows = DeathRows(now)
     else
@@ -755,7 +769,7 @@ local function CreateMainFrame()
 
     -- Search tabs: find a player by name (Esc or the x clears it, a second Esc leaves the box)
     local search = CreateFrame("EditBox", nil, f)
-    search:SetSize(220, 24)
+    search:SetSize(MainWindow.SEARCH_WIDTH, 24)
     search:SetPoint("TOPRIGHT", -18, toolbarY)
     search:SetAutoFocus(false)
     search:SetTextInsets(8, 26, 0, 0)
@@ -768,6 +782,9 @@ local function CreateMainFrame()
     Theme.Border(search, 0.45)
     search.hint = Theme.Text(search, "text", 14, "muted")
     search.hint:SetPoint("LEFT", 8, 0)
+    search.hint:SetWidth(MainWindow.SEARCH_WIDTH - 16)
+    search.hint:SetJustifyH("LEFT")
+    search.hint:SetWordWrap(false)
     search.hint:SetText(L.SEARCH_PLAYER)
     search.clear = CreateFrame("Button", nil, search)
     search.clear:SetSize(20, 20)
@@ -1260,7 +1277,7 @@ function MainWindow:DuelFaction()
     return current.duelFaction
 end
 
--- The Bounty board's switch (WANTED and Hall of Shame): ALL, "Alliance" or "Horde"
+-- The Bounty board's switch (WANTED, Bullies and Deadbeats): ALL, "Alliance" or "Horde"
 function MainWindow:BoardFaction()
     return current.boardFaction
 end

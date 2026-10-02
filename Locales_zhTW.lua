@@ -20,7 +20,8 @@ local TW = {
 
     -- Tabs
     TAB_WANTED = "通緝",
-    TAB_SHAME = "恥辱柱",
+    TAB_BULLIES = "欺凌者",
+    TAB_DEADBEATS = "賴帳者",
     FACTION_ALL = "全部",
     TAB_DUELS = "決鬥",
     TAB_DEATHS = "我的死亡",
@@ -55,7 +56,10 @@ local TW = {
 
     -- Empty tabs
     EMPTY_WANTED = "目前沒有人被通緝。",
-    EMPTY_SHAME = "還沒有已知的欺凌者。",
+    EMPTY_BULLIES = "還沒有已知的欺凌者。",
+    EMPTY_DEADBEATS = "沒有賴帳者：大家都付清了懸賞。",
+    COL_UNPAID = "未付的獵人",
+    COL_BLOCKED = "禁止發布懸賞",
     EMPTY_DEATHS = "還沒有記錄到 PvP 死亡。",
     EMPTY_DUELS = "還沒有決鬥記錄。10 級及以上玩家之間的決鬥會顯示在這裡。",
     EMPTY_MARKS = "還沒有賞金：加入追捕隊，擊倒被通緝的亡命徒。",
@@ -216,7 +220,6 @@ local TW = {
     -- Hall of Shame rows
     SHAME_WANTED = "|cffff2020通緝|r · %s",
     SHAME_PAST = "通緝 %d 次 · 落網 %d 次",
-    SHAME_UNPAID_WHO = "|cffff4040賴帳者|r · 未支付懸賞",
     SHAME_UNPAID = "未付 %d 筆 · %d 天內不能發布懸賞",
     SHAME_UNPAID_TIP = "|cffff4040賴帳者|r：獵人為他們擊倒了目標卻沒拿到錢。封禁期間他們無法發布懸賞。",
 
@@ -264,8 +267,8 @@ local TW = {
     MARKS_REASON_CATCH = "擊倒了 %s",
     MARKS_REASON_DECLINE = "拒絕了追捕 %s",
     MARKS_REASON_SKIP = "無賞金：%s 比你低 10 級以上（追殺低階也是偷襲）",
-    MARKS_REASON_BULLY = "擊倒了欺凌者 %s（恥辱柱）",
-    MARKS_REASON_DEADBEAT = "擊倒了賴帳者 %s（恥辱柱）",
+    MARKS_REASON_BULLY = "擊倒了欺凌者 %s",
+    MARKS_REASON_DEADBEAT = "擊倒了賴帳者 %s",
     MARKS_REASON_CLAIM = "擊倒了 %s（玩家懸賞）",
 
     -- Time and places in the lists
@@ -341,8 +344,8 @@ local TW = {
     SET_ORGANIZER_MARKS_TIP = "開賽前 1 小時起，在滑鼠提示、聊天和頭頂為錦標賽主辦者顯示金星，為協辦人顯示銀星（要在己方陣營看到，請開啟友方名條）。",
     SET_WANTED_MARKS = "顯示 HeadHunter 標記",
     SET_WANTED_MARKS_TIP = "在雙方陣營被通緝玩家的頭頂顯示 HeadHunter 標記。需要開啟名條才能看到（己方陣營需開啟友方名條）。",
-    SET_SHAME_MARKS = "顯示恥辱柱標記",
-    SET_SHAME_MARKS_TIP = "在雙方陣營恥辱柱上的欺凌者和賴帳者頭頂顯示一根白色羽毛。需要開啟名條才能看到（己方陣營需開啟友方名條）。",
+    SET_SHAME_MARKS = "顯示欺凌者和賴帳者標記",
+    SET_SHAME_MARKS_TIP = "在雙方陣營的欺凌者和賴帳者頭頂顯示一根白色羽毛。需要開啟名條才能看到（己方陣營需開啟友方名條）。",
     TOOLTIP_TOURNAMENT_HOST = "錦標賽主辦者：%s · %s",
     TOOLTIP_TOURNAMENT_ORGANIZER = "錦標賽協辦人：%s · %s",
     TOURNAMENT_STARTS_IN = "%d 分鐘後開始",
@@ -351,8 +354,8 @@ local TW = {
     SET_MINIMAP_TIP = "點選開啟 HeadHunter 視窗；拖曳可移動位置。",
     SET_SERIAL = "連環殺手時間窗",
     SET_SERIAL_TIP = "「連環殺手」徽章要求在此時間內、在互相獨立的戰鬥中擊殺 5 名不同受害者。",
-    SET_SHAME = "恥辱柱提醒",
-    SET_SHAME_TIP = "恥辱柱裡的欺凌者或賴帳者靠近時提醒我，即使他們沒有被通緝（每人每 10 分鐘至多一次）。",
+    SET_SHAME = "欺凌者和賴帳者提醒",
+    SET_SHAME_TIP = "欺凌者或賴帳者靠近時提醒我，即使他們沒有被通緝（每人每 10 分鐘至多一次）。",
     SET_MINUTES = "%d 分鐘",
 
     -- Confirmation dialogs opened from the window / after a catch
@@ -564,9 +567,9 @@ local TW = {
     BOUNTY_PAY_NO_GOLD = "金幣不足，無法支付 %s 的懸賞。下一個信箱會再次詢問。",
     BOUNTY_PAY_NO_MAIL = "HeadHunter 未能寫好郵件。請自行寄出金幣。",
     SIGHTING_BULLY = "|cffff8040欺凌者|r · |cffff4040%s|r 出現了！",
-    SIGHTING_CHAT_BULLY = "|cffff8040欺凌者|r |cffff4040%s|r 被目擊（%s） · 擊殺低階玩家 %d 次 · 恥辱柱",
+    SIGHTING_CHAT_BULLY = "|cffff8040欺凌者|r |cffff4040%s|r 被目擊（%s） · 擊殺低階玩家 %d 次",
     SIGHTING_DEADBEAT = "|cffff4040賴帳者|r · %s 出現了！",
-    SIGHTING_CHAT_DEADBEAT = "|cffff4040賴帳者|r %s 在附近 · 未支付 %d 筆懸賞 · 恥辱柱",
+    SIGHTING_CHAT_DEADBEAT = "|cffff4040賴帳者|r %s 在附近 · 未支付 %d 筆懸賞",
     SIGHTING_CHAT_DEADBEAT_ENEMY = "|cffff4040賴帳者|r |cffff4040%s|r 被目擊 · 欠自己陣營 %d 筆懸賞未付 · 擊倒可拿賞金",
     SIGHTING_BOUNTY = "|cffffd100賞金|r · |cffff4040%s|r 出現了！",
     SIGHTING_CHAT_BOUNTY = "|cffffd100賞金|r |cffff4040%s|r 被目擊（%s）",

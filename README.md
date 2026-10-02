@@ -38,13 +38,13 @@ Badges show *how* someone kills, not only how much:
 
 If your own group was in the fight, the kill shows as a **group fight** (for example 4 vs 3) and gives no Duo or Gang badge. It still counts toward WANTED.
 
-### Hall of Shame
+### Bullies and Deadbeats
 - **Bullies**: every enemy with the Bully badge, WANTED or not. They stay as long as HeadHunter knows one of their lowbie kills (30 days). With the HeadHunter Sync app you also get the website's bullies of both factions, so your list matches the website.
 - **Deadbeats**: players who did not pay a gold bounty they posted (see *Gold bounties*). They are listed for 30 days, and they cannot post bounties during that time.
-- You get an alert when a bully or a Deadbeat is near. Turn it off in the options (**Hall of Shame alerts**).
+- You get an alert when a bully or a Deadbeat is near. Turn it off in the options (**Bully and Deadbeat alerts**).
 - Bring down a bully, or a Deadbeat of the other faction, and you get **+3 bounty**, once per player per hour. They stay on the list.
 
-![The Hall of Shame: every known bully, WANTED or not](Assets/3.jpg)
+![Bullies: every known bully, WANTED or not](Assets/3.jpg)
 
 ### Alerts
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
@@ -52,7 +52,7 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 - **Justice served**: a message when a WANTED outlaw is brought down.
 - **Gold bounty sighting**: "BOUNTY: X is here!" when a player with a gold bounty on them shows up.
 - **Your bounty is claimed**: a message when a HeadHunter brings down the player you put gold on.
-- **Hall of Shame**: "BULLY: X is here!" or "DEADBEAT: X is here!", at most once every 10 minutes per player.
+- **Bullies and Deadbeats**: "BULLY: X is here!" or "DEADBEAT: X is here!", at most once every 10 minutes per player.
 - **You are WANTED**: with the HeadHunter Sync app, HeadHunter tells you at login when the other faction has you on its WANTED list.
 - **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight and the HeadHunters of your side fighting there. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
 
@@ -65,12 +65,13 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 ### HeadHunter window
 Type `/hh` or click the minimap button:
 - **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill, with a switch between the Alliance and Horde lists (the enemy list opens first). Gold bounties are listed on top. While few outlaws are WANTED, the list fills up to 25 with outlaws **at large**: their WANTED time ran out, but nobody caught them. You get the same alert when you meet one, and catching one still pays their bounty.
-- **Hall of Shame**: every known bully, and the Deadbeats.
+- **Bullies**: every known bully, WANTED or not.
+- **Deadbeats**: players who did not pay their bounties, how many hunters they did not pay, and how many days they cannot post bounties.
 - **Duels**: the best duelists, with a switch between the Alliance and Horde lists.
 - **My deaths**: who killed you, when and where.
 - **My bounty**: the bounty you collected and your hunter rank.
 
-On **Hall of Shame**, **Duels** and **My deaths**, a search box finds a player by name. Each tab keeps its own search.
+On **WANTED**, **Bullies**, **Deadbeats**, **Duels** and **My deaths**, a search box finds a player by name. Each tab keeps its own search.
 
 The window has the same look as the website. Too big or too small for your screen? Change **Window size** in the options (90% to 130%).
 
@@ -97,7 +98,7 @@ Got ganked? Put gold on your killer's head.
 - Every HeadHunter of your faction sees it: on top of the WANTED list, on the tooltip and the poster, and with an alert when they meet the target.
 - The HeadHunter who lands the killing blow wins the gold, and everyone who saw it gets +5 bounty. No gold for hunting 10 or more levels down. One kill wins one bounty (the biggest); the others stay open. The same hunter cannot claim on the same player again for 7 days.
 - You get a message when your bounty is claimed. At your next mailbox, HeadHunter asks you to send the gold, and one click writes the mail. HeadHunter never sends gold without your click, and never more than you posted.
-- The hunter's HeadHunter sees your mail and marks you as **pays up**. Not paid after 3 days, the claim is unpaid. If you do not pay, you are a **Deadbeat**: no bounties for 30 days and your name in the Hall of Shame. Paying late gets you out.
+- The hunter's HeadHunter sees your mail and marks you as **pays up**. Not paid after 3 days, the claim is unpaid. If you do not pay, you are a **Deadbeat**: no bounties for 30 days and your name on the Deadbeats list. Paying late gets you out.
 - If the same hunter claimed on that player before, the mail window warns you that it may be an alt. You can refuse that one without becoming a **Deadbeat**.
 - **Classic Era:** after claiming, click **Announce** (or type `/hh claim`) so the owner hears about it, even outside your guild and group.
 
@@ -123,7 +124,7 @@ Type `/hh online` to see how many HeadHunters are online right now, how many are
 
 ## Website and the HeadHunter Sync app
 
-**[headhunterwow.com](https://headhunterwow.com)** is the bounty board of every HeadHunter player: WANTED posters, the best duelists, the top hunters and the Hall of Shame, for each game and realm. Sign in with Battle.net, Discord, Google or email to see your own characters.
+**[headhunterwow.com](https://headhunterwow.com)** is the bounty board of every HeadHunter player: WANTED posters, the best duelists, the top hunters, the bullies and the Deadbeats, for each game and realm. Sign in with Battle.net, Discord, Google or email to see your own characters.
 
 A WoW addon cannot use the internet. That is why there is a small, free desktop app: **HeadHunter Sync**. It connects the game and the website.
 
