@@ -17,9 +17,10 @@
 -- claim without it. A later "paid" beats "unpaid"; the earliest claim wins a poster.
 -- Blocked: an owner with an unpaid claim (author, 2026-09-28: one is enough), for 30
 -- days from the newest one turning unpaid; every client derives it the same way, ignores the owner's
--- posters and lists them on the Deadbeats tab (author, 2026-09-28). The other faction's
--- unpaid and paid records cross over too: their Deadbeats are listed, alerted and
--- worth bounty points when we bring them down.
+-- posters and lists them on the Deadbeats tab (author, 2026-09-28). Since HH-121 step 7
+-- only a verified claim counts (Bounties:Verdict: another player saw the kill). The
+-- other faction's Deadbeats come from the website (SiteData): their posters and
+-- witnesses never reach us, so their claims cannot be verified here.
 -- A claim is a catch (Sync/Justice.lua, record K) of the target by our own killing
 -- blow, within the poster's time, not 10+ levels above the target. Everyone who saw
 -- it earns +5 bounty points (Rules/Marks.lua). The hunter gets center text; on Era the
@@ -146,12 +147,18 @@ function Bounties:FirstClaim(posterId)
     return true
 end
 
+-- An unpaid claim that counts against the owner (HH-121 step 7): not maybe an alt, and
+-- verified by another player's data (Bounties:Verdict)
+local function CountsAsUnpaid(posterId, pay)
+    return pay.status == "unpaid" and ns.Relay.Counts(pay) and not Bounties:LooksLikeAlt(posterId)
+        and Bounties:CachedVerdict(posterId) == "verified"
+end
+
 -- Per owner: the newest unpaid time of each hunter, newest first
 local function UnpaidTimes(owner)
     local byHunter = {}
     for posterId, pay in pairs(Payments() or {}) do
-        if pay.status == "unpaid" and ns.Relay.Counts(pay) and ns.Utils.SameCharacter(Bounties.OwnerOf(posterId), owner)
-                and not Bounties:LooksLikeAlt(posterId) then
+        if ns.Utils.SameCharacter(Bounties.OwnerOf(posterId), owner) and CountsAsUnpaid(posterId, pay) then
             local hunter = ns.Utils.CompactName(pay.hunter)
             if hunter then byHunter[hunter] = math.max(byHunter[hunter] or 0, pay.t) end
         end
@@ -232,7 +239,7 @@ function Bounties:Standing(owner)
         if ns.Utils.SameCharacter(self.OwnerOf(posterId), owner) then
             if pay.status == "paid" then
                 paid = paid + 1
-            elseif pay.status == "unpaid" and ns.Relay.Counts(pay) and not self:LooksLikeAlt(posterId) then
+            elseif CountsAsUnpaid(posterId, pay) then
                 unpaid = unpaid + 1
             end
         end
@@ -247,6 +254,7 @@ end
 -------------------------------------------------
 
 Bounties.WITNESS_WINDOW = 60         -- a death this close to the claim is the claimed one
+Bounties.CONFIRM_WAIT = 30           -- after our claim, the witnesses' time (Witness.SEND_DELAY) and more
 
 -- Did the target die (a witness record or their own report) after `from` and before `to`?
 local function DiedBetween(target, from, to)
@@ -334,7 +342,34 @@ function Bounties:Verdict(posterId)
     return "unverified"
 end
 
-local verdicts = {}                  -- poster id -> the last verdict worked out
+local verdicts = {}                  -- poster id -> { verdict, by }, the last one worked out
+
+-- The claim's verdict, worked out once and kept until new evidence or a new payment
+-- (the Deadbeat checks ask often: tooltips, nameplates). Returns the verdict and who.
+function Bounties:CachedVerdict(posterId)
+    local cached = verdicts[posterId]
+    if not cached then
+        local verdict, by = self:Verdict(posterId)
+        cached = { verdict or "unverified", by }
+        verdicts[posterId] = cached
+    end
+    return cached[1], cached[2]
+end
+
+-- The owner and the hunter hear when a claim is rejected
+local function TellRejected(posterId, by)
+    local poster, pay = Bounties:Get(posterId), Bounties:Payment(posterId)
+    if not (poster and pay) then return end
+    local U, me = ns.Utils, Me()
+    local hunter, target, spotter = U.DisplayName(pay.hunter), Bounties.TargetName(poster.target), U.DisplayName(by) or by
+    local text
+    if U.SameCharacter(poster.owner, me) then
+        text = string.format(L.BOUNTY_REJECTED_OWNER, hunter, target, spotter)
+    elseif U.SameCharacter(pay.hunter, me) then
+        text = string.format(L.BOUNTY_REJECTED_HUNTER, target, spotter)
+    end
+    if text then ns.Alerts:Show({ key = "bounty-rejected:" .. posterId, throttle = 0, chat = text }) end
+end
 
 -- New evidence on a target: work the verdicts of the claims on them out again, and
 -- tell the UI when one changed. target nil: every claim.
@@ -343,9 +378,13 @@ function Bounties:RefreshVerdicts(target)
     for posterId in pairs(Payments() or {}) do
         local poster = self:Get(posterId)
         if poster and (not target or poster.target == target) then
-            local verdict = self:Verdict(posterId)
-            if verdicts[posterId] ~= nil and verdicts[posterId] ~= verdict then changed = true end
-            verdicts[posterId] = verdict
+            local before = verdicts[posterId] and verdicts[posterId][1]
+            verdicts[posterId] = nil
+            local verdict, by = self:CachedVerdict(posterId)
+            if before ~= nil and before ~= verdict then
+                changed = true
+                if verdict == "rejected" then TellRejected(posterId, by) end
+            end
         end
     end
     if changed then Changed() end
@@ -474,6 +513,7 @@ function Bounties:AddPayment(pay, origin)
     end
     pay.origin = origin
     store[pay.posterId] = pay
+    verdicts[pay.posterId] = nil
     ns:Debug("Bounty payment", pay.posterId, pay.status, "origin", origin)
     Changed()
     return pay
@@ -676,17 +716,14 @@ function Bounties:NotifyOwner(pay)
     ns.Alerts:Show(alert)
 end
 
--- faction: the sender's. The other faction's unpaid and paid records tell us their
--- Deadbeats (author, 2026-09-28: ours to hunt for bounty points); their claims are
--- none of our business.
+-- faction: the sender's. The other faction's records are not ours (HH-121: their
+-- Deadbeats come from the website; Transport drops them already).
 function Bounties:OnPeerPayment(record, sender, faction)
     local pay = ns.Protocol.DecodePayment(record)
     if not pay or not ValidPayment(pay) then return nil end
-    local theirs = faction ~= nil and faction ~= ns.Utils.UnitFaction("player")
-    if theirs and pay.status == "claimed" then return nil end
+    if faction ~= nil and faction ~= ns.Utils.UnitFaction("player") then return nil end
     -- Only the hunter: they are the one who gets the gold
     if not ns.Utils.SameCharacter(sender, pay.hunter) or not UnderRateLimit(sender) then return nil end
-    pay.faction = theirs and faction or nil
     -- The hunter's own copy of a payment we only had relayed (HH-121)
     local have = self:Payment(pay.posterId)
     if have and have.status == pay.status and ns.Utils.SameCharacter(have.hunter, pay.hunter)
@@ -771,6 +808,11 @@ function Bounties:OnCatch(record)
             if ns.Transport:RealmWideNeedsClick() then toAnnounce[#toAnnounce + 1] = pay.posterId end
             lines[#lines + 1] = string.format(L.BOUNTY_CLAIMED, self.Gold(poster.gold), U.DisplayName(poster.owner))
             gold = gold + poster.gold
+            -- HH-121: once the witnesses had their time, say when nobody else saw it
+            local posterId, target = poster.id, self.TargetName(record.outlaw)
+            C_Timer.After(self.CONFIRM_WAIT, function()
+                if self:CachedVerdict(posterId) == "unverified" then ns:Print(string.format(L.BOUNTY_CLAIM_UNCONFIRMED, target)) end
+            end)
         end
     end
     if #lines == 0 then return end
@@ -888,7 +930,7 @@ function Bounties:ToPay()
     for _, poster in self:All() do
         local pay = self:Payment(poster.id)
         if pay and pay.status ~= "paid" and ns.Relay.Counts(pay) and not poster.sentAt
-                and ns.Utils.SameCharacter(poster.owner, me) then
+                and ns.Utils.SameCharacter(poster.owner, me) and self:CachedVerdict(poster.id) ~= "rejected" then
             list[#list + 1] = poster.id
         end
     end
@@ -903,10 +945,17 @@ function Bounties:AskNext()
     local pay = self:Payment(poster.id)
     local hunter, target = ns.Utils.DisplayName(pay.hunter), self.TargetName(poster.target)
     local text = string.format(L.BOUNTY_PAY_PROMPT, hunter, target, self.ReasonText(poster.reason), self.Gold(poster.gold))
-    if self:LooksLikeAlt(poster.id) then
-        text = text .. string.format(L.BOUNTY_PAY_ALT, hunter, target)
-    elseif self:FirstClaim(poster.id) then
-        text = text .. string.format(L.BOUNTY_PAY_FIRST, hunter)
+    -- HH-121: who saw it; not confirmed means not paying makes no Deadbeat
+    local verdict, by = self:CachedVerdict(poster.id)
+    if verdict ~= "verified" then
+        text = text .. L.BOUNTY_PAY_UNVERIFIED
+    else
+        text = text .. string.format(L.BOUNTY_PAY_VERIFIED, ns.Utils.DisplayName(by) or by)
+        if self:LooksLikeAlt(poster.id) then
+            text = text .. string.format(L.BOUNTY_PAY_ALT, hunter, target)
+        elseif self:FirstClaim(poster.id) then
+            text = text .. string.format(L.BOUNTY_PAY_FIRST, hunter)
+        end
     end
     StaticPopupDialogs[self.PAY_POPUP].text = text
     StaticPopup_Show(self.PAY_POPUP)
@@ -1046,3 +1095,37 @@ ns.SlashCommands:Register("claim", function()
     StaticPopup_Hide(ns.Alerts.BOUNTY_POPUP)
     Bounties:Announce()
 end, L.HELP_CLAIM)
+
+-- One claim as a chat line: "Grim Reaper · 5g · Kestrel for Tallon · unpaid · verified (Bravo saw it)"
+function Bounties:ClaimLine(posterId)
+    local poster, pay = self:Get(posterId), self:Payment(posterId)
+    if not (poster and pay) then return nil end
+    local U = ns.Utils
+    local verdict, by = self:CachedVerdict(posterId)
+    local who = U.DisplayName(by) or by
+    local verdictText = verdict == "verified" and string.format(L.VERDICT_VERIFIED, who)
+        or verdict == "rejected" and string.format(L.VERDICT_REJECTED, who) or L.VERDICT_UNVERIFIED
+    return string.format(L.BOUNTIES_LINE, self.TargetName(poster.target), self.Gold(poster.gold), U.DisplayName(pay.hunter),
+        U.DisplayName(poster.owner), L["BOUNTIES_STATUS_" .. string.upper(pay.status)] or pay.status, verdictText)
+end
+
+-- /hh bounties: our claims, as owner or hunter, newest first, with their verdicts (HH-121)
+ns.SlashCommands:Register("bounties", function()
+    local U, me = ns.Utils, Me()
+    local list = {}
+    for posterId, pay in pairs(Payments() or {}) do
+        if U.SameCharacter(pay.hunter, me) or U.SameCharacter(Bounties.OwnerOf(posterId), me) then
+            list[#list + 1] = { id = posterId, t = pay.claimedAt }
+        end
+    end
+    if #list == 0 then
+        ns:Print(L.BOUNTIES_NONE)
+        return
+    end
+    table.sort(list, function(a, b) return a.t > b.t end)
+    ns:Print(L.BOUNTIES_HEADER)
+    for i = 1, math.min(10, #list) do
+        local line = Bounties:ClaimLine(list[i].id)
+        if line then print("  " .. date("%m-%d %H:%M", list[i].t) .. "  " .. line) end
+    end
+end, L.HELP_BOUNTIES)

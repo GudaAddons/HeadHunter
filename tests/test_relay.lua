@@ -95,8 +95,14 @@ return function(T, H)
         local ns = H.Boot({ client = "era" })
         local P = ns.Protocol
         local posterId = "Miser-Firemaw:" .. (H.serverTime - 5 * 86400)
+        local claimedAt = H.serverTime - 4 * 86400
+        ns.Bounties:Add({ id = posterId, owner = "Miser-Firemaw", target = "Gank-Stonespine", reason = 1, gold = 50000,
+            ["until"] = H.serverTime - 3 * 86400, t = H.serverTime - 5 * 86400 }, "peer", "Miser-Firemaw")
+        -- Someone else saw the kill, so the claim is verified (step 7)
+        ns.Witness:Add({ outlaw = "Gank-Stonespine", mapID = 1436, t = claimedAt, x = 0.5, y = 0.5, by = "Eye-Firemaw" },
+            "peer", "Eye-Firemaw")
         local unpaid = P.EncodePayment({ posterId = posterId, hunter = "Kestrel-Firemaw", status = "unpaid",
-            claimedAt = H.serverTime - 4 * 86400, t = H.serverTime - 86400 })
+            claimedAt = claimedAt, t = H.serverTime - 86400 })
         ns.Bounties:AddRelayedPayment(unpaid, "Liar-Firemaw")
         T.eq(ns.Bounties:IsBlocked("Miser-Firemaw"), false, "no Deadbeat on one peer's word")
         T.eq(#ns.Bounties:Shamed(), 0, "not on the Deadbeats tab")
