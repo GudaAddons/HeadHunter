@@ -280,6 +280,21 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("Bounty board sub-tabs: what each one lists, on hover", function()
+        local ns = H.Boot({ client = "era", tooltip = "script" })
+        local M = ns.MainWindow
+        M:Toggle()
+        local buttons = _G.HeadHunterMainFrame.subtabs.board.buttons
+        T.eq(#buttons, 3, "WANTED, Bullies and Deadbeats")
+        for i, view in ipairs({ "wanted", "bullies", "deadbeats" }) do
+            H.tooltipLines = {}
+            buttons[i].scripts.OnEnter(buttons[i])
+            T.eq(H.tooltipLines[1], ns.L[M.TAB_TIPS[view]], view .. " explained")
+        end
+        T.ok(H.tooltipLines[1]:find("small on purpose", 1, true) ~= nil, "Deadbeats: why the reward is small")
+        T.noErrors()
+    end)
+
     T.case("Bullies: one faction's bullies, or both", function()
         local ns = H.Boot({ client = "era" })
         Spree(ns, "Grubnak-Stonespine", 4)

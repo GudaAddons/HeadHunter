@@ -64,6 +64,8 @@ MainWindow.ALL = "All"
 MainWindow.BOARD_TABS = { wanted = true, bullies = true, deadbeats = true }
 -- Tabs with a search box, each with its own search (the long lists)
 MainWindow.SEARCH_TABS = { wanted = true, bullies = true, deadbeats = true, duels = true, deaths = true }
+-- What a sub-tab lists, on hover (author, 2026-10-02)
+MainWindow.TAB_TIPS = { wanted = "TIP_TAB_WANTED", bullies = "TIP_TAB_BULLIES", deadbeats = "TIP_TAB_DEADBEATS" }
 -- The box fits between three sub-tabs and the faction switch on one row
 MainWindow.SEARCH_WIDTH = 140
 
@@ -713,7 +715,10 @@ local function CreateMainFrame()
     for _, section in ipairs(MainWindow.SECTIONS) do
         if #section.views > 1 then
             local options = {}
-            for i, view in ipairs(section.views) do options[i] = { value = view, label = L["TAB_" .. view:upper()] } end
+            for i, view in ipairs(section.views) do
+                local tip = MainWindow.TAB_TIPS[view]
+                options[i] = { value = view, label = L["TAB_" .. view:upper()], tip = tip and L[tip] }
+            end
             local set = Theme.Segmented(f, options, function(view) MainWindow:SelectTab(view) end)
             set:SetPoint("TOPLEFT", 16, toolbarY)
             set:Hide()
