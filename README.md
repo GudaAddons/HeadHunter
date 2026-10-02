@@ -10,13 +10,13 @@ For **Classic Era** and **WoW: Forever**.
 
 See the WANTED board, the best duelists and the top hunters on **[headhunterwow.com](https://headhunterwow.com)**.
 
-![The WANTED list: outlaws with their rank, kills, last kill and badges, gold bounties on top](Assets/2.jpg)
+![The WANTED board on the website: every outlaw with their rank, kills, badges and reward](https://headhunterwow.com/images/screenshots/site-wanted.webp)
 
 ## How it works
 
 1. **An enemy player kills you.** HeadHunter saves who did it: name, level, class, race and zone. If more than one player attacked you, it saves all of them.
 2. **Your report is shared** with every HeadHunter player of your faction.
-3. **Gankers become WANTED.** An enemy who kills 4 players within 20 minutes gets a WANTED poster. Every HeadHunter sees the same list.
+3. **Gankers become WANTED.** An enemy who kills 5 players within 20 minutes gets a WANTED poster. Every HeadHunter sees the same list.
 4. **Hunt them down.** You get an alert when a WANTED outlaw kills someone near you. Join the posse and go after them.
 5. **Justice served.** When a HeadHunter, or anyone in their group, kills a WANTED outlaw, the outlaw is no longer WANTED for everyone.
 6. **See it all on the website.** With the free **HeadHunter Sync** app, your reports go to [headhunterwow.com](https://headhunterwow.com), and the website's lists come back into your game.
@@ -44,7 +44,7 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 - You get an alert when a bully or a Deadbeat is near. Turn it off in the options (**Bully and Deadbeat alerts**).
 - Bring down a bully, or a Deadbeat of the other faction, and you get **+3 bounty**, once per player per hour. They stay on the list.
 
-![Bullies: every known bully, WANTED or not](Assets/3.jpg)
+![Bullies on the website: every known bully, WANTED or not](https://headhunterwow.com/images/screenshots/site-bullies.webp)
 
 ### Alerts
 - **WANTED sighting**: "WANTED Ganker X is here!" when a WANTED outlaw shows up on your screen, even in combat.
@@ -60,7 +60,7 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 - A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 20 minutes after the last fight.
 - A **skull** shows where a WANTED outlaw made their last kill (for 10 minutes). The map shows the 10 biggest fights and the 10 highest ranked outlaws.
 
-![A PvP area on the world map](Assets/screenshot-map.png)
+![A PvP area on the world map](https://headhunterwow.com/images/screenshots/map.webp)
 
 ### HeadHunter window
 Type `/hh` or click the minimap button:
@@ -77,9 +77,7 @@ The window has the same look as the website. Too big or too small for your scree
 
 Hover a name for details, or click it to open their **WANTED poster** in the middle of the window: an old paper poster with a black and white picture of their race, their name, rank, kills, badges and the gold on their head. Next to it: their history, recent kills, the posse, gold bounties and the **Join the posse** and **Post a bounty** buttons.
 
-![The WANTED poster of an outlaw, with their recent kills next to it](Assets/1.jpg)
-
-![My deaths: who killed you, when, where and how fair it was](Assets/5.jpg)
+![The WANTED poster of an outlaw, with their recent kills next to it](https://headhunterwow.com/images/screenshots/poster.webp)
 
 ### Enemy tooltips
 Mouse over an enemy player to see if they are WANTED, their rank, kills and badges. Any player with duels also shows their duel rank.
@@ -90,7 +88,7 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 - No bounty for hunting players 10 or more levels below you. Hunting down is ganking too.
 - Hunter ranks: **Tracker**, **Bounty Hunter**, **Manhunter**, **Headhunter** and **Reaper**.
 
-![My bounty: what earned or cost bounty, and your hunter rank](Assets/6.jpg)
+![Top Hunters on the website: the HeadHunters with the most bounty and their rank](https://headhunterwow.com/images/screenshots/site-hunters.webp)
 
 ### Gold bounties
 Got ganked? Put gold on your killer's head.
@@ -120,7 +118,7 @@ Type `/hh online` to see how many HeadHunters are online right now, how many are
 - Ranks by net wins: **Quickdraw**, **Sharpshooter** (+5), **Deadeye** (+15) and **Legend** (+30). Under 5 duels you are a **Greenhorn**, listed after everyone with 5 or more.
 - The #1 of each faction is the **Top Gun**, once they are 5 or more wins ahead (Sharpshooter) and nobody else at the top has the same record. A Greenhorn cannot be Top Gun.
 
-![Duels: the Horde list with ranks and records, a player's duels on hover](Assets/4.jpg)
+![Duelists on the website: every duelist with their rank and record](https://headhunterwow.com/images/screenshots/site-duels.webp)
 
 ## Website and the HeadHunter Sync app
 
