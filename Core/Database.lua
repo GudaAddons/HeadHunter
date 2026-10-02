@@ -28,7 +28,7 @@ DB.FALLBACK_HOME = "unknown"
 DB.HOME_TABLES = {
     deaths = true, reports = true, enemies = true, justice = true, posters = true, posse = true,
     bountyPay = true, duels = true, eventResults = true, marks = true, demoMarks = true, player = true,
-    witness = true,
+    witness = true, pinned = true,
 }
 
 DB.LIMITS = {
@@ -79,6 +79,7 @@ local HOME_DEFAULTS = {
     bountyPay = {}, -- poster id -> claim and payment of that bounty (HH-118)
     duels = {},   -- High Noon: duel id -> duel someone saw (HH-091)
     witness = {}, -- HH-121: witness id -> a hunted player who died near a HeadHunter (Sync/Witness.lua)
+    pinned = {},  -- HH-121: sighting id -> a sighting kept as evidence for a bounty claim (Sync/Evidence.lua)
     -- Tournament match results confirmed in game (Tournament/Matches.lua): every
     -- HeadHunter's bracket; our own go to the website with HeadHunter Sync
     eventResults = {},

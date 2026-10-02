@@ -242,6 +242,115 @@ function Bounties:Standing(owner)
     return paid, unpaid
 end
 
+-------------------------------------------------
+-- Verdict (HH-121 step 6)
+-------------------------------------------------
+
+Bounties.WITNESS_WINDOW = 60         -- a death this close to the claim is the claimed one
+
+-- Did the target die (a witness record or their own report) after `from` and before `to`?
+local function DiedBetween(target, from, to)
+    for _, w in ipairs(ns.Witness:Of(target, (from + to) / 2, (to - from) / 2)) do
+        if w.t > from and w.t < to then return true end
+    end
+    for _, report in ns.Reports:All() do
+        if report.t > from and report.t < to and ns.Utils.SameCharacter(report.victim and report.victim.key, target) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Is the hunter named in the report (the killer or an assist)?
+local function Names(report, hunter)
+    local U = ns.Utils
+    if report.killer and U.SameCharacter(report.killer.key, hunter) then return true end
+    for _, assist in ipairs(report.assists or {}) do
+        if U.SameCharacter(assist.key, hunter) then return true end
+    end
+    return false
+end
+
+-- How sure we are that a claim happened, from other players' data only (the hunter's
+-- own data never counts for or against it):
+--   "verified"    a witness saw the target die then (within WITNESS_WINDOW), or the
+--                 target's own death report names the hunter
+--   "rejected"    a sighting before the claim, a witness or the target's own report
+--                 puts the target farther from the claim's place than they could go
+--                 (Utils.TooFar); the place is the hunter's own witness record
+--   "unverified"  nothing either way, or evidence both ways (one liar must not make
+--                 an honest owner a Deadbeat, nor cost an honest hunter the gold)
+-- Returns the verdict and who it rests on (a witness, spotter or the target), or nil.
+function Bounties:Verdict(posterId)
+    local poster, pay = self:Get(posterId), self:Payment(posterId)
+    if not (poster and pay) then return nil end
+    local U, Relay = ns.Utils, ns.Relay
+    local target, hunter, at = poster.target, pay.hunter, pay.claimedAt
+    local function Other(record, by) return Relay.Counts(record) and not U.SameCharacter(by, hunter) end
+
+    local place
+    for _, w in ipairs(ns.Witness:Of(target, at, self.WITNESS_WINDOW)) do
+        if U.SameCharacter(w.by, hunter) and Relay.Counts(w) then place = U.WorldPos(w.mapID, w.x, w.y) end
+    end
+    local function Far(mapID, x, y, t)
+        return place ~= nil and U.TooFar(place, U.WorldPos(mapID, x, y), math.abs(t - at))
+    end
+
+    local verifiedBy, rejectedBy
+    for _, w in ipairs(ns.Witness:Of(target, at, self.WITNESS_WINDOW)) do
+        if Other(w, w.by) then
+            if Far(w.mapID, w.x, w.y, w.t) then
+                rejectedBy = rejectedBy or w.by
+            else
+                verifiedBy = verifiedBy or w.by
+            end
+        end
+    end
+    for _, report in ns.Reports:All() do
+        if math.abs(report.t - at) <= self.WITNESS_WINDOW and U.SameCharacter(report.victim and report.victim.key, target)
+                and Other(report, target) then
+            if Names(report, hunter) then
+                verifiedBy = verifiedBy or target
+            elseif Far(report.mapID, report.x, report.y, report.t) then
+                rejectedBy = rejectedBy or target
+            end
+        end
+    end
+    -- Seen alive before the claim, with no death in between (a release can move a
+    -- player to a graveyard, so later sightings prove nothing)
+    local sightings = {}
+    for _, s in ipairs(ns.Spotted:Sightings(target)) do sightings[#sightings + 1] = s end
+    for _, s in ipairs(ns.Evidence:Of(target, at)) do sightings[#sightings + 1] = s end
+    for _, s in ipairs(sightings) do
+        if s.t <= at and at - s.t <= ns.Evidence.WINDOW and Other(s, s.by) and Far(s.mapID, s.x, s.y, s.t)
+                and not DiedBetween(target, s.t, at - self.WITNESS_WINDOW) then
+            rejectedBy = rejectedBy or s.by
+        end
+    end
+
+    if verifiedBy and rejectedBy then return "unverified" end
+    if verifiedBy then return "verified", verifiedBy end
+    if rejectedBy then return "rejected", rejectedBy end
+    return "unverified"
+end
+
+local verdicts = {}                  -- poster id -> the last verdict worked out
+
+-- New evidence on a target: work the verdicts of the claims on them out again, and
+-- tell the UI when one changed. target nil: every claim.
+function Bounties:RefreshVerdicts(target)
+    local changed = false
+    for posterId in pairs(Payments() or {}) do
+        local poster = self:Get(posterId)
+        if poster and (not target or poster.target == target) then
+            local verdict = self:Verdict(posterId)
+            if verdicts[posterId] ~= nil and verdicts[posterId] ~= verdict then changed = true end
+            verdicts[posterId] = verdict
+        end
+    end
+    if changed then Changed() end
+end
+
 -- Running: not run out, not claimed, the owner not blocked; a relayed poster only
 -- once a second source has it (HH-121)
 function Bounties:IsActive(poster, now)
@@ -908,6 +1017,13 @@ ns.Events:Register("HH_INITIALIZED", function()
     Events:Register("MAIL_SHOW", function() Bounties:OnMailShow() end, OWNER)
     Events:Register("MAIL_INBOX_UPDATE", function() Bounties:CheckInbox() end, OWNER)
     Events:Register("MAIL_CLOSED", function() Bounties:Later() end, OWNER)
+    -- New evidence for a claim (HH-121): its verdict may change
+    Events:Register("HH_WITNESS_ADDED", function(_, w) Bounties:RefreshVerdicts(w.outlaw) end, OWNER)
+    Events:Register("HH_OUTLAW_SPOTTED", function(_, outlaw) Bounties:RefreshVerdicts(outlaw) end, OWNER)
+    Events:Register("HH_REPORT_ADDED", function(_, report)
+        local victim = report.victim and report.victim.key
+        if victim then Bounties:RefreshVerdicts(victim) end
+    end, OWNER)
     StaticPopupDialogs[Bounties.PAY_POPUP] = {
         text = "",
         button1 = L.BOUNTY_PAY_SEND,
