@@ -460,8 +460,8 @@ local function DeathRows(now)
     return rows
 end
 
--- Busted (author, 2026-10-04): every catch we know of (Sync/Justice.lua), newest first,
--- a relayed one once a second source has it. The HeadHunter mark before the name says
+-- Busted (author, 2026-10-04): every catch we know of (Sync/Justice.lua) and the website's of our world,
+-- newest first; a relayed one once a second source has it. The HeadHunter mark before the name says
 -- they were WANTED when busted, though they may not be now.
 MainWindow.MARK_ICON = "|TInterface\\AddOns\\HeadHunter\\Assets\\Textures\\mark:14:14|t "
 -- Raise a glass: the game's ale mug
@@ -473,11 +473,24 @@ local function BustedRows(now)
     for _, record in ns.Justice:All() do
         if type(record) == "table" and record.outlaw and ns.Relay.Counts(record) then list[#list + 1] = record end
     end
+    -- The website's catches of our world too (author, 2026-10-04), the ones we do not
+    -- know already (same outlaw within a minute)
+    local known = #list
+    for _, catch in ipairs(ns.SiteData:BustedList()) do
+        local seen = false
+        for i = 1, known do
+            if list[i].outlaw == catch.outlaw and math.abs((list[i].t or 0) - catch.t) <= ns.Justice.DEDUPE then
+                seen = true
+                break
+            end
+        end
+        if not seen then list[#list + 1] = catch end
+    end
     table.sort(list, function(a, b) return (a.t or 0) > (b.t or 0) end)
     local rows = {}
     for _, record in ipairs(list) do
         local entry = ns.Wanted:Get(record.outlaw)
-        local who = entry or ns.EnemyCache:ByKey(record.outlaw) or {}
+        local who = entry or ns.EnemyCache:ByKey(record.outlaw) or record.outlawWho or {}
         local plain = (entry and OutlawName(entry))
             or (not record.outlaw:find("^guid:") and U.DisplayName(record.outlaw)) or "?"
         local by = record.killer or record.hunter
@@ -492,7 +505,8 @@ local function BustedRows(now)
         local glasses = ns.Glasses:Count(record)
         local canRaise = ns.Glasses:CanRaise(record)
         local _, raised = ns.Glasses:Of(record)
-        table.insert(tooltip, 3, string.format(L.TIP_GLASSES, glasses))
+        local own = ns.Glasses.Own(record, U.UnitKey("player"))
+        table.insert(tooltip, 3, string.format(canRaise and L.TIP_GLASSES_RAISE or L.TIP_GLASSES, glasses))
         rows[#rows + 1] = {
             id = entry and entry.id or nil,
             time = when,
@@ -503,7 +517,7 @@ local function BustedRows(now)
             zone = zone,
             glasses = glasses,
             tooltip = tooltip,
-            actions = { { kind = "glass", catch = record, count = glasses, canRaise = canRaise, raised = raised } },
+            actions = { { kind = "glass", catch = record, count = glasses, canRaise = canRaise, raised = raised, own = own } },
         }
     end
     return rows
@@ -1099,8 +1113,10 @@ local function GlassButton(row)
     b:SetScript("OnEnter", function(self)
         if not GameTooltip or not self.action then return end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        if self.action.canRaise then GameTooltip:SetText(L.GLASS_RAISE) end
-        GameTooltip:AddLine(string.format(L.TIP_GLASSES, self.action.count))
+        -- What a click does, or why it does nothing; then the count
+        local a = self.action
+        GameTooltip:SetText((a.canRaise and L.GLASS_RAISE) or (a.own and L.GLASS_OWN) or L.GLASS_RAISED)
+        GameTooltip:AddLine(string.format(L.TIP_GLASSES, a.count))
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)

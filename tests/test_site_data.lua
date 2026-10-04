@@ -47,6 +47,29 @@ return function(T, H)
         return data
     end
 
+    T.case("the website's catches join the Busted list, with their glasses, once each", function()
+        local data = EraData()
+        data.worlds["era|eu|Firemaw"].busted = {
+            { name = "Duskblade", realm = "Firemaw", class = "rogue", race = "undead", faction = "horde", sex = 3,
+                caught_at = H.serverTime - 300, map_id = 1429, glasses = 8,
+                hunter = { name = "Brightshield", realm = "Firemaw", class = "paladin", race = "human", faction = "alliance" } },
+            { name = "Knowngank", realm = "Firemaw", caught_at = H.serverTime - 600, glasses = 2 },
+        }
+        local ns = H.Boot({ client = "era", siteData = data })
+        Settle()
+        -- Knowngank's catch we know ourselves already, 30 s apart
+        ns.Justice:Add({ id = "Knowngank-Firemaw:" .. (H.serverTime - 630), outlaw = "Knowngank-Firemaw",
+            t = H.serverTime - 630, hunter = "Brightshield-Firemaw", killer = "Brightshield-Firemaw" }, "peer", "Brightshield-Firemaw")
+        local rows = ns.MainWindow.Rows("busted")
+        T.eq(#rows, 2, "the website's catch joins ours, the known one once")
+        T.eq(rows[1].plain, "Duskblade", "newest first")
+        T.eq(rows[1].byPlain, "Brightshield", "who busted them")
+        T.ok(rows[1].by:find(ns.Utils.ClassIcon("PALADIN"), 1, true) ~= nil, "their class icon")
+        T.eq(rows[1].actions[1].count, 8, "the website's glasses")
+        T.eq(rows[1].actions[1].canRaise, true, "we may raise one too")
+        T.noErrors()
+    end)
+
     T.case("no website data: nothing changes", function()
         local ns = H.Boot({ client = "era" })
         Settle()

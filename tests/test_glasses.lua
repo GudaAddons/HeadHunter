@@ -85,6 +85,8 @@ return function(T, H)
         T.eq(glass.count, 0, "no glasses yet")
         T.eq(glass.canRaise, true, "we may raise one")
         T.eq(glass.raised, false, "not raised")
+        T.ok(ns.MainWindow.Rows("busted")[1].tooltip[3]:find("click the mug to raise a glass", 1, true) ~= nil,
+            "the row says how to raise one")
         ns.MainWindow:OnRowAction(nil, glass)
         local row = ns.MainWindow.Rows("busted")[1]
         T.eq(row.actions[1].count, 1, "raised")
