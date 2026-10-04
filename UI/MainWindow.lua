@@ -966,9 +966,10 @@ local function CreateMainFrame()
     return f
 end
 
+-- At the mouse and following it, not past the end of the wide row (author, 2026-10-04)
 local function ShowRowTooltip(row)
     if not (GameTooltip and row.data and row.data.tooltip) then return end
-    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+    GameTooltip:SetOwner(row, "ANCHOR_CURSOR")
     for i, line in ipairs(row.data.tooltip) do
         if i == 1 then GameTooltip:SetText(line) else GameTooltip:AddLine(line, 1, 1, 1, true) end
     end
