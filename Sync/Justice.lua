@@ -129,6 +129,7 @@ function Justice:Record(entry, how, killer)
         id = entry.id .. ":" .. now, outlaw = entry.id, t = now,
         mapID = ns.Zones.ZoneOf(U.PlayerMapID()), killer = killer or me, hunter = me, how = how,
     }
+    Justice.SetKillerWho(record, Justice.Identity(record.killer))
     if not self:Add(record, "local") then return nil end
     local Protocol, Transport = ns.Protocol, ns.Transport
     Transport:Queue(Protocol.TYPES.JUSTICE, self.Encode(record), Transport.PRIORITY.alert, "K:" .. record.id)
@@ -137,7 +138,37 @@ function Justice:Record(entry, how, killer)
 end
 
 function Justice.Encode(record)
-    return ns.Protocol.EncodeJustice(record.outlaw, record.t, record.mapID, record.killer)
+    return ns.Protocol.EncodeJustice(record.outlaw, record.t, record.mapID, record.killer, Justice.KillerWho(record))
+end
+
+-- Who landed the blow, as far as we can see them: ourselves, or a member of our group
+-- ({ class, race, sex, faction } or nil)
+function Justice.Identity(key)
+    local U = ns.Utils
+    if not key then return nil end
+    local units = { "player" }
+    for i = 1, 4 do units[#units + 1] = "party" .. i end
+    for i = 1, 40 do units[#units + 1] = "raid" .. i end
+    for _, unit in ipairs(units) do
+        if U.UnitGUID(unit) and U.SameCharacter(U.UnitKey(unit), key) then
+            local sex = U.UnitSex(unit)
+            return { class = U.UnitClass(unit), race = U.UnitRace(unit), faction = U.UnitFaction(unit),
+                sex = sex ~= 1 and sex or nil }
+        end
+    end
+    return nil
+end
+
+-- The killer's race, class and sex kept on the catch (the Busted list shows them)
+function Justice.SetKillerWho(record, who)
+    if not who then return end
+    record.killerClass, record.killerRace, record.killerSex = who.class, who.race, who.sex
+    record.killerFaction = who.faction
+end
+
+function Justice.KillerWho(record)
+    if not (record.killerClass or record.killerRace) then return nil end
+    return { class = record.killerClass, race = record.killerRace, sex = record.killerSex, faction = record.killerFaction }
 end
 
 -- An enemy player died by our hand or our group's: a catch if WANTED right now, at
@@ -348,7 +379,7 @@ local function UnderRateLimit(sender)
 end
 
 function Justice:OnPeer(record, sender)
-    local outlaw, t, mapID, killer = ns.Protocol.DecodeJustice(record)
+    local outlaw, t, mapID, killer, who = ns.Protocol.DecodeJustice(record)
     if not outlaw then return end
     local U = ns.Utils
     -- Same key format as our reports (a sender's client may write names differently)
@@ -365,16 +396,17 @@ function Justice:OnPeer(record, sender)
         return
     end
     if not UnderRateLimit(sender) then return end
-    self:Add({ id = outlaw .. ":" .. t, outlaw = outlaw, t = t, mapID = mapID,
-        killer = killer and U.PlayerKey(killer) or U.PlayerKey(sender), hunter = U.PlayerKey(sender) or sender },
-        "peer", sender)
+    local catch = { id = outlaw .. ":" .. t, outlaw = outlaw, t = t, mapID = mapID,
+        killer = killer and U.PlayerKey(killer) or U.PlayerKey(sender), hunter = U.PlayerKey(sender) or sender }
+    Justice.SetKillerWho(catch, who)
+    self:Add(catch, "peer", sender)
 end
 
 -- A catch passed on by another HeadHunter during login catch-up (HH-023): no rate
 -- limit (one pull brings many), the time checks still apply. It ends WANTED only
 -- once a second source has it (HH-121, Sync/Relay.lua).
 function Justice:AddRelayed(record, sender)
-    local outlaw, t, mapID, killer = ns.Protocol.DecodeJustice(record)
+    local outlaw, t, mapID, killer, who = ns.Protocol.DecodeJustice(record)
     if not outlaw then return nil end
     local U = ns.Utils
     if not outlaw:find("^guid:") then
@@ -391,6 +423,7 @@ function Justice:AddRelayed(record, sender)
     end
     local catch = { id = outlaw .. ":" .. t, outlaw = outlaw, t = t, mapID = mapID, killer = killer, hunter = killer,
         origin = "relay" }
+    Justice.SetKillerWho(catch, who)
     ns.Relay.Vouch(catch, sender, killer)
     return self:Add(catch, "relay", sender)
 end

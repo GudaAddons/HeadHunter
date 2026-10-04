@@ -55,6 +55,38 @@ return function(T, H)
         T.eq(P.DecodeJustice("x;y"), nil, "malformed")
     end)
 
+    T.case("protocol: the killer's race, class and sex ride in the killer field; old records still read", function()
+        local ns = H.Boot({ client = "forever" })
+        local P = ns.Protocol
+        local sent = P.EncodeJustice("Grim Reaper", 1790000000, 1436, "Tess Rider",
+            { class = "PALADIN", race = "Skyborne", faction = "Alliance", sex = 3 })
+        local _, _, _, killer, who = P.DecodeJustice(sent)
+        T.eq(killer, "Tess Rider", "the name")
+        T.eq(who.class, "PALADIN", "class")
+        T.eq(who.race, "Skyborne", "race")
+        T.eq(who.faction, "Alliance", "Skyborne's faction")
+        T.eq(who.sex, 3, "sex")
+
+        local _, _, _, oldKiller, none = P.DecodeJustice(P.EncodeJustice("Grim Reaper", 1790000000, 1436, "Tess Rider"))
+        T.eq(oldKiller, "Tess Rider", "an old record's killer")
+        T.eq(none, nil, "no identity")
+        -- An older client reads the whole field as a name: no player key, so the sender
+        T.eq(ns.Utils.PlayerKey(select(4, sent:match("^(.-);(.-);(.-);(.*)$"))), nil, "older clients fall back")
+    end)
+
+    T.case("a peer's catch keeps the killer's race and class for the Busted list", function()
+        local ns = H.Boot({ client = "forever" })
+        local P = ns.Protocol
+        H.Deliver(P.Pack("A", "K", { P.EncodeJustice("Grim Reaper", H.serverTime - 5, 1436, "Tess Rider",
+            { class = "PALADIN", race = "Human", sex = 3 }) }), "Tess Rider")
+        local record = ns.Justice:Get("Grim Reaper:" .. (H.serverTime - 5))
+        T.ok(record ~= nil, "stored")
+        T.eq(record.killerClass, "PALADIN", "class kept")
+        T.eq(record.killerRace, "Human", "race kept")
+        T.eq(ns.Justice.KillerWho(record).sex, 3, "sex kept")
+        T.noErrors()
+    end)
+
     T.case("era: our killing blow on a WANTED outlaw ends WANTED and says so", function()
         local ns = H.Boot({ client = "era" })
         Spree(ns, "Gank-Stonespine", 5)
@@ -333,13 +365,14 @@ return function(T, H)
         T.ok(H.Printed("is not WANTED right now"), "not WANTED")
     end)
 
-    T.case("/hh outlaw shows how often an outlaw was caught", function()
+    T.case("/hh outlaw after a catch: not WANTED, no counts (the website has the record)", function()
         local ns = H.Boot({ client = "era" })
         Spree(ns, "Gank-Stonespine", 5)
         Settle()
         PartyKill("Gank-Stonespine")
         Settle()
         H.Slash("outlaw Gank-Stonespine")
-        T.ok(H.Printed("caught: 1"), "caught count")
+        T.ok(H.Printed("Kills known: 5"), "kills known")
+        T.ok(not H.Printed("busted: "), "no busted count")
     end)
 end

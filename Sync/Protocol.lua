@@ -380,18 +380,33 @@ end
 -- The sender is the hunter who saw it (the killer or in their group).
 -------------------------------------------------
 
-function Protocol.EncodeJustice(outlawId, t, mapID, killer)
+-- The killer may carry who they are as "key,class,race,sex" (author, 2026-10-04: the
+-- Busted list shows their race and class). Older clients read no name from it (a comma
+-- is never in a name) and take the sender, as for a catch without a killer.
+-- who: { class, race, faction, sex } or nil
+function Protocol.EncodeJustice(outlawId, t, mapID, killer, who)
+    if killer and who then
+        killer = table.concat({ killer, CLASS_CODE[who.class] or "", RaceCode(who.race, who.faction),
+            (who.sex == 2 or who.sex == 3) and tostring(who.sex) or "" }, ",")
+    end
     return table.concat({ outlawId, Protocol.ToB36(t), mapID and Protocol.ToB36(mapID) or "", killer or "" }, ";")
 end
 
--- Returns outlawId, time, mapID, killer (nil when blank)
+-- Returns outlawId, time, mapID, killer (nil when blank), who (nil when not sent)
 function Protocol.DecodeJustice(s)
     if type(s) ~= "string" then return nil end
     local f = Split(s, ";")
     if #f ~= 4 or Blank(f[1]) then return nil end
     local t = Protocol.FromB36(f[2])
     if not t then return nil end
-    return f[1], t, Protocol.FromB36(f[3]), not Blank(f[4]) and f[4] or nil
+    local killer, who = not Blank(f[4]) and f[4] or nil, nil
+    if killer and killer:find(",", 1, true) then
+        local parts = Split(killer, ",")
+        killer = not Blank(parts[1]) and parts[1] or nil
+        local race, faction = RaceFromCode(parts[3])
+        who = { class = CLASS_NAME[parts[2]], race = race, faction = faction, sex = tonumber(parts[4]) }
+    end
+    return f[1], t, Protocol.FromB36(f[3]), killer, who
 end
 
 -------------------------------------------------

@@ -1,13 +1,14 @@
 -- HH-060: the main window. /hh (no arguments) or the minimap button toggles it.
 --
 -- Sections (author, 2026-10-01): the top tabs, each with its own sub-tabs in the
--- toolbar: Bounty board (WANTED · Bullies · Deadbeats), Duels, Events (Ongoing · Upcoming · Finished),
--- Me (My deaths · My marks). The views:
+-- toolbar: Bounty board (WANTED · Bullies · Deadbeats), Busted, Duels, Events (Ongoing ·
+-- Upcoming · Finished), Me (My deaths · My marks). The views:
 --   WANTED         players' bounties first (HH-118, merged per target, newest first),
 --                  then who is WANTED now; sort by rank, kills or last kill
 --   Bullies        every enemy with the Coward badge (killed lowbies), WANTED or not
 --   Deadbeats      players who did not pay their bounties (HH-118, blocked 30 days)
 --   (the Hall of Shame of older versions, split as on the website: author, 2026-10-02)
+--   Busted         the WANTED players caught, newest first, and who busted them
 --   High Noon      the best duelists (HH-093); All ranks both factions in one list
 -- The Bounty board and Duels have the faction switch top right (author, 2026-10-01):
 -- All, Alliance or Horde, All first; the board's views share one choice, Duels has its own
@@ -45,11 +46,12 @@ MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 -- The top tabs and their views (the sub-tabs); a view is what the list shows
 MainWindow.SECTIONS = {
     { id = "board", views = { "wanted", "bullies", "deadbeats" } },
+    { id = "busted", views = { "busted" } },
     { id = "duels", views = { "duels" } },
     { id = "events", views = { "ongoing", "upcoming", "finished" } },
     { id = "me", views = { "deaths", "marks" } },
 }
-MainWindow.TABS = { "wanted", "bullies", "deadbeats", "duels", "ongoing", "upcoming", "finished", "deaths", "marks" }
+MainWindow.TABS = { "wanted", "bullies", "deadbeats", "busted", "duels", "ongoing", "upcoming", "finished", "deaths", "marks" }
 -- Tabs of older versions
 MainWindow.OLD_TABS = { tours = "ongoing", shame = "bullies" }
 -- The faction crests in the Alliance / Horde switch: the game's PvP flag icons,
@@ -63,7 +65,7 @@ MainWindow.FACTION_ICON_COORDS = { 0.03, 0.62, 0.02, 0.62 }
 MainWindow.ALL = "All"
 MainWindow.BOARD_TABS = { wanted = true, bullies = true, deadbeats = true }
 -- Tabs with a search box, each with its own search (the long lists)
-MainWindow.SEARCH_TABS = { wanted = true, bullies = true, deadbeats = true, duels = true, deaths = true }
+MainWindow.SEARCH_TABS = { wanted = true, bullies = true, deadbeats = true, busted = true, duels = true, deaths = true }
 -- What a sub-tab lists, on hover (author, 2026-10-02)
 MainWindow.TAB_TIPS = { wanted = "TIP_TAB_WANTED", bullies = "TIP_TAB_BULLIES", deadbeats = "TIP_TAB_DEADBEATS" }
 -- The box fits between three sub-tabs and the faction switch on one row
@@ -90,6 +92,12 @@ MainWindow.COLUMNS = {
         { key = "name", header = "COL_NAME", width = 300, font = "name" },
         { key = "unpaid", header = "COL_UNPAID", width = 190 },
         { key = "blocked", header = "COL_BLOCKED", width = 300 },
+    },
+    busted = {
+        { key = "time", header = "COL_WHEN", width = 125 },
+        { key = "name", header = "COL_NAME", width = 245, font = "name" },
+        { key = "by", header = "COL_BUSTED_BY", width = 215, font = "name" },
+        { key = "zone", header = "COL_ZONE", width = 205 },
     },
     duels = {
         { key = "position", header = "COL_POSITION", width = 40 },
@@ -198,7 +206,7 @@ function MainWindow.EntryTooltip(entry, now)
         lines[#lines + 1] = string.format(L.TIP_LAST_KILL, ns.Utils.Ago(math.max(0, now - entry.lastKill.t)),
             ns.Utils.MapName(entry.lastKill.mapID) or L.UNKNOWN_ZONE)
     end
-    lines[#lines + 1] = string.format(L.TIP_HISTORY, entry.killCount or 0, entry.timesWanted or 0, entry.timesCaught or 0)
+    lines[#lines + 1] = string.format(L.TIP_HISTORY, entry.killCount or 0)
     local posse = ns.Posse:Summary(entry.id)
     if posse then lines[#lines + 1] = posse end
     lines[#lines + 1] = L.WINDOW_ROW_HINT
@@ -325,7 +333,9 @@ local function BullyRows(now, faction)
         if entry.wanted then
             status = string.format(L.SHAME_WANTED, ns.Wanted.RankName(entry.rank))
         else
-            status = string.format(L.SHAME_PAST, entry.timesWanted or 0, entry.timesCaught or 0)
+            -- No WANTED or busted counts in the addon (author, 2026-10-04): it only knows
+            -- what it saw, the website has the whole record
+            status = L.TIP_NOT_WANTED
         end
         rows[#rows + 1] = {
             id = entry.id,
@@ -446,6 +456,46 @@ local function DeathRows(now)
                 tooltip = tooltip,
             }
         end
+    end
+    return rows
+end
+
+-- Busted (author, 2026-10-04): every catch we know of (Sync/Justice.lua), newest first,
+-- a relayed one once a second source has it. The HeadHunter mark before the name says
+-- they were WANTED when busted, though they may not be now.
+MainWindow.MARK_ICON = "|TInterface\\AddOns\\HeadHunter\\Assets\\Textures\\mark:14:14|t "
+
+local function BustedRows(now)
+    local U = ns.Utils
+    local list = {}
+    for _, record in ns.Justice:All() do
+        if type(record) == "table" and record.outlaw and ns.Relay.Counts(record) then list[#list + 1] = record end
+    end
+    table.sort(list, function(a, b) return (a.t or 0) > (b.t or 0) end)
+    local rows = {}
+    for _, record in ipairs(list) do
+        local entry = ns.Wanted:Get(record.outlaw)
+        local who = entry or ns.EnemyCache:ByKey(record.outlaw) or {}
+        local plain = (entry and OutlawName(entry))
+            or (not record.outlaw:find("^guid:") and U.DisplayName(record.outlaw)) or "?"
+        local by = record.killer or record.hunter
+        local byName = by and U.DisplayName(by) or "?"
+        -- Their race and class: sent with the catch, else what we see of them now
+        local byWho = ns.Justice.KillerWho(record) or ns.Justice.Identity(by) or (by and ns.EnemyCache:ByKey(by))
+        local zone = U.MapName(record.mapID) or L.UNKNOWN_ZONE
+        local when = date("%m-%d %H:%M", record.t)
+        local tooltip = entry and MainWindow.EntryTooltip(entry, now) or { Named(plain, who), L.WINDOW_ROW_HINT }
+        table.insert(tooltip, 2, string.format(L.TIP_BUSTED, when, zone, byName))
+        rows[#rows + 1] = {
+            id = entry and entry.id or nil,
+            time = when,
+            plain = plain,
+            name = MainWindow.MARK_ICON .. Named(plain, who),
+            by = byWho and MainWindow.Labeled(byName, byWho, byWho.faction or ns.Utils.RaceFaction(byWho.race)) or byName,
+            byPlain = byName,
+            zone = zone,
+            tooltip = tooltip,
+        }
     end
     return rows
 end
@@ -634,6 +684,8 @@ function MainWindow.Rows(tab, sortKey, now, faction, search)
         rows = DeadbeatRows(now, faction)
     elseif tab == "deaths" then
         rows = DeathRows(now)
+    elseif tab == "busted" then
+        rows = BustedRows(now)
     else
         rows = WantedRows(sortKey, now, faction)
     end

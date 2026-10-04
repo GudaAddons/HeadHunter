@@ -234,6 +234,27 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("our own sighting of a player beats what reports say: sex, race, class, a newer level", function()
+        local ns = H.Boot({ client = "forever" })
+        local entries = {
+            ["Brisk Arrow"] = { id = "Brisk Arrow", key = "Brisk Arrow", level = 20, sex = 2, race = "NightElf",
+                class = "HUNTER", lastKill = { t = 1000 } },
+            ["Old Sight"] = { id = "Old Sight", key = "Old Sight", level = 40, sex = 2, lastKill = { t = 5000 } },
+            ["Never Seen"] = { id = "Never Seen", key = "Never Seen", level = 25, sex = 2 },
+        }
+        local seen = {
+            ["Brisk Arrow"] = { level = 30, sex = 3, race = "NightElf", class = "HUNTER", lastSeen = 2000 },
+            ["Old Sight"] = { level = 35, sex = 3, lastSeen = 4000 },
+        }
+        ns.Wanted.FromSightings(entries, function(key) return seen[key] end)
+        T.eq(entries["Brisk Arrow"].sex, 3, "female, as we saw her")
+        T.eq(entries["Brisk Arrow"].level, 30, "seen after her last kill: our level")
+        T.eq(entries["Old Sight"].sex, 3, "the sex from our sighting")
+        T.eq(entries["Old Sight"].level, 40, "a kill after our sighting: the report's newer level")
+        T.eq(entries["Never Seen"].sex, 2, "no sighting: the report")
+        T.noErrors()
+    end)
+
     T.case("MergeSite keeps whichever side saw the newer kill", function()
         local ns = H.Boot({ client = "era" })
         local now = H.serverTime

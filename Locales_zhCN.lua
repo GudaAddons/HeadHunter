@@ -42,6 +42,7 @@ local CN = {
     COL_KILLER = "击杀者",
     COL_KIND = "击杀方式",
     COL_ZONE = "区域",
+    COL_BUSTED_BY = "抓捕者",
     COL_CHANGE = "赏金",
     COL_REASON = "原因",
     COL_TOTAL = "总计",
@@ -67,6 +68,7 @@ local CN = {
     EMPTY_MARKS = "还没有赏金：加入追捕队，击倒被通缉的亡命徒。",
     EMPTY_UPCOMING = "你的服务器上没有赛事。赛事在 HeadHunter 网站上创建和报名，HeadHunter Sync 会把它们带到这里。",
     SECTION_BOARD = "悬赏榜",
+    SECTION_BUSTED = "落网",
     SECTION_DUELS = "决斗",
     SECTION_EVENTS = "活动",
     SECTION_ME = "我的",
@@ -154,8 +156,9 @@ local CN = {
     TIP_NOT_WANTED = "|cffaaaaaa未被通缉|r",
     TIP_BOUNTY_ONLY = "|cffffd100赏金|r · 玩家悬赏 %s（非通缉）",
     TIP_AT_LARGE = "|cffff8040在逃|r：曾为 %s，从未落网",
+    TIP_BUSTED = "|cff40ff40落网|r %s · %s · %s",
     TIP_LAST_KILL = "最近击杀 %s，位于 %s",
-    TIP_HISTORY = "|cffaaaaaa已知击杀：%d · 通缉 %d 次 · 落网 %d 次|r",
+    TIP_HISTORY = "|cffaaaaaa已知击杀：%d|r",
     TIP_KILLED_YOU = "%s 在 %s 击杀了你（%s）",
     TIP_DUEL = "%d 胜 %d 负 · 最近决斗 %s",
     TIP_TOUR_START = "开始：%s",
@@ -165,11 +168,10 @@ local CN = {
     TOOLTIP_WANTED = "|cffff2020通缉|r · %s · 击杀 %d",
     TOOLTIP_KNOWN = "HeadHunter：已知击杀 %d",
     TOOLTIP_AT_LARGE = "|cffff8040在逃|r · 曾为 %s · 已知击杀 %d",
-    TOOLTIP_CAUGHT = " · 落网 %d 次",
 
     -- Poster (UI/Poster.lua)
     POSTER_HEADER = "通缉令",
-    POSTER_HISTORY = "已知击杀：%d（确切 %d，推算 %d） · 通缉 %d 次 · 落网 %d 次 · 最高头衔 %s",
+    POSTER_HISTORY = "已知击杀：%d（确切 %d，推算 %d） · 最高头衔 %s",
     POSTER_RECENT = "近期击杀",
     POSTER_NO_KILLS = "没有已知击杀。",
     POSSE_JOIN = "加入追捕队",
@@ -221,7 +223,6 @@ local CN = {
 
     -- Hall of Shame rows
     SHAME_WANTED = "|cffff2020通缉|r · %s",
-    SHAME_PAST = "通缉 %d 次 · 落网 %d 次",
     SHAME_UNPAID = "未付 %d 笔 · %d 天内不能发布悬赏",
     SHAME_UNPAID_TIP = "|cffff4040老赖|r：猎人为他们击倒了目标却没拿到钱。封禁期间他们无法发布悬赏。",
 
@@ -431,7 +432,7 @@ local CN = {
     OUTLAW_USAGE = "/hh outlaw <name>   （Forever 名字：/hh outlaw Grim Reaper）",
     OUTLAW_UNKNOWN = "没有 %s 的已知击杀。",
     OUTLAW_LINE1 = "|cffff4040%s|r · %s · 直至落网（再 %s 无击杀即结束）",
-    OUTLAW_LINE2 = "已知击杀：%d（确切 %d，推算 %d = 半权重） · 通缉 %d 次 · 落网 %d 次 · 最高头衔 %s · %s",
+    OUTLAW_LINE2 = "已知击杀：%d（确切 %d，推算 %d = 半权重） · 最高头衔 %s · %s",
     OUTLAW_LINE3 = "最近击杀：%s，%s 在 %s",
     HELP_SPREE = "|cffffff00/hh spree \"<name>\" <kills> [secondsApart] [killerLevel] [victimLevel]|r：模拟连杀（仅本地）",
     SPREE_USAGE = "/hh spree \"<name>\" <kills 1-60> [secondsApart=120] [killerLevel=60] [victimLevel=40]",
