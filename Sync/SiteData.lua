@@ -6,7 +6,8 @@
 -- The file keeps the website's names (the /api/v1/sync/download answer):
 --   worlds["era|eu|Firemaw"] / ["forever|us|pvp"] = { generated_at, wanted = {...},
 --     duels = { alliance = {...}, horde = {...} }, deadbeats = {...}, bullies = {...},
---     tournaments = {...} (WEB-080: the Tournaments tab and the organizer stars read them) }
+--     tournaments = {...} (WEB-080: the Tournaments tab and the organizer stars read them),
+--     glasses = { { name, realm, caught_at, count } } (glasses raised to the catches) }
 --   forever_servers = { ["4620"] = "pve", ... }: WoW Forever server numbers and their realm type
 --   characters = { { world, name, deaths, duels, catches, bounty = { total, events } } }
 -- This module picks our world, maps names to the addon's (player keys, "ROGUE",
@@ -38,7 +39,7 @@ local RACES = {
 }
 local FACTIONS = { alliance = "Alliance", horde = "Horde" }
 
-local world, wanted, duelists, deadbeats, bullies, tournaments
+local world, wanted, duelists, deadbeats, bullies, tournaments, glasses
 
 -------------------------------------------------
 -- Names
@@ -255,7 +256,7 @@ function SiteData.Tournament(t)
 end
 
 function SiteData:Load()
-    world, wanted, duelists, deadbeats, bullies, tournaments = nil, nil, nil, nil, nil, nil
+    world, wanted, duelists, deadbeats, bullies, tournaments, glasses = nil, nil, nil, nil, nil, nil, nil
     local data = Data()
     world = data and FindWorld(data)
     if not world then return false end
@@ -291,7 +292,19 @@ function SiteData:Load()
         local tournament = type(t) == "table" and SiteData.Tournament(t)
         if tournament then tournaments[#tournaments + 1] = tournament end
     end
+    -- Glasses raised to the world's catches, in game and on the website (Sync/Glasses.lua)
+    glasses = {}
+    for _, g in ipairs(type(world.glasses) == "table" and world.glasses or {}) do
+        local key = type(g) == "table" and SiteData.Key(g)
+        local caughtAt, count = key and Number(g.caught_at), Number(g.count)
+        if caughtAt and count then glasses[key .. ":" .. caughtAt] = count end
+    end
     return true
+end
+
+-- The website's count of glasses raised to a catch, or nil
+function SiteData:Glasses(outlaw, caughtAt)
+    return glasses and outlaw and caughtAt and glasses[outlaw .. ":" .. caughtAt] or nil
 end
 
 -- A website page from the download's links ("tournaments", "create_tournament"), or nil

@@ -37,6 +37,7 @@ Protocol.TYPES = {
     POSTER = "W",   -- HH-118: a player's bounty poster on their killer
     PAYMENT = "R",  -- HH-118: a bounty claimed, paid or unpaid (sent by the hunter)
     WITNESS = "X",  -- HH-121: a hunted player died near the sender (Sync/Witness.lua)
+    GLASS = "Y",    -- the sender raised a glass to a catch (Sync/Glasses.lua)
 }
 
 local FACTION_CODE = { Alliance = "A", Horde = "H" }
@@ -571,6 +572,26 @@ function Protocol.DecodeWitness(s)
     if not mapID or not t then return nil end
     return { outlaw = f[1], mapID = mapID, t = t, x = DecodeCoord(f[4]), y = DecodeCoord(f[5]),
         killer = not Blank(f[6]) and f[6] or nil, by = f[7] }
+end
+
+-------------------------------------------------
+-- Glass (author, 2026-10-04): outlaw ; catch time ; time raised ; by
+-- A catch is its outlaw and time (Sync/Justice.lua ids "<outlaw>:<t>"); by is the
+-- HeadHunter who raised the glass (the sender speaks only for themselves).
+-------------------------------------------------
+
+function Protocol.EncodeGlass(g)
+    return table.concat({ g.outlaw, Protocol.ToB36(g.caughtAt), Protocol.ToB36(g.t), g.by }, ";")
+end
+
+-- Returns { outlaw, caughtAt, t, by } or nil
+function Protocol.DecodeGlass(s)
+    if type(s) ~= "string" then return nil end
+    local f = Split(s, ";")
+    if #f ~= 4 or Blank(f[1]) or Blank(f[4]) then return nil end
+    local caughtAt, t = Protocol.FromB36(f[2]), Protocol.FromB36(f[3])
+    if not caughtAt or not t then return nil end
+    return { outlaw = f[1], caughtAt = caughtAt, t = t, by = f[4] }
 end
 
 -------------------------------------------------
