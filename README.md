@@ -66,12 +66,14 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 Type `/hh` or click the minimap button:
 - **WANTED**: everyone who is WANTED now, sorted by rank, kills or last kill, with a switch between the Alliance and Horde lists (the enemy list opens first). Gold bounties are listed on top. While few outlaws are WANTED, the list fills up to 25 with outlaws **at large**: their WANTED time ran out, but nobody caught them. You get the same alert when you meet one, and catching one still pays their bounty.
 - **Bullies**: every known bully, WANTED or not.
+- **Busted**: every WANTED player caught in the last 30 days, who caught them and where. Click the mug to raise a glass.
+- **Barflies**, next to Busted: who raised the most glasses from the bust popup (see *Busted, Raise a glass and Barflies*).
 - **Deadbeats**: players who did not pay their bounties, how many hunters they did not pay, and how many days they cannot post bounties.
 - **Duels**: the best duelists, with a switch between the Alliance and Horde lists.
 - **My deaths**: who killed you, when and where.
 - **My bounty**: the bounty you collected and your hunter rank.
 
-On **WANTED**, **Bullies**, **Deadbeats**, **Duels** and **My deaths**, a search box finds a player by name. Each tab keeps its own search.
+On **WANTED**, **Bullies**, **Deadbeats**, **Busted**, **Barflies**, **Duels** and **My deaths**, a search box finds a player by name. Each tab keeps its own search.
 
 The window has the same look as the website. Too big or too small for your screen? Change **Window size** in the options (90% to 130%).
 
@@ -90,6 +92,17 @@ Mouse over an enemy player to see if they are WANTED, their rank, kills and badg
 - Hunter ranks: **Tracker**, **Bounty Hunter**, **Manhunter**, **Headhunter** and **Reaper**.
 
 ![My bounty: what earned or cost bounty, and your hunter rank](https://headhunterwow.com/images/screenshots/bounty.webp)
+
+### Busted, Raise a glass and Barflies
+- **Busted**: every WANTED player that HeadHunters caught in the last 30 days. You see who caught them, with their race and class, and where. With the HeadHunter Sync app, the list also has the website's catches.
+- **Raise a glass**: click the mug next to a catch to raise a glass to the hunter. You can raise one glass for each catch, but not for your own. Your glass goes to the other HeadHunters, and with the app to the website. You do not need a website account.
+- **The bust popup**: when another HeadHunter busts a WANTED player, a small WANTED poster with a red BUSTED stamp shows under your minimap. It shows both players with their level, race and class. Click **Raise a glass** or **Cancel**. It waits until your fight is over, and it never shows in battlegrounds, dungeons or raids. You get at most one every 5 minutes. In the options you can change the time (3 to 15 minutes) or turn it off (**Raise a glass popups**).
+- **Barflies**: who raised the most glasses from that popup in the last 30 days. Only popup glasses count. The titles are **Barfly**, **Regular** (5 glasses), **Saloon Legend** (15 glasses) and **Drunken Master**: a Barfly who also busted a WANTED player in that time. See the Barflies on the website, or in the game next to Busted with the HeadHunter Sync app.
+
+![Busted: WANTED players caught lately, who caught them and the glasses raised to them](https://headhunterwow.com/images/screenshots/busted.webp)
+![The bust popup under the minimap: a WANTED poster with a red BUSTED stamp](https://headhunterwow.com/images/screenshots/popup.webp)
+![Barflies: who raised the most glasses, with their title](https://headhunterwow.com/images/screenshots/barflies.webp)
+![The options for the Raise a glass popups](https://headhunterwow.com/images/screenshots/glass.webp)
 
 ### Gold bounties
 Got ganked? Put gold on your killer's head.
@@ -123,7 +136,7 @@ Type `/hh online` to see how many HeadHunters are online right now, how many are
 
 ## Website and the HeadHunter Sync app
 
-**[headhunterwow.com](https://headhunterwow.com)** is the bounty board of every HeadHunter player: WANTED posters, the best duelists, the top hunters, the bullies and the Deadbeats, for each game and realm. Sign in with Battle.net, Discord, Google or email to see your own characters.
+**[headhunterwow.com](https://headhunterwow.com)** is the bounty board of every HeadHunter player: WANTED posters, the best duelists, the top hunters, the bullies, the Deadbeats, the busted outlaws and the Barflies, for each game and realm. Sign in with Battle.net, Discord, Google or email to see your own characters.
 
 ![The WANTED board on the website: every outlaw with their rank, kills, badges and reward](https://headhunterwow.com/images/screenshots/site-wanted.webp)
 
@@ -131,7 +144,7 @@ A WoW addon cannot use the internet. That is why there is a small, free desktop 
 
 1. **Download** HeadHunter Sync for Windows or Mac from [GitHub](https://github.com/GudaAddons/headhunter-sync/releases/latest) and sign in with your website account.
 2. **Play as usual.** When the game saves (logout, `/reload` or quit), the app sends your deaths, catches, duels, bounty and gold bounties to the website. It runs quietly in the tray.
-3. **Get the website's lists back.** The app also writes the website's WANTED list, duel lists and your own records into the game, as a small extra addon called **HeadHunter Data**. You see them after your next login or `/reload`.
+3. **Get the website's lists back.** The app also writes the website's WANTED list, duel lists, catches, Barflies and your own records into the game, as a small extra addon called **HeadHunter Data**. You see them after your next login or `/reload`.
 4. **WoW Forever:** when your lists reset (see *Good to know*), the app brings your own deaths, duels and bounty back.
 5. **Every realm keeps its own data:** PvP, Normal, Roleplay and Hardcore (and every Classic Era realm) each have their own lists, deaths, duels and bounty. A character on a Normal realm sees only Normal realm data. HeadHunter data saved before this update went to the WoW Forever PvP realm.
 

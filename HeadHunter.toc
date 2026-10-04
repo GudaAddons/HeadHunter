@@ -105,6 +105,7 @@ Alerts\Justice.lua
 
 # UI
 UI\Theme.lua
+UI\Toast.lua
 UI\Select.lua
 UI\MapMarkers.lua
 UI\MainWindow.lua

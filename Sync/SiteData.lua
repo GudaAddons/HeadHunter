@@ -7,7 +7,8 @@
 --   worlds["era|eu|Firemaw"] / ["forever|us|pvp"] = { generated_at, wanted = {...},
 --     duels = { alliance = {...}, horde = {...} }, deadbeats = {...}, bullies = {...},
 --     tournaments = {...} (WEB-080: the Tournaments tab and the organizer stars read them),
---     busted = { { name, realm, caught_at, map_id, hunter, killer_name, glasses } } (the catches) }
+--     busted = { { name, realm, caught_at, map_id, hunter, killer_name, glasses } } (the catches),
+--     barflies = { { name, realm, glasses, last_glass_at, title, position } } (the most glasses raised) }
 --   forever_servers = { ["4620"] = "pve", ... }: WoW Forever server numbers and their realm type
 --   characters = { { world, name, deaths, duels, catches, bounty = { total, events } } }
 -- This module picks our world, maps names to the addon's (player keys, "ROGUE",
@@ -329,6 +330,26 @@ end
 -- The website's catches of our world, newest first
 function SiteData:BustedList()
     return busted or {}
+end
+
+-- Barflies (author, 2026-10-04): the players who raised the most glasses from the popup,
+-- in the last 30 days, most first: { key, class, race, sex, faction, glasses, lastGlass,
+-- title ("barfly", "regular", "saloon_legend"), position }
+function SiteData:Barflies()
+    local data = Data()
+    local w = data and world
+    local list = {}
+    for i, b in ipairs(type(w) == "table" and type(w.barflies) == "table" and w.barflies or {}) do
+        local key = type(b) == "table" and SiteData.Key(b)
+        local glasses = key and Number(b.glasses)
+        if glasses then
+            local race = SiteData.Race(b.race)
+            list[#list + 1] = { key = key, class = SiteData.Class(b.class), race = race, sex = Number(b.sex),
+                faction = SiteData.Faction(b.faction) or ns.Utils.RaceFaction(race), glasses = glasses,
+                lastGlass = Number(b.last_glass_at), title = Text(b.title), position = Number(b.position) or i }
+        end
+    end
+    return list
 end
 
 -- The website's count of glasses raised to a catch, or nil

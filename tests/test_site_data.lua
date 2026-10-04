@@ -70,6 +70,27 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("the Barflies view: the website's ranking with places and titles", function()
+        local data = EraData()
+        data.worlds["era|eu|Firemaw"].barflies = {
+            { name = "Brightshield", realm = "Firemaw", class = "paladin", race = "human", glasses = 16,
+                last_glass_at = H.serverTime - 120, title = "saloon_legend", position = 1 },
+            { name = "Tankard", realm = "Firemaw", glasses = 2, last_glass_at = H.serverTime - 3600, title = "barfly", position = 2 },
+            { name = "Lawdog", realm = "Firemaw", glasses = 1, last_glass_at = H.serverTime - 60, title = "drunken_master", position = 3 },
+        }
+        local ns = H.Boot({ client = "era", siteData = data })
+        Settle()
+        local rows = ns.MainWindow.Rows("barflies")
+        T.eq(#rows, 3, "the website's Barflies")
+        T.eq(rows[3].title, "Drunken Master", "a Barfly who also busted a WANTED player")
+        T.eq(rows[1].plain, "Brightshield", "most glasses first")
+        T.eq(rows[1].title, "Saloon Legend", "the title")
+        T.eq(rows[1].glasses, "16", "glasses")
+        T.eq(rows[2].position, "2", "place")
+        T.eq(#ns.MainWindow.Rows("barflies", nil, nil, nil, "tank"), 1, "search by name")
+        T.noErrors()
+    end)
+
     T.case("no website data: nothing changes", function()
         local ns = H.Boot({ client = "era" })
         Settle()

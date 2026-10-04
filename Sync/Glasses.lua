@@ -78,11 +78,14 @@ function Glasses:Add(g, origin, sender)
     return g
 end
 
--- We raise a glass to a catch (a Justice record); nil when we may not
-function Glasses:Raise(catch)
+-- We raise a glass to a catch (a Justice record); popup: from the popup at the moment of
+-- the bust (Alerts/Justice.lua), the only glasses the Barflies ranking counts. nil when
+-- we may not.
+function Glasses:Raise(catch, popup)
     if not catch or not self:CanRaise(catch) then return nil end
     local U = ns.Utils
-    local g = self:Add({ outlaw = catch.outlaw, caughtAt = catch.t, t = U.ServerTime(), by = U.UnitKey("player") }, "local")
+    local g = self:Add({ outlaw = catch.outlaw, caughtAt = catch.t, t = U.ServerTime(), by = U.UnitKey("player"),
+        popup = popup and true or nil }, "local")
     if not g then return nil end
     local P, Transport = ns.Protocol, ns.Transport
     Transport:Queue(P.TYPES.GLASS, P.EncodeGlass(g), Transport.PRIORITY.bulk, "Y:" .. g.id)

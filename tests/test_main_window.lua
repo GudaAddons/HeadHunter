@@ -396,4 +396,12 @@ return function(T, H)
         T.ok(not ns.MinimapButton:IsShown(), "none")
         T.noErrors()
     end)
+
+    T.case("every list tab has a text for when it is empty", function()
+        local ns = H.Boot({ client = "forever" })
+        for _, tab in ipairs(ns.MainWindow.TABS) do
+            local key = "EMPTY_" .. tab:upper()
+            T.ok(rawget(ns.L, key) ~= nil, key)
+        end
+    end)
 end

@@ -46,12 +46,12 @@ MainWindow.REFRESH = 30      -- seconds, while shown ("5 min ago" texts)
 -- The top tabs and their views (the sub-tabs); a view is what the list shows
 MainWindow.SECTIONS = {
     { id = "board", views = { "wanted", "bullies", "deadbeats" } },
-    { id = "busted", views = { "busted" } },
+    { id = "busted", views = { "busted", "barflies" } },
     { id = "duels", views = { "duels" } },
     { id = "events", views = { "ongoing", "upcoming", "finished" } },
     { id = "me", views = { "deaths", "marks" } },
 }
-MainWindow.TABS = { "wanted", "bullies", "deadbeats", "busted", "duels", "ongoing", "upcoming", "finished", "deaths", "marks" }
+MainWindow.TABS = { "wanted", "bullies", "deadbeats", "busted", "barflies", "duels", "ongoing", "upcoming", "finished", "deaths", "marks" }
 -- Tabs of older versions
 MainWindow.OLD_TABS = { tours = "ongoing", shame = "bullies" }
 -- The faction crests in the Alliance / Horde switch: the game's PvP flag icons,
@@ -65,7 +65,8 @@ MainWindow.FACTION_ICON_COORDS = { 0.03, 0.62, 0.02, 0.62 }
 MainWindow.ALL = "All"
 MainWindow.BOARD_TABS = { wanted = true, bullies = true, deadbeats = true }
 -- Tabs with a search box, each with its own search (the long lists)
-MainWindow.SEARCH_TABS = { wanted = true, bullies = true, deadbeats = true, busted = true, duels = true, deaths = true }
+MainWindow.SEARCH_TABS = { wanted = true, bullies = true, deadbeats = true, busted = true, barflies = true, duels = true,
+    deaths = true }
 -- What a sub-tab lists, on hover (author, 2026-10-02)
 MainWindow.TAB_TIPS = { wanted = "TIP_TAB_WANTED", bullies = "TIP_TAB_BULLIES", deadbeats = "TIP_TAB_DEADBEATS" }
 -- The box fits between three sub-tabs and the faction switch on one row
@@ -98,6 +99,13 @@ MainWindow.COLUMNS = {
         { key = "name", header = "COL_NAME", width = 245, font = "name" },
         { key = "by", header = "COL_BUSTED_BY", width = 215, font = "name" },
         { key = "zone", header = "COL_ZONE", width = 105 }, -- then the Raise a glass button
+    },
+    barflies = {
+        { key = "position", header = "COL_POSITION", width = 40 },
+        { key = "name", header = "COL_NAME", width = 260, font = "name" },
+        { key = "title", header = "COL_RANK", width = 170 },
+        { key = "glasses", header = "COL_GLASSES", width = 120 },
+        { key = "lastGlass", header = "COL_LAST_GLASS", width = 200 },
     },
     duels = {
         { key = "position", header = "COL_POSITION", width = 40 },
@@ -523,6 +531,30 @@ local function BustedRows(now)
     return rows
 end
 
+-- Barflies (author, 2026-10-04): the players who raised the most glasses from the popup
+-- at the moment of a bust, in the last 30 days, from the website's ranking (the download)
+MainWindow.BARFLY_TITLES = { barfly = "BARFLY_BARFLY", regular = "BARFLY_REGULAR", saloon_legend = "BARFLY_LEGEND",
+    drunken_master = "BARFLY_DRUNKEN" }
+
+local function BarflyRows(now)
+    local U = ns.Utils
+    local rows = {}
+    for i, b in ipairs(ns.SiteData:Barflies()) do
+        local plain = U.DisplayName(b.key) or b.key
+        local title = MainWindow.BARFLY_TITLES[b.title]
+        rows[#rows + 1] = {
+            position = tostring(b.position or i),
+            plain = plain,
+            name = Named(plain, b),
+            title = title and L[title] or "",
+            glasses = tostring(b.glasses),
+            lastGlass = b.lastGlass and U.Ago(math.max(0, now - b.lastGlass)) or "-",
+            tooltip = { Named(plain, b), string.format(L.TIP_GLASSES, b.glasses) },
+        }
+    end
+    return rows
+end
+
 -- The website's tournaments (WEB-080), soonest first, being played (ongoing) or to come
 -- (upcoming); a tooltip with the details, a click opens the event
 local function EventRows(view, now)
@@ -709,6 +741,8 @@ function MainWindow.Rows(tab, sortKey, now, faction, search)
         rows = DeathRows(now)
     elseif tab == "busted" then
         rows = BustedRows(now)
+    elseif tab == "barflies" then
+        rows = BarflyRows(now)
     else
         rows = WantedRows(sortKey, now, faction)
     end

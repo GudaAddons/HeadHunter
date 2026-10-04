@@ -142,7 +142,7 @@ function Justice.Encode(record)
 end
 
 -- Who landed the blow, as far as we can see them: ourselves, or a member of our group
--- ({ class, race, sex, faction } or nil)
+-- ({ class, race, sex, faction, level } or nil)
 function Justice.Identity(key)
     local U = ns.Utils
     if not key then return nil end
@@ -153,7 +153,7 @@ function Justice.Identity(key)
         if U.UnitGUID(unit) and U.SameCharacter(U.UnitKey(unit), key) then
             local sex = U.UnitSex(unit)
             return { class = U.UnitClass(unit), race = U.UnitRace(unit), faction = U.UnitFaction(unit),
-                sex = sex ~= 1 and sex or nil }
+                sex = sex ~= 1 and sex or nil, level = U.UnitLevel(unit) }
         end
     end
     return nil
@@ -163,12 +163,13 @@ end
 function Justice.SetKillerWho(record, who)
     if not who then return end
     record.killerClass, record.killerRace, record.killerSex = who.class, who.race, who.sex
-    record.killerFaction = who.faction
+    record.killerFaction, record.killerLevel = who.faction, who.level
 end
 
 function Justice.KillerWho(record)
     if not (record.killerClass or record.killerRace) then return nil end
-    return { class = record.killerClass, race = record.killerRace, sex = record.killerSex, faction = record.killerFaction }
+    return { class = record.killerClass, race = record.killerRace, sex = record.killerSex, faction = record.killerFaction,
+        level = record.killerLevel }
 end
 
 -- An enemy player died by our hand or our group's: a catch if WANTED right now, at
