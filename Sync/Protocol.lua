@@ -469,12 +469,35 @@ Protocol.MAX_PING_ENEMIES = 12
 Protocol.MAX_PING_NAMES = 3
 
 -- enemies: optional list of { name, class, level }; layer: optional number
-function Protocol.EncodeHotspot(mapID, t, x, y, enemyIds, enemies, layer)
+-- allyIds (0.4.0+, author 2026-10-04): short ids of our side in combat, the sender
+-- first, in the enemy id list as "+id". Older clients take only plain ids there, so
+-- they skip them; they are left out first when the ping would be too long.
+Protocol.MAX_PING_ALLIES = 12
+Protocol.PING_BUDGET = Protocol.MAX_MESSAGE - 16
+
+function Protocol.EncodeHotspot(mapID, t, x, y, enemyIds, enemies, layer, allyIds)
     local ids = {}
     for i = 1, math.min(#enemyIds, Protocol.MAX_PING_ENEMIES) do
         local id = tostring(enemyIds[i]):gsub("[^%w]", "")
         ids[#ids + 1] = id
     end
+    local encoded = Protocol.EncodeHotspotFields(mapID, t, x, y, ids, enemies, layer)
+    local allies = {}
+    for i = 1, math.min(#(allyIds or {}), Protocol.MAX_PING_ALLIES) do
+        allies[#allies + 1] = "+" .. tostring(allyIds[i]):gsub("[^%w]", "")
+    end
+    while #allies > 0 do
+        local list = {}
+        for _, id in ipairs(ids) do list[#list + 1] = id end
+        for _, id in ipairs(allies) do list[#list + 1] = id end
+        local withAllies = Protocol.EncodeHotspotFields(mapID, t, x, y, list, enemies, layer)
+        if #withAllies <= Protocol.PING_BUDGET then return withAllies end
+        allies[#allies] = nil
+    end
+    return encoded
+end
+
+function Protocol.EncodeHotspotFields(mapID, t, x, y, ids, enemies, layer)
     local fields = { Protocol.ToB36(mapID), Protocol.ToB36(t), EncodeCoord(x), EncodeCoord(y), table.concat(ids, ",") }
     if (enemies and #enemies > 0) or layer then
         local names = {}
@@ -493,17 +516,24 @@ function Protocol.EncodeHotspot(mapID, t, x, y, enemyIds, enemies, layer)
     return table.concat(fields, ";")
 end
 
--- Returns mapID, time, x, y, enemyIds, enemies ({ name, class, level }), layer
+-- Returns mapID, time, x, y, enemyIds, enemies ({ name, class, level }), layer,
+-- allyIds (nil from older clients)
 function Protocol.DecodeHotspot(s)
     if type(s) ~= "string" then return nil end
     local f = Split(s, ";")
     if #f ~= 5 and #f ~= 7 then return nil end
     local mapID, t = Protocol.FromB36(f[1]), Protocol.FromB36(f[2])
     if not mapID or not t then return nil end
-    local ids = {}
+    local ids, allies = {}, nil
     if f[5] ~= "" then
         for id in f[5]:gmatch("[^,]+") do
-            if #ids < Protocol.MAX_PING_ENEMIES and id:match("^%w+$") then ids[#ids + 1] = id end
+            local ally = id:match("^%+(%w+)$")
+            if ally then
+                allies = allies or {}
+                if #allies < Protocol.MAX_PING_ALLIES then allies[#allies + 1] = ally end
+            elseif #ids < Protocol.MAX_PING_ENEMIES and id:match("^%w+$") then
+                ids[#ids + 1] = id
+            end
         end
     end
     local enemies, layer = {}, nil
@@ -517,7 +547,7 @@ function Protocol.DecodeHotspot(s)
         end
         layer = f[7] ~= "" and Protocol.FromB36(f[7]) or nil
     end
-    return mapID, t, DecodeCoord(f[3]), DecodeCoord(f[4]), ids, enemies, layer
+    return mapID, t, DecodeCoord(f[3]), DecodeCoord(f[4]), ids, enemies, layer, allies
 end
 
 -------------------------------------------------
