@@ -214,23 +214,82 @@ return function(T, H)
         T.eq(Count(), 5, "rate limited per sender")
     end)
 
-    T.case("forever: our WANTED target dies while we fight it", function()
+    -- Forever: Grim Reaper (WANTED) on `unit`, seen alive, then dead
+    local function SeeDie(unit)
+        H.units[unit] = { name = "Grim", realm = "Reaper", fullName = "Grim Reaper", level = 60, class = "ROGUE",
+            race = "Orc", faction = "Horde", isPlayer = true, guid = "Player-4613-00ABCDEF", dead = false }
+        H.Fire(unit == "target" and "PLAYER_TARGET_CHANGED" or "NAME_PLATE_UNIT_ADDED", unit)
+        H.units[unit].dead = true
+        H.Fire("UNIT_HEALTH", unit)
+    end
+
+    local function ForeverWanted()
         local ns = H.Boot({ client = "forever" })
         Spree(ns, "Grim Reaper", 5, 1436, true)
         Settle()
         T.eq(#ns.Wanted:List(), 1, "WANTED")
-        H.units.target = { name = "Grim", realm = "Reaper", fullName = "Grim Reaper", level = 60, class = "ROGUE",
-            race = "Orc", faction = "Horde", isPlayer = true, guid = "Player-4613-00ABCDEF", dead = true }
+        return ns
+    end
 
-        H.Fire("UNIT_HEALTH", "target") -- not in combat: someone else's fight
-        Settle()
-        T.eq(#ns.Wanted:List(), 1, "not our fight")
+    local function Logged(pattern)
+        for _, line in ipairs(H.ns.Log:Lines()) do
+            if line:find(pattern) then return true end
+        end
+        return false
+    end
 
-        H.inCombat = true
-        H.Fire("UNIT_HEALTH", "target")
+    -- Forever's honor line for us names nobody (seen in game 2026-10-04)
+    local function Honor()
+        H.Fire("CHAT_MSG_COMBAT_HONOR_GAIN", "You have been awarded 5 Honor.")
+    end
+
+    T.case("forever: a WANTED player dies in front of us and the game gives us honor for it", function()
+        local ns = ForeverWanted()
+        SeeDie("target")
+        T.eq(#ns.Wanted:List(), 1, "no honor yet: no catch yet")
+        H.Advance(1)
+        Honor()
         Settle()
         T.eq(#ns.Wanted:List(), 0, "caught")
+        T.ok(Logged("Honor award: You have been awarded 5 Honor%."), "the award is understood")
+        T.ok(Logged("WANTED death seen: Grim Reaper %-> catch"), "the log says why")
         T.eq(#H.forbidden, 0, "never touched the combat log")
+        T.noErrors()
+    end)
+
+    T.case("forever: a group kill on a nameplate, the honor just before the death shows", function()
+        local ns = ForeverWanted()
+        Honor()
+        H.Advance(1)
+        SeeDie("nameplate1")
+        Settle()
+        T.eq(#ns.Wanted:List(), 0, "caught")
+        T.noErrors()
+    end)
+
+    T.case("forever: a WANTED death without honor for us is no catch (watched, or Feign Death)", function()
+        local ns = ForeverWanted()
+        H.inCombat = true -- fighting someone else is not enough
+        SeeDie("nameplate1")
+        H.Advance(ns.Justice.HONOR_WINDOW)
+        Settle()
+        T.eq(#ns.Wanted:List(), 1, "still WANTED")
+        T.ok(Logged("Grim Reaper %-> no catch, no honor for us"), "the log says why")
+
+        Honor() -- too late: another kill's honor
+        Settle()
+        T.eq(#ns.Wanted:List(), 1, "still WANTED")
+        T.noErrors()
+    end)
+
+    T.case("forever: honor from an older kill does not make a later death ours", function()
+        local ns = ForeverWanted()
+        Honor()
+        H.Advance(ns.Justice.HONOR_BEFORE + 1)
+        SeeDie("target")
+        H.Advance(ns.Justice.HONOR_WINDOW)
+        Settle()
+        T.eq(#ns.Wanted:List(), 1, "still WANTED")
         T.noErrors()
     end)
 
