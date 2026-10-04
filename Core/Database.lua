@@ -57,6 +57,7 @@ local DEFAULTS = {
             shame = true, -- a Hall of Shame bully or Deadbeat in sight: center text and chat (author, 2026-09-28)
             glassPopup = true, -- Raise a glass when another HeadHunter busts a WANTED player (Barflies, author, 2026-10-04)
             glassPopupGap = 5, -- minutes between two glass popups, 3..15 (author, 2026-10-04)
+            glassThanks = true, -- a chat line when a HeadHunter raises a glass to our catch (author, 2026-10-04)
         },
         serialKillerWindowMin = 15, -- 5..15
         mapPins = true, -- HH-046: hotspot and WANTED pins on the world map

@@ -138,7 +138,42 @@ function JusticeAlerts:TestGlass(outlaw)
     return self:AskGlass(record, ns.Utils.DisplayName(outlaw) or outlaw, true)
 end
 
+-- Glasses to our catches (author, 2026-10-04): a chat line when another HeadHunter
+-- raises a glass to a catch of ours. Glasses that come within THANKS_WAIT seconds of the
+-- first make one line ("X and 4 others"). Through Alerts:Show, so none in instances and
+-- held during a fight; off with the glassThanks setting.
+JusticeAlerts.THANKS_WAIT = 10
+
+local thanks = {} -- catch id -> the HeadHunters who raised a glass, first first
+
+function JusticeAlerts:OnGlass(g)
+    if g.origin ~= "peer" or not (ns.db and ns.db.settings.alerts.glassThanks) then return end
+    local catch = ns.Justice:Get(g.outlaw .. ":" .. g.caughtAt)
+    if not catch or not ns.Glasses.Own(catch, ns.Utils.UnitKey("player")) then return end
+    local id = g.outlaw .. ":" .. g.caughtAt
+    if thanks[id] then
+        table.insert(thanks[id], g.by)
+        return
+    end
+    thanks[id] = { g.by }
+    C_Timer.After(self.THANKS_WAIT, function() JusticeAlerts:SayThanks(id, catch) end)
+end
+
+function JusticeAlerts:SayThanks(id, catch)
+    local names = thanks[id]
+    thanks[id] = nil
+    if not names then return nil end
+    local U = ns.Utils
+    local entry = ns.Wanted:Get(catch.outlaw)
+    local outlaw = (entry and (entry.key and U.DisplayName(entry.key) or entry.name))
+        or (not catch.outlaw:find("^guid:") and U.DisplayName(catch.outlaw)) or "?"
+    local line = #names == 1 and string.format(L.GLASS_THANKS, Name(names[1]), outlaw)
+        or string.format(L.GLASS_THANKS_MORE, Name(names[1]), #names - 1, outlaw)
+    return ns.Alerts:Show({ key = "thanks:" .. id .. ":" .. U.Now(), throttle = 0, chat = line, sound = "soft" })
+end
+
 ns.Events:Register("HH_INITIALIZED", function()
+    ns.Events:Register("HH_GLASS_ADDED", function(_, g) JusticeAlerts:OnGlass(g) end, OWNER)
     ns.Events:Register("HH_WANTED_CAUGHT", function(_, entry, before) JusticeAlerts:OnCaught(entry, before) end, OWNER)
     ns.Events:Register("HH_ALERT_SHOWN", function(_, alert)
         if alert.key and alert.key:find("^glass:") then glassShownAt = ns.Utils.Now() end

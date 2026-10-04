@@ -194,6 +194,66 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("a glass to our catch: a chat line, several close together in one", function()
+        local ns = H.Boot({ client = "forever" })
+        local P = ns.Protocol
+        local catch = Catch(ns, ns.Utils.UnitKey("player"))
+        local function Glass(by)
+            H.Deliver(P.Pack("A", P.TYPES.GLASS, { P.EncodeGlass({ outlaw = "Grim Reaper", caughtAt = catch.t,
+                t = H.serverTime, by = by }) }), by)
+        end
+        local function Said(text)
+            for _, line in ipairs(H.printed) do
+                if tostring(line):find(text, 1, true) then return true end
+            end
+            return false
+        end
+        Glass("Rowan Ash")
+        H.Advance(ns.JusticeAlerts.THANKS_WAIT + 1)
+        T.ok(Said("Rowan Ash raised a glass to your catch of Grim Reaper!"), "one glass")
+
+        -- Kestrel Vane's catch of another outlaw: not ours
+        local t = H.serverTime - 30
+        ns.Justice:Add({ id = "Dusk Fang:" .. t, outlaw = "Dusk Fang", t = t, killer = "Kestrel Vane",
+            hunter = "Kestrel Vane" }, "peer", "Kestrel Vane")
+        H.Deliver(P.Pack("A", P.TYPES.GLASS, { P.EncodeGlass({ outlaw = "Dusk Fang", caughtAt = t,
+            t = H.serverTime, by = "Moss Walker" }) }), "Moss Walker")
+        H.Advance(ns.JusticeAlerts.THANKS_WAIT + 1)
+        T.ok(not Said("Moss Walker"), "not our catch")
+
+        T.noErrors()
+    end)
+
+    T.case("glasses to our catch close together make one line; none when turned off", function()
+        local ns = H.Boot({ client = "forever" })
+        local P = ns.Protocol
+        local catch = Catch(ns, ns.Utils.UnitKey("player"))
+        local function Glass(by)
+            H.Deliver(P.Pack("A", P.TYPES.GLASS, { P.EncodeGlass({ outlaw = "Grim Reaper", caughtAt = catch.t,
+                t = H.serverTime, by = by }) }), by)
+        end
+        local function Count(text)
+            local n = 0
+            for _, line in ipairs(H.printed) do
+                if tostring(line):find(text, 1, true) then n = n + 1 end
+            end
+            return n
+        end
+        Glass("Rowan Ash")
+        H.Advance(2)
+        Glass("Moss Walker")
+        Glass("Tarn Ironhoof")
+        H.Advance(ns.JusticeAlerts.THANKS_WAIT)
+        T.eq(Count("Rowan Ash and 2 others raised a glass to your catch of Grim Reaper!"), 1, "one line")
+        T.eq(Count("Moss Walker"), 0, "not each one")
+
+        ns.db.settings.alerts.glassThanks = false
+        Glass("Wren Duskmantle")
+        H.Advance(ns.JusticeAlerts.THANKS_WAIT + 1)
+        T.eq(Count("Wren Duskmantle"), 0, "turned off")
+        T.noErrors()
+    end)
+
     T.case("the website's count when it is larger", function()
         local ns = H.Boot({ client = "forever" })
         local catch = Catch(ns)
