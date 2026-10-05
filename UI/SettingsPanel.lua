@@ -38,6 +38,7 @@ SettingsPanel.OPTIONS = {
     { key = "glassGap", kind = "number", path = "alerts.glassPopupGap", min = 3, max = 15, step = 1, format = "SET_MINUTES",
         label = "SET_GLASS_GAP", tip = "SET_GLASS_GAP_TIP" },
     { key = "glassThanks", kind = "toggle", path = "alerts.glassThanks", label = "SET_GLASS_THANKS", tip = "SET_GLASS_THANKS_TIP" },
+    { key = "duelSpots", kind = "toggle", path = "alerts.duelSpots", label = "SET_DUEL_SPOTS", tip = "SET_DUEL_SPOTS_TIP" },
     { section = "SET_SECTION_SYNC", page = "general" },
     -- HH-132: needs HeadHunter Sync, which uploads and deletes the pictures
     { key = "screenshots", kind = "toggle", path = "screenshots", label = "SET_SCREENSHOTS", tip = "SET_SCREENSHOTS_TIP",

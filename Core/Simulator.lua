@@ -5,6 +5,7 @@
 --   /hh sim demo [clear]   every tab filled with a made-up story (Core/Demo.lua)
 --   /hh sim send ...       simulated deaths shared with other characters (debug)
 --   /hh sim clear          remove every simulated death and test catch
+--   /hh sim duels [clear]  test duel spots in our zone, only on our screen (HH-134)
 --
 -- Forever names contain a space, so quote them: /hh sim death "Grim Reaper" skull ROGUE Human
 -- Simulated data goes through the same internal events as real data:
@@ -244,6 +245,24 @@ function Simulator:Event(kind)
     if ns.MainWindow and ns.MainWindow.Refresh then ns.MainWindow:Refresh() end
 end
 
+-- /hh sim duels [clear] (HH-134): test duel spots in our zone, to see the map mark, the
+-- chat line and the invite click before a release. Only on our screen: never sent, and
+-- the made-up HeadHunter gets no whisper (Alerts/DuelSpots.lua).
+function Simulator:Duels(kind)
+    if kind == "clear" then
+        ns:Print(string.format(L.SIM_DUELS_CLEARED, ns.DuelSpots:ClearSim()))
+        return
+    end
+    local zone, otherLayer, headhunter = ns.DuelSpots:Simulate()
+    if not zone then
+        ns:Print(L.SIM_DUELS_NO_ZONE)
+        return
+    end
+    local U = ns.Utils
+    ns:Print(string.format(L.SIM_DUELS, U.MapName(zone) or L.UNKNOWN_ZONE, otherLayer,
+        U.DisplayName(U.PlayerKey(headhunter)) or headhunter))
+end
+
 ns.SlashCommands:Register("sim", function(args)
     local kind = table.remove(args, 1)
     kind = kind and kind:lower()
@@ -266,11 +285,16 @@ ns.SlashCommands:Register("sim", function(args)
         Simulator:Event(args[1] and args[1]:lower())
         return
     end
+    if kind == "duels" then
+        Simulator:Duels(args[1] and args[1]:lower())
+        return
+    end
     if kind ~= "death" and kind ~= "sighting" then
         print(L.SIM_USAGE_DEATH)
         print(L.SIM_USAGE_SIGHTING)
         print(L.SIM_USAGE_DEMO)
         print(L.SIM_USAGE_CLEAR)
+        print(L.SIM_USAGE_DUELS)
         if ns.Dev.Present() then print(L.SIM_USAGE_EVENT) end
         return
     end

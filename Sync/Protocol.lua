@@ -38,6 +38,7 @@ Protocol.TYPES = {
     PAYMENT = "R",  -- HH-118: a bounty claimed, paid or unpaid (sent by the hunter)
     WITNESS = "X",  -- HH-121: a hunted player died near the sender (Sync/Witness.lua)
     GLASS = "Y",    -- the sender raised a glass to a catch (Sync/Glasses.lua)
+    DUEL_SPOT = "Z", -- HH-134: duels the sender saw lately, with their place and layer (Alerts/DuelSpots.lua)
 }
 
 local FACTION_CODE = { Alliance = "A", Horde = "H" }
@@ -563,6 +564,58 @@ function Protocol.DecodeHelp(s)
     if type(s) ~= "string" then return nil end
     local mapID, t = s:match("^(%w+);(%w+)$")
     return mapID and Protocol.FromB36(mapID), t and Protocol.FromB36(t)
+end
+
+-------------------------------------------------
+-- Duel spot (HH-134): mapID ; time ; x ; y ; layer ; duels. The sender saw these duels
+-- (both players level 19+) in the zone on that layer. duels: up to MAX_SPOT_DUELS,
+-- comma separated "<hash><hash><age>": the two players as NameHash (4 characters each,
+-- sorted) and the duel's age in seconds before `time` (base 36). Names are hashed so ten
+-- duels with long WoW Forever names fit in one message; the hash only has to tell
+-- players apart within one zone for ten minutes.
+-------------------------------------------------
+
+Protocol.MAX_SPOT_DUELS = 10
+Protocol.NAME_HASH_SIZE = 36 * 36 * 36 * 36
+
+-- A stable 4-character base-36 hash of a player key (case does not matter)
+function Protocol.NameHash(key)
+    local text, h = tostring(key or ""):lower(), 5381
+    for i = 1, #text do
+        h = (h * 33 + text:byte(i)) % Protocol.NAME_HASH_SIZE
+    end
+    local code = Protocol.ToB36(h)
+    return string.rep("0", 4 - #code) .. code
+end
+
+-- duels: newest first, { a = hash, b = hash, t = time }
+function Protocol.EncodeDuelSpot(mapID, t, x, y, layer, duels)
+    local list = {}
+    for i = 1, math.min(#(duels or {}), Protocol.MAX_SPOT_DUELS) do
+        local duel = duels[i]
+        local a, b = duel.a, duel.b
+        if a > b then a, b = b, a end
+        list[#list + 1] = a .. b .. Protocol.ToB36(math.max(0, t - duel.t))
+    end
+    return table.concat({ Protocol.ToB36(mapID), Protocol.ToB36(t), EncodeCoord(x), EncodeCoord(y),
+        layer and Protocol.ToB36(layer) or "", table.concat(list, ",") }, ";")
+end
+
+-- Returns mapID, time, x, y, layer, duels ({ a, b, t })
+function Protocol.DecodeDuelSpot(s)
+    if type(s) ~= "string" then return nil end
+    local f = Split(s, ";")
+    if #f ~= 6 then return nil end
+    local mapID, t = Protocol.FromB36(f[1]), Protocol.FromB36(f[2])
+    if not mapID or not t then return nil end
+    local duels = {}
+    for part in f[6]:gmatch("[^,]+") do
+        local a, b, age = part:match("^(%w%w%w%w)(%w%w%w%w)(%w+)$")
+        age = age and Protocol.FromB36(age)
+        if age and #duels < Protocol.MAX_SPOT_DUELS then duels[#duels + 1] = { a = a, b = b, t = t - age } end
+    end
+    local layer = not Blank(f[5]) and Protocol.FromB36(f[5]) or nil
+    return mapID, t, DecodeCoord(f[3]), DecodeCoord(f[4]), layer, duels
 end
 
 -------------------------------------------------

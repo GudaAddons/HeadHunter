@@ -58,6 +58,7 @@ local DEFAULTS = {
             glassPopup = true, -- Raise a glass when another HeadHunter busts a WANTED player (Barflies, author, 2026-10-04)
             glassPopupGap = 5, -- minutes between two glass popups, 3..15 (author, 2026-10-04)
             glassThanks = true, -- a chat line when a HeadHunter raises a glass to our catch (author, 2026-10-04)
+            duelSpots = true, -- HH-134: a chat line when a duel spot starts in the alert range (author, 2026-10-05)
         },
         serialKillerWindowMin = 15, -- 5..15
         mapPins = true, -- HH-046: hotspot and WANTED pins on the world map
