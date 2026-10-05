@@ -40,6 +40,11 @@ Screenshots.FILE_TIME = "%m%d%y_%H%M%S" -- the game names the file by the PC's l
 
 Screenshots.KIND = { death = "death", wanted = "wanted", bully = "bully", deadbeat = "deadbeat" }
 
+-- What happened with the picture of our death, kept on the report (report.shot) and
+-- sent with it: the admin sees a missing picture is normal (off, limit, no app) or not
+-- (taken, but it never arrived)
+Screenshots.STATUS = { taken = "taken", off = "off", limit = "limit", noApp = "no_app", failed = "failed" }
+
 local QUALITY_SETTING = "screenshotQuality"
 local SHOT_EVENTS = { "SCREENSHOT_SUCCEEDED", "SCREENSHOT_FAILED" }
 
@@ -71,9 +76,17 @@ function Screenshots.SyncInstalled()
     return type(_G.HeadHunter_SiteData) == "table"
 end
 
+-- Why no picture can be taken now (a STATUS), or nil when one can
+function Screenshots.Blocked()
+    local S = Screenshots.STATUS
+    if not Screenshots.SyncInstalled() then return S.noApp end
+    if ns.Database:GetSetting("screenshots") ~= true then return S.off end
+    if _G.Screenshot == nil then return S.failed end
+    return nil
+end
+
 function Screenshots:Enabled()
-    return ns.Database:GetSetting("screenshots") == true and Screenshots.SyncInstalled()
-        and _G.Screenshot ~= nil
+    return Screenshots.Blocked() == nil
 end
 
 local function RestoreQuality()
@@ -103,11 +116,15 @@ end
 
 -- Take a picture for this event, or add the event to one just taken. kind: KIND;
 -- group: "death" or "catch" (which hour window); target: the killer's or outlaw's key;
--- ref: the death report or catch id. Returns the shot, or nil when no picture is due.
+-- ref: the death report or catch id. Returns the shot (or nil) and a STATUS: taken, or
+-- why there is no picture.
 function Screenshots:Take(kind, group, target, ref)
-    if not (target and self:Enabled()) then return nil end
+    local S = self.STATUS
+    if not target then return nil, nil end
+    local blocked = self.Blocked()
+    if blocked then return nil, blocked end
     local store = Store()
-    if not store then return nil end
+    if not store then return nil, S.failed end
     local now = ns.Utils.ServerTime()
 
     local latest = store.shots[#store.shots]
@@ -115,21 +132,21 @@ function Screenshots:Take(kind, group, target, ref)
         latest.kinds[#latest.kinds + 1] = kind
         latest.refs[#latest.refs + 1] = ref
         store.last[group .. ":" .. target] = now
-        return latest
+        return latest, S.taken
     end
 
     local windowKey = group .. ":" .. target
-    if store.last[windowKey] and now - store.last[windowKey] < self.WINDOW then return nil end
+    if store.last[windowKey] and now - store.last[windowKey] < self.WINDOW then return nil, S.limit end
     local day = DayKey()
     if store.day.key ~= day then store.day.key, store.day.count = day, 0 end
-    if store.day.count >= self.DAY_CAP then return nil end
+    if store.day.count >= self.DAY_CAP then return nil, S.limit end
 
     ownQuality = ownQuality or GetSetting(QUALITY_SETTING)
     SetSetting(QUALITY_SETTING, tostring(self.QUALITY))
     local ok = pcall(_G.Screenshot)
     if not ok then
         RestoreQuality()
-        return nil
+        return nil, S.failed
     end
     C_Timer.After(self.RESTORE_AFTER, RestoreQuality)
 
@@ -142,7 +159,7 @@ function Screenshots:Take(kind, group, target, ref)
     store.day.count = store.day.count + 1
     self:Prune(now)
     ns:Debug("Screenshot", kind, target, shot.file)
-    return shot
+    return shot, S.taken
 end
 
 -- Every death by a known enemy player counts toward WANTED (Rules/Engine.lua), so every
@@ -154,7 +171,8 @@ end
 function Screenshots:OnDeathRecorded(report)
     if report.confidence == "sim" or report.demo then return end
     if not Screenshots.DeathMatters(report) then return end
-    self:Take(self.KIND.death, "death", report.killer.key, report.id)
+    local _, status = self:Take(self.KIND.death, "death", report.killer.key, report.id)
+    report.shot = status
 end
 
 function Screenshots:OnJustice(record)
