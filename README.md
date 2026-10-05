@@ -55,7 +55,7 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 - **Bullies and Deadbeats**: "BULLY: X is here!" or "DEADBEAT: X is here!", at most once every 10 minutes per player.
 - **You are WANTED**: with the HeadHunter Sync app, HeadHunter tells you at login when the other faction has you on its WANTED list.
 - **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight and the HeadHunters of your side fighting there. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
-- **Duel spots**: "Duels in Orgrimmar (Layer 3): 12 duels, 6 players in 10 min. Ask for an invite: [name]" when many players duel near you. Click a name to whisper them. Turn it off in the options: **Duel spot alerts**.
+- **Duel spots**: "Duels in Orgrimmar (Layer 3): 12 duels, 6 players in 20 min. Ask for an invite: [name]" when many players duel near you. Click a name to whisper them. Turn it off in the options: **Duel spot alerts**.
 
 ### World map
 - A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 20 minutes after the last fight.
@@ -133,7 +133,7 @@ Type `/hh online` to see how many HeadHunters are online right now, how many are
 - Ranked by record: wins minus losses first, then fewer losses. 6-1 is ahead of 8-3. With the same record, whoever got there first is ahead. You are listed from your first duel.
 - Ranks by net wins: **Quickdraw**, **Sharpshooter** (+5), **Deadeye** (+15) and **Legend** (+30). Under 5 duels you are a **Greenhorn**, listed after everyone with 5 or more.
 - The #1 of each faction is the **Top Gun**, once they are 5 or more wins ahead (Sharpshooter) and nobody else at the top has the same record. A Greenhorn cannot be Top Gun.
-- **Duel spots**: when HeadHunters see 10 duels between 4 or more players in 10 minutes, all level 19 or higher, that zone and layer is a duel spot. Every layer counts on its own. You see it on the map and in chat, with the HeadHunters there you can ask for a group invite. Type `/hh duelspots` to list them all. Only HeadHunters with this version share duel spots.
+- **Duel spots**: when HeadHunters see 10 duels between 5 or more different players in 20 minutes, all level 19 or higher, that zone and layer is a duel spot. Every layer counts on its own. You see it on the map and in chat, with the HeadHunters there you can ask for a group invite. Type `/hh duelspots` to list them all. Only HeadHunters with this version share duel spots.
 
 ![Duels: every duelist with their rank and record](https://headhunterwow.com/images/screenshots/duels.webp)
 

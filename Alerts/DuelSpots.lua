@@ -25,9 +25,9 @@ local DuelSpots = ns:RegisterModule("DuelSpots", {})
 
 local OWNER = "DuelSpots"
 
-DuelSpots.WINDOW = 600
+DuelSpots.WINDOW = 1200
 DuelSpots.MIN_DUELS = 10
-DuelSpots.MIN_PLAYERS = 4
+DuelSpots.MIN_PLAYERS = 5
 DuelSpots.MIN_LEVEL = 19
 DuelSpots.MAP_TIME = 1200
 DuelSpots.DEDUPE = ns.Duels.DEDUPE
@@ -338,8 +338,8 @@ end
 -------------------------------------------------
 
 -- Made-up duelists and the made-up HeadHunter on the other layer. Never real players.
-DuelSpots.SIM_DUELISTS = { "Testone", "Testtwo", "Testthree", "Testfour", "Testfive" }
-DuelSpots.SIM_HEADHUNTER = "Testsix"
+DuelSpots.SIM_DUELISTS = { "Testone", "Testtwo", "Testthree", "Testfour", "Testfive", "Testsix", "Testseven" }
+DuelSpots.SIM_HEADHUNTER = "Testeight"
 DuelSpots.SIM_DUELS = 12
 DuelSpots.SIM_OFFSET = 0.05
 
