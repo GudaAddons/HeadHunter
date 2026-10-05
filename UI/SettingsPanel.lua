@@ -43,6 +43,10 @@ SettingsPanel.OPTIONS = {
     -- HH-125: the HeadHunter windows (UI/Theme.lua), in %
     { key = "scale", kind = "number", path = "uiScale", min = 90, max = 130, step = 10, format = "SET_PERCENT",
         label = "SET_SCALE", tip = "SET_SCALE_TIP" },
+    { section = "SET_SECTION_SYNC" },
+    -- HH-132: needs HeadHunter Sync, which uploads and deletes the pictures
+    { key = "screenshots", kind = "toggle", path = "screenshots", label = "SET_SCREENSHOTS", tip = "SET_SCREENSHOTS_TIP",
+        available = function() return ns.Screenshots.SyncInstalled() end, unavailable = "SET_NEEDS_SYNC" },
     { section = "SET_SECTION_RULES" },
     { key = "serial", kind = "number", path = "serialKillerWindowMin", min = 5, max = 15, step = 1,
         label = "SET_SERIAL", tip = "SET_SERIAL_TIP" },
@@ -53,6 +57,11 @@ function SettingsPanel.Option(key)
         if option.key == key then return option end
     end
     return nil
+end
+
+-- false when the option needs something this player does not have (option.available)
+function SettingsPanel.Available(option)
+    return option.available == nil or option.available() == true
 end
 
 function SettingsPanel.Get(option)
@@ -115,12 +124,20 @@ local function AddToggle(option, y)
     check:SetPoint("TOPLEFT", 20, y)
     local label = Label(panel, L[option.label])
     label:SetPoint("LEFT", check, "RIGHT", 4, 0)
+    local note = option.unavailable and Label(panel, L[option.unavailable], "GameFontDisableSmall")
+    if note then note:SetPoint("LEFT", label, "RIGHT", 8, 0) end
     check:SetScript("OnClick", function(self)
         SettingsPanel.Set(option, self:GetChecked() and true or false)
     end)
     check:SetScript("OnEnter", function(self) ShowTip(self, option) end)
     check:SetScript("OnLeave", HideTip)
-    widgets[option.key] = { refresh = function() check:SetChecked(SettingsPanel.Get(option)) end }
+    widgets[option.key] = { refresh = function()
+        local available = SettingsPanel.Available(option)
+        check:SetChecked(available and SettingsPanel.Get(option))
+        if available then check:Enable() else check:Disable() end
+        label:SetFontObject(available and "GameFontHighlight" or "GameFontDisable")
+        if note then note:SetShown(not available) end
+    end }
     return y - 28
 end
 

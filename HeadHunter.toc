@@ -79,6 +79,7 @@ Sync\Bounties.lua
 Sync\Witness.lua
 Sync\Glasses.lua
 Sync\Evidence.lua
+Sync\Screenshots.lua
 
 # Rules (M3)
 Rules\Engine.lua

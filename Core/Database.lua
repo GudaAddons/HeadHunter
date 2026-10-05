@@ -28,7 +28,7 @@ DB.FALLBACK_HOME = "unknown"
 DB.HOME_TABLES = {
     deaths = true, reports = true, enemies = true, justice = true, posters = true, posse = true,
     bountyPay = true, duels = true, eventResults = true, marks = true, demoMarks = true, player = true,
-    witness = true, pinned = true, glasses = true,
+    witness = true, pinned = true, glasses = true, screenshots = true,
 }
 
 DB.LIMITS = {
@@ -67,6 +67,7 @@ local DEFAULTS = {
         shameMarks = true, -- the white feather above Hall of Shame players
         minimap = { angle = 200, hidden = false }, -- HH-060 minimap button
         uiScale = 100, -- HH-125: Window size, 90..130 %
+        screenshots = false, -- HH-132: pictures of our PvP deaths and catches, for the admins (needs HeadHunter Sync)
     },
     zones = {}, -- zone mapID -> { name, continent, locale }: names for the website (Alerts/Zones.lua)
     homes = {}, -- home key -> HOME_DEFAULTS
@@ -84,6 +85,7 @@ local HOME_DEFAULTS = {
     witness = {}, -- HH-121: witness id -> a hunted player who died near a HeadHunter (Sync/Witness.lua)
     pinned = {},  -- HH-121: sighting id -> a sighting kept as evidence for a bounty claim (Sync/Evidence.lua)
     glasses = {}, -- glass id -> a HeadHunter raised a glass to a catch (Sync/Glasses.lua)
+    screenshots = {}, -- HH-132: pictures taken for the sync app (Sync/Screenshots.lua)
     -- Tournament match results confirmed in game (Tournament/Matches.lua): every
     -- HeadHunter's bracket; our own go to the website with HeadHunter Sync
     eventResults = {},
