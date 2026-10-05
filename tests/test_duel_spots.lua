@@ -26,6 +26,14 @@ return function(T, H)
         H.Deliver(ns.Protocol.Pack(faction or "A", "Z", { record }), sender)
     end
 
+    -- `n` duels from Brakka (or `sender`), and Wren, a second HeadHunter, saw the newest one:
+    -- two witnesses, as a spot we did not see ourselves needs
+    local function Spot(ns, mapID, layer, n, players, ago, sender)
+        local list = DuelList(ns, n, players, ago)
+        Ping(ns, mapID, sender or "Brakka-Firemaw", list, layer)
+        Ping(ns, mapID, "Wren-Firemaw", { list[1] }, layer)
+    end
+
     local function Seen(ns, winner, loser, winnerLevel, loserLevel)
         ns.Events:Fire("HH_DUEL_SEEN", { winner = winner, loser = loser, t = H.serverTime,
             winnerLevel = winnerLevel or 30, loserLevel = loserLevel or 30 })
@@ -61,16 +69,57 @@ return function(T, H)
     T.case("10 duels between 5 players make a spot; 9 duels or 4 players do not", function()
         local ns = H.Boot({ client = "era" })
         local D = ns.DuelSpots
-        Ping(ns, 1436, "Brakka-Firemaw", DuelList(ns, 9, 5), 3)
+        Spot(ns, 1436, 3, 9, 5)
         T.eq(#D:Active(), 0, "9 duels: no spot")
-        Ping(ns, 1436, "Brakka-Firemaw", DuelList(ns, 10, 5), 3)
+        Spot(ns, 1436, 3, 10, 5)
         local list = D:Active()
         T.eq(#list, 1, "10 duels between 5 players: a spot")
         T.eq(list[1].duels, 10, "the same duels are not counted twice")
         T.eq(list[1].players, 5, "players")
         T.eq(list[1].layer, 3, "layer")
-        Ping(ns, 1417, "Zulgar-Firemaw", DuelList(ns, 10, 4), 5)
+        Spot(ns, 1417, 5, 10, 4, nil, "Zulgar-Firemaw")
         T.eq(#D:Active(), 1, "10 duels between 4 players: no spot")
+        T.noErrors()
+    end)
+
+    T.case("anti-fake: one HeadHunter alone makes no spot; a second one or our own duel does", function()
+        local ns = H.Boot({ client = "era" })
+        local D = ns.DuelSpots
+        local list = DuelList(ns, 10, 5)
+        Ping(ns, 1436, "Brakka-Firemaw", list, 3)
+        T.eq(D:State(1436, 3), 10, "the duels are kept")
+        T.eq(#D:Active(), 0, "one HeadHunter alone: no spot")
+        Ping(ns, 1436, "Wren-Firemaw", { list[1] }, 3)
+        T.eq(#D:Active(), 1, "a second HeadHunter saw duels there: a spot")
+        OurLayer(5)
+        Ping(ns, 1429, "Iron-Firemaw", DuelList(ns, 10, 5), 5)
+        T.eq(#D:Active(), 1, "Elwynn: one HeadHunter alone")
+        Seen(ns, "Tovik-Firemaw", "Marla-Firemaw")
+        T.eq(#D:Active(), 2, "we saw a duel there ourselves: a spot")
+        T.noErrors()
+    end)
+
+    T.case("anti-fake: one HeadHunter adds at most 10 new duels in 20 min", function()
+        local ns = H.Boot({ client = "era" })
+        local D = ns.DuelSpots
+        local P = ns.Protocol
+        Ping(ns, 1436, "Brakka-Firemaw", DuelList(ns, 10, 5), 3)
+        local more = {}
+        for i = 1, 10 do
+            more[i] = { a = P.NameHash("Fake" .. i .. "-Firemaw"), b = P.NameHash("Made" .. i .. "-Firemaw"),
+                t = H.serverTime - 30 - i * 61 }
+        end
+        Ping(ns, 1436, "Brakka-Firemaw", more, 3)
+        T.eq(D:State(1436, 3), 10, "no more from Brakka")
+        Ping(ns, 1436, "Zulgar-Firemaw", more, 3)
+        T.eq(D:State(1436, 3), 20, "another HeadHunter can add them")
+        H.serverTime = H.serverTime + 1201
+        local later = {}
+        for i = 1, 3 do
+            later[i] = { a = P.NameHash("Late" .. i .. "-Firemaw"), b = P.NameHash("Duel" .. i .. "-Firemaw"), t = H.serverTime - i * 61 }
+        end
+        Ping(ns, 1436, "Brakka-Firemaw", later, 3)
+        T.eq(D:State(1436, 3), 3, "20 min later Brakka can add duels again")
         T.noErrors()
     end)
 
@@ -84,16 +133,16 @@ return function(T, H)
         T.eq(players, 5, "players")
         Ping(ns, 1436, "Iron-Firemaw", DuelList(ns, 6, 5), 8)
         T.eq(#D:Active(), 1, "layer 8 has 6 duels: not a spot")
-        Ping(ns, 1436, "Iron-Firemaw", DuelList(ns, 10, 5), nil)
+        Spot(ns, 1436, nil, 10, 5, 100, "Iron-Firemaw")
         local list = D:Active()
-        T.eq(#list, 2, "unknown layer is its own spot")
+        T.eq(#list, 2, "other duels without a layer are their own spot")
         T.noErrors()
     end)
 
     T.case("duels older than 20 min drop out; the map keeps the spot 20 min after its last duel", function()
         local ns = H.Boot({ client = "era" })
         local D = ns.DuelSpots
-        Ping(ns, 1436, "Brakka-Firemaw", DuelList(ns, 10, 5), 3)
+        Spot(ns, 1436, 3, 10, 5)
         T.eq(#D:Active(), 1, "spot")
         H.serverTime = H.serverTime + 700
         T.eq(D:State(1436, 3), 9, "the oldest duel is over 20 min old")
@@ -115,6 +164,47 @@ return function(T, H)
         T.eq(D:State(1429, 5), 1, "both 19+: counted, the level gap does not matter")
         Seen(ns, "Marla-Firemaw", "Tovik-Firemaw", 19, 60)
         T.eq(D:State(1429, 5), 1, "the same pair within a minute: one duel")
+        T.noErrors()
+    end)
+
+    T.case("duels we saw before our layer was known move to it once it is; heard ones stay", function()
+        local ns = H.Boot({ client = "era" })
+        local D = ns.DuelSpots
+        Seen(ns, "Tovik-Firemaw", "Marla-Firemaw")
+        Ping(ns, 1429, "Brakka-Firemaw", DuelList(ns, 3, 5, 200), nil)
+        T.eq(D:State(1429, D.UNKNOWN_LAYER), 4, "layer unknown at first")
+        OurLayer(32)
+        H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate9")
+        T.eq(D:State(1429, 32), 1, "our duel moved to layer 32")
+        T.eq(D:State(1429, D.UNKNOWN_LAYER), 3, "Brakka's stay where Brakka put them")
+        T.noErrors()
+    end)
+
+    T.case("one duel never makes two marks: a known layer wins over an unknown one", function()
+        local ns = H.Boot({ client = "era" })
+        local D = ns.DuelSpots
+        local list = DuelList(ns, 10, 5)
+        Ping(ns, 1436, "Brakka-Firemaw", list, nil)
+        Ping(ns, 1436, "Wren-Firemaw", { list[1] }, nil)
+        T.eq(#D:Active(), 1, "only heard without a layer: Layer unknown")
+        Ping(ns, 1436, "Zulgar-Firemaw", list, 32)
+        Ping(ns, 1436, "Iron-Firemaw", { list[1] }, 32)
+        T.eq(D:State(1436, 32), 10, "the duels moved to layer 32")
+        T.eq(D:State(1436, D.UNKNOWN_LAYER), 0, "none left without a layer")
+        Ping(ns, 1436, "Pell-Firemaw", list, nil)
+        T.eq(D:State(1436, D.UNKNOWN_LAYER), 0, "a later copy without a layer is not counted again")
+        T.eq(#D:Active(), 1, "the old Layer unknown mark is gone from the map")
+        local live = 0
+        for _, spot in ipairs(D:Active()) do if not spot.remembered then live = live + 1 end end
+        T.eq(live, 1, "one live mark, on layer 32")
+        T.noErrors()
+    end)
+
+    T.case("/hh sim duels waits until our layer is known", function()
+        local ns = H.Boot({ client = "era" })
+        H.Slash("sim duels")
+        T.ok(H.Printed("Your layer is not known yet"), "says so")
+        T.eq(#ns.DuelSpots:Active(), 0, "no spot on Layer unknown")
         T.noErrors()
     end)
 
@@ -149,10 +239,36 @@ return function(T, H)
         T.noErrors()
     end)
 
+    T.case("our duels go out again every 3 min for players who reload; others' duels never do", function()
+        local ns = H.Boot({ client = "era" })
+        H.inGuild = true
+        OurLayer(5)
+        Ping(ns, 1429, "Brakka-Firemaw", DuelList(ns, 4, 5), 5)
+        Seen(ns, "Tovik-Firemaw", "Pike-Firemaw")
+        for _ = 1, 10 do H.Advance(1) end
+        local function SentDuels()
+            local found
+            for _, m in ipairs(H.sent) do
+                local _, typeCode, records = ns.Protocol.Unpack(m.message)
+                if typeCode == "Z" then found = records[1] end
+            end
+            return found and select(6, ns.Protocol.DecodeDuelSpot(found))
+        end
+        T.eq(#SentDuels(), 1, "only the duel we saw, not Brakka's")
+        H.sent = {}
+        H.serverTime = H.serverTime + 120
+        T.ok(not ns.DuelSpots:Tick(), "nothing new within 3 min")
+        H.serverTime = H.serverTime + 61
+        T.ok(ns.DuelSpots:Tick(), "after 3 min: sent again")
+        H.serverTime = H.serverTime + 1201
+        T.ok(not ns.DuelSpots:Tick(), "our duel is over 20 min old: nothing to send")
+        T.noErrors()
+    end)
+
     T.case("chat line with whisper links when a spot starts in range, once", function()
         local ns = H.Boot({ client = "era" })
         OurLayer(5)
-        Ping(ns, 1436, "Brakka-Firemaw", DuelList(ns, 10, 5), 3)
+        Spot(ns, 1436, 3, 10, 5)
         T.ok(H.Printed("Duels in Westfall %(Layer 3%): 10 duels, 5 players in 20 min%."), "chat line")
         T.ok(H.Printed("Ask for an invite: .*|Hplayer:Brakka|h%[Brakka%]|h"), "a click on the name whispers them")
         local lines = #H.printed
@@ -164,13 +280,13 @@ return function(T, H)
     T.case("no chat line out of range, with the option off, or on our own layer", function()
         local ns = H.Boot({ client = "era" })
         OurLayer(5)
-        Ping(ns, 1413, "Brakka-Firemaw", DuelList(ns, 10, 5), 3)
+        Spot(ns, 1413, 3, 10, 5)
         T.ok(not H.Printed("Duels in"), "The Barrens: out of range")
         ns.Database:SetSetting("alerts.duelSpots", false)
-        Ping(ns, 1436, "Brakka-Firemaw", DuelList(ns, 10, 5), 3)
+        Spot(ns, 1436, 3, 10, 5)
         T.ok(not H.Printed("Duels in"), "option off")
         ns.Database:SetSetting("alerts.duelSpots", true)
-        Ping(ns, 1429, "Brakka-Firemaw", DuelList(ns, 10, 4), 5)
+        Spot(ns, 1429, 5, 10, 5)
         T.ok(not H.Printed("Duels in"), "our zone and layer: we can see it")
         T.noErrors()
     end)
@@ -213,7 +329,7 @@ return function(T, H)
     T.case("map mark: zone, layer, counts, HeadHunters and the click hint", function()
         local ns = H.Boot({ client = "era" })
         OurLayer(5)
-        Ping(ns, 1436, "Brakka-Firemaw", DuelList(ns, 10, 5), 3)
+        Spot(ns, 1436, 3, 10, 5)
         local pin
         for _, p in ipairs(ns.MapMarkers:PinsFor(1436)) do if p.kind == "duels" then pin = p end end
         T.ok(pin ~= nil, "duel mark on Westfall")
@@ -221,10 +337,10 @@ return function(T, H)
         T.eq(pin.layerKey, 3, "layer")
         local text = table.concat(pin.lines, "\n")
         T.ok(text:find("Westfall", 1, true) ~= nil, "zone name")
-        T.ok(text:find("Layer 3", 1, true) ~= nil, "layer")
-        T.ok(text:find("10 duels, 5 players", 1, true) ~= nil, "counts")
-        T.ok(text:find("HeadHunters there: Brakka", 1, true) ~= nil, "who is there")
-        T.ok(text:find("Click", 1, true) ~= nil, "click hint")
+        T.ok(text:find("Layer 3: 10 duels, 5 players", 1, true) ~= nil, "the layer with its duels")
+        T.eq(pin.id, "duels:1436", "one mark for the zone")
+        T.ok(text:find("HeadHunters there:", 1, true) ~= nil and text:find("Brakka", 1, true) ~= nil, "who is there")
+        T.ok(text:find("Click: ask a HeadHunter for a group invite to Layer 3", 1, true) ~= nil, "click hint names the layer")
         H.mapRects["1436:1415"] = { 0.3, 0.4, 0.6, 0.8 }
         local onContinent = false
         for _, p in ipairs(ns.MapMarkers:PinsFor(1415)) do if p.kind == "duels" then onContinent = true end end
@@ -245,9 +361,13 @@ return function(T, H)
         T.ok(layers[5] ~= nil, "on our layer")
         T.ok(layers[6] ~= nil, "on the next layer")
         T.ok(H.Printed("Duels in Elwynn Forest %(Layer 6%).*Testeight"), "chat line for the other layer")
-        local marks = 0
-        for _, pin in ipairs(ns.MapMarkers:PinsFor(1429)) do if pin.kind == "duels" then marks = marks + 1 end end
-        T.eq(marks, 2, "two map marks")
+        local pins = {}
+        for _, pin in ipairs(ns.MapMarkers:PinsFor(1429)) do if pin.kind == "duels" then pins[#pins + 1] = pin end end
+        T.eq(#pins, 1, "one map mark for the zone")
+        local text = table.concat(pins[1].lines, "\n")
+        T.ok(text:find("Layer 5 (your layer): 12 duels", 1, true) ~= nil, "our layer listed")
+        T.ok(text:find("Layer 6: 12 duels", 1, true) ~= nil, "the other layer listed")
+        T.eq(pins[1].layerKey, 6, "a click asks for the other layer")
         H.chatSent = {}
         T.eq(ns.DuelSpots:AskInvite(1429, 6), "sim", "made-up HeadHunter")
         T.eq(#H.chatSent, 0, "no whisper")
@@ -259,8 +379,11 @@ return function(T, H)
             T.ok(typeCode ~= "Z", "test duels are never sent")
         end
         local lines = #H.printed
+        OurLayer(9)
+        H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate9")
         H.Slash("sim duels")
         T.ok(#H.printed > lines + 1, "a second run shows the chat line again")
+        T.eq(#ns.DuelSpots:Active(), 2, "the old test spots are replaced, not added to")
         H.Slash("sim duels clear")
         T.ok(H.Printed("Test duel spots removed"), "cleared")
         T.eq(#ns.DuelSpots:Active(), 0, "no spots left")
@@ -271,7 +394,7 @@ return function(T, H)
         local ns = H.Boot({ client = "era" })
         H.Slash("duelspots")
         T.ok(H.Printed("No duel spots right now"), "none")
-        Ping(ns, 1413, "Brakka-Firemaw", DuelList(ns, 10, 5), 3)
+        Spot(ns, 1413, 3, 10, 5)
         H.Slash("duelspots")
         T.ok(H.Printed("Duels in The Barrens %(Layer 3%)"), "any range")
         T.noErrors()

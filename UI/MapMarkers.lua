@@ -2,7 +2,8 @@
 -- zone with "PVP" in the middle, darker as the fight grows) and skull pins for WANTED
 -- outlaws (Rules/Wanted.lua) on the world map, in the zone, continent and world views.
 -- Hover: details (no click action; author, 2026-09-23).
--- HH-134: duel spots (Alerts/DuelSpots.lua) are a blue area with "DUELS" in the middle.
+-- HH-134: duel spots (Alerts/DuelSpots.lua) are a blue area with "DUELS" in the middle,
+-- one per zone; the tooltip lists every layer with duels (author, 2026-10-06).
 -- That mark is the one with a click: it asks a HeadHunter on that layer for an invite
 -- (author, 2026-10-05).
 --
@@ -98,28 +99,32 @@ local function HotspotPin(spot, mapID, now)
     }
 end
 
--- A duel spot: zone, layer, how many duels, the HeadHunters there and the click hint
-local function DuelPin(spot, mapID, now)
-    local x, y, zoneWidth = MapMarkers.Project(spot.zone, spot.x, spot.y, mapID)
+-- One mark per zone with duel spots (author, 2026-10-06): every layer with its duels, the
+-- HeadHunters to ask on the layer a click asks for, and the click hint. group: from
+-- DuelSpots:ByZone. layerKey is the layer the click asks an invite for (else the busiest
+-- layer, so the click says we are on it or nobody can be asked).
+local function DuelPin(group, mapID, now)
+    local x, y, zoneWidth = MapMarkers.Project(group.zone, group.x, group.y, mapID)
     if not x then return nil end
     local DuelSpots = ns.DuelSpots
-    local lines = {
-        string.format(L.MAP_DUELS_TITLE, ns.Utils.MapName(spot.zone) or L.UNKNOWN_ZONE),
-        DuelSpots:LayerText(spot),
-        DuelSpots.Describe(spot),
-    }
-    local names = DuelSpots:InviterNames(spot.zone, spot.layerKey)
-    if names then lines[#lines + 1] = string.format(L.DUEL_SPOT_HEADHUNTERS, names) end
-    lines[#lines + 1] = ns.Utils.Ago(math.max(0, now - spot.t))
-    if names and not DuelSpots:OnOurLayer(spot.zone, spot.layerKey) then lines[#lines + 1] = L.DUEL_SPOT_CLICK end
+    local lines = { string.format(L.MAP_DUELS_TITLE, ns.Utils.MapName(group.zone) or L.UNKNOWN_ZONE) }
+    for _, spot in ipairs(group.spots) do
+        lines[#lines + 1] = string.format(L.DUEL_SPOT_LAYER_LINE, DuelSpots:LayerText(spot), DuelSpots.Describe(spot))
+    end
+    local target = DuelSpots:InviteSpot(group)
+    if target then
+        lines[#lines + 1] = string.format(L.DUEL_SPOT_HEADHUNTERS, DuelSpots:InviterNames(target.zone, target.layerKey))
+    end
+    lines[#lines + 1] = ns.Utils.Ago(math.max(0, now - group.t))
+    if target then lines[#lines + 1] = string.format(L.DUEL_SPOT_CLICK, DuelSpots:LayerText(target)) end
     return {
         kind = "duels",
-        id = "duels:" .. spot.zone .. ":" .. tostring(spot.layerKey),
+        id = "duels:" .. group.zone,
         x = x, y = y,
         size = MapMarkers.AREA_WIDTH * zoneWidth,
         alpha = MapMarkers.DUEL_ALPHA,
-        zone = spot.zone,
-        layerKey = spot.layerKey,
+        zone = group.zone,
+        layerKey = target and target.layerKey or group.spots[1].layerKey,
         lines = lines,
     }
 end
@@ -202,9 +207,9 @@ function MapMarkers:PinsFor(mapID, now)
         end
     end
     shown = 0
-    for _, spot in ipairs(ns.DuelSpots:Active(now)) do
+    for _, group in ipairs(ns.DuelSpots:ByZone(now)) do
         if shown >= MapMarkers.MAX_PER_KIND then break end
-        local pin = DuelPin(spot, mapID, now)
+        local pin = DuelPin(group, mapID, now)
         if pin then
             pins[#pins + 1] = pin
             shown = shown + 1

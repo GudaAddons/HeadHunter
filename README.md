@@ -59,7 +59,7 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 
 ### World map
 - A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 20 minutes after the last fight.
-- A blue **DUELS** area shows where players duel now, with the layer. Click it to ask a HeadHunter on that layer for a group invite, so you can join them.
+- A blue **DUELS** area shows where players duel now, one per zone. Hover it to see every layer with duels. Click it to ask a HeadHunter for a group invite to the busiest layer you are not on, so you can join them.
 - A **skull** shows where a WANTED outlaw made their last kill (for 10 minutes). The map shows the 10 biggest fights, the 10 busiest duel spots and the 10 highest ranked outlaws.
 
 ![A PvP area on the world map](https://headhunterwow.com/images/screenshots/map.webp)

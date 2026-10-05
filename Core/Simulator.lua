@@ -255,7 +255,7 @@ function Simulator:Duels(kind)
     end
     local zone, otherLayer, headhunter = ns.DuelSpots:Simulate()
     if not zone then
-        ns:Print(L.SIM_DUELS_NO_ZONE)
+        ns:Print(otherLayer == "layer" and L.SIM_DUELS_NO_LAYER or L.SIM_DUELS_NO_ZONE)
         return
     end
     local U = ns.Utils
