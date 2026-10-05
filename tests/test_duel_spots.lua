@@ -41,6 +41,7 @@ return function(T, H)
         return table.concat(parts, "\n")
     end
 
+
     local function Seen(ns, winner, loser, winnerLevel, loserLevel)
         ns.Events:Fire("HH_DUEL_SEEN", { winner = winner, loser = loser, t = H.serverTime,
             winnerLevel = winnerLevel or 30, loserLevel = loserLevel or 30 })
@@ -356,29 +357,29 @@ return function(T, H)
         T.noErrors()
     end)
 
-    T.case("/hh sim duels: a spot on our layer and one on the next layer, never sent or whispered", function()
+    T.case("/hh sim duels: our layer and the next two, never sent or whispered", function()
         local ns = H.Boot({ client = "era" })
         H.inGuild = true
         OurLayer(5)
         H.Slash("sim duels")
         T.ok(H.Printed("Test duel spots in Elwynn Forest"), "told")
         local list = ns.DuelSpots:Active()
-        T.eq(#list, 2, "two spots")
+        T.eq(#list, 3, "three spots")
         local layers = {}
         for _, spot in ipairs(list) do layers[spot.layerKey] = spot end
         T.ok(layers[5] ~= nil, "on our layer")
-        T.ok(layers[6] ~= nil, "on the next layer")
+        T.ok(layers[6] ~= nil and layers[7] ~= nil, "on the next two layers")
         T.ok(H.Printed("Duels in Elwynn Forest %(Layer 6%).*Testeight"), "chat line for the other layer")
         local pins = {}
         for _, pin in ipairs(ns.MapMarkers:PinsFor(1429)) do if pin.kind == "duels" then pins[#pins + 1] = pin end end
         T.eq(#pins, 1, "one map mark for the zone")
         local text = Flat(pins[1].lines)
         T.ok(text:find("Layer 5 (your layer) | 12 duels", 1, true) ~= nil, "our layer has a row")
-        T.ok(text:find("Layer 6 | 12 duels", 1, true) ~= nil, "the other layer has a row")
+        T.ok(text:find("Layer 6 | 14 duels", 1, true) ~= nil and text:find("Layer 7 | 11 duels", 1, true) ~= nil, "the other layers have rows")
         T.eq(pins[1].layerKey, 6, "a left click asks for the other layer")
         local menu = ns.MapMarkers.DuelMenu(pins[1])
-        T.eq(#menu, 1, "the right-click menu lists only layers we are not on")
-        T.ok(menu[1].label:find("Layer 6", 1, true) ~= nil, "Layer 6 in the menu")
+        T.eq(#menu, 2, "the right-click menu lists the two layers we are not on")
+        T.ok(menu[1].label:find("Layer 6", 1, true) ~= nil and menu[2].label:find("Layer 7", 1, true) ~= nil, "busiest first")
         menu[1].func()
         T.ok(H.Printed("Test: no whisper sent"), "picking it asks for that layer")
         _G.ToggleDropDownMenu = function() end
@@ -398,7 +399,7 @@ return function(T, H)
         H.Fire("NAME_PLATE_UNIT_ADDED", "nameplate9")
         H.Slash("sim duels")
         T.ok(#H.printed > lines + 1, "a second run shows the chat line again")
-        T.eq(#ns.DuelSpots:Active(), 2, "the old test spots are replaced, not added to")
+        T.eq(#ns.DuelSpots:Active(), 3, "the old test spots are replaced, not added to")
         H.Slash("sim duels clear")
         T.ok(H.Printed("Test duel spots removed"), "cleared")
         T.eq(#ns.DuelSpots:Active(), 0, "no spots left")

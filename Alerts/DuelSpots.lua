@@ -501,11 +501,14 @@ end
 -- Test data: /hh sim duels [clear]
 -------------------------------------------------
 
--- Made-up duelists and the made-up HeadHunter on the other layer. Never real players.
+-- Made-up duelists, and the other layers with their made-up HeadHunter and duel count:
+-- two of them, so the right-click menu has a choice. Never real players.
 DuelSpots.SIM_DUELISTS = { "Testone", "Testtwo", "Testthree", "Testfour", "Testfive", "Testsix", "Testseven" }
-DuelSpots.SIM_HEADHUNTER = "Testeight"
 DuelSpots.SIM_DUELS = 12
-DuelSpots.SIM_OFFSET = 0.05
+DuelSpots.SIM_OTHERS = {
+    { step = 1, headhunter = "Testeight", duels = 14 },
+    { step = 2, headhunter = "Testnine", duels = 11 },
+}
 
 -- A made-up name as this client writes names: "Testsix Sim" on WoW Forever (given and
 -- family name), "Testsix-<our realm>" on Classic Era
@@ -514,21 +517,21 @@ local function SimName(given)
     return given .. "-" .. tostring(ns.Utils.PlayerRealm())
 end
 
-local function SimDuels(now)
+local function SimDuels(now, count)
     local P, list, names = ns.Protocol, {}, DuelSpots.SIM_DUELISTS
-    for i = 1, DuelSpots.SIM_DUELS do
+    for i = 1, count or DuelSpots.SIM_DUELS do
         list[i] = { a = P.NameHash(SimName(names[(i - 1) % #names + 1])), b = P.NameHash(SimName(names[i % #names + 1])),
             t = now - (i - 1) * 45 }
     end
     return list
 end
 
--- Two test spots in our zone, only on our screen: one on our layer, one on the next
--- layer with a made-up HeadHunter to ask for an invite (the click only prints the
--- whisper). Returns the zone, the other layer and the made-up HeadHunter; or nil and
--- "zone" when the zone or our position cannot be read, "layer" when our layer is not
--- known yet (a spot on "Layer unknown" would not show what players see). Test spots from
--- an earlier run are removed first, so only the newest set shows.
+-- Test spots where we stand, only on our screen: one on our layer, and one on each of
+-- the next SIM_OTHERS layers with a made-up HeadHunter to ask for an invite (the click
+-- only prints the whisper). Returns the zone and the other layers; or nil and "zone"
+-- when the zone or our position cannot be read, "layer" when our layer is not known yet
+-- (a spot on "Layer unknown" would not show what players see). Test spots from an
+-- earlier run are removed first, so only the newest set shows.
 function DuelSpots:Simulate()
     local U = ns.Utils
     local mapID = U.PlayerMapID()
@@ -538,15 +541,18 @@ function DuelSpots:Simulate()
     local layer = ns.Layer:Current()
     if not layer then return nil, "layer" end
     self:ClearSim()
-    local otherLayer = layer + 1
-    local headhunter = SimName(self.SIM_HEADHUNTER)
     local here = self:Add(zone, layer, "sim:here", now, x, y, SimDuels(now), nil, true)
     if here then self:Evaluate(zone, LayerKey(layer), true) end
-    local otherX = x + self.SIM_OFFSET > 1 and x - self.SIM_OFFSET or x + self.SIM_OFFSET
-    self:Add(zone, otherLayer, U.CompactName(headhunter), now, otherX, y, SimDuels(now), headhunter, true)
-    announced[SpotId(zone, otherLayer)] = nil
-    self:Evaluate(zone, otherLayer, true)
-    return zone, otherLayer, headhunter
+    local others = {}
+    for _, other in ipairs(self.SIM_OTHERS) do
+        local otherLayer = layer + other.step
+        local headhunter = SimName(other.headhunter)
+        self:Add(zone, otherLayer, U.CompactName(headhunter), now, x, y, SimDuels(now, other.duels), headhunter, true)
+        announced[SpotId(zone, otherLayer)] = nil
+        self:Evaluate(zone, otherLayer, true)
+        others[#others + 1] = otherLayer
+    end
+    return zone, others
 end
 
 -- Removes every test duel and test HeadHunter; returns how many test duels went

@@ -246,21 +246,19 @@ function Simulator:Event(kind)
 end
 
 -- /hh sim duels [clear] (HH-134): test duel spots in our zone, to see the map mark, the
--- chat line and the invite click before a release. Only on our screen: never sent, and
--- the made-up HeadHunter gets no whisper (Alerts/DuelSpots.lua).
+-- chat line and the invite clicks before a release. Only on our screen: never sent, and
+-- the made-up HeadHunters get no whisper (Alerts/DuelSpots.lua).
 function Simulator:Duels(kind)
     if kind == "clear" then
         ns:Print(string.format(L.SIM_DUELS_CLEARED, ns.DuelSpots:ClearSim()))
         return
     end
-    local zone, otherLayer, headhunter = ns.DuelSpots:Simulate()
+    local zone, others = ns.DuelSpots:Simulate()
     if not zone then
-        ns:Print(otherLayer == "layer" and L.SIM_DUELS_NO_LAYER or L.SIM_DUELS_NO_ZONE)
+        ns:Print(others == "layer" and L.SIM_DUELS_NO_LAYER or L.SIM_DUELS_NO_ZONE)
         return
     end
-    local U = ns.Utils
-    ns:Print(string.format(L.SIM_DUELS, U.MapName(zone) or L.UNKNOWN_ZONE, otherLayer,
-        U.DisplayName(U.PlayerKey(headhunter)) or headhunter))
+    ns:Print(string.format(L.SIM_DUELS, ns.Utils.MapName(zone) or L.UNKNOWN_ZONE, others[1], others[2]))
 end
 
 ns.SlashCommands:Register("sim", function(args)
