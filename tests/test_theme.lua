@@ -45,24 +45,29 @@ return function(T, H)
         T.noErrors()
     end)
 
-    T.case("Window size: 100% by default, 90 to 130 in steps of 10, windows follow at once", function()
+    T.case("window size: set with the corner grip, 70 to 150%, no option, windows follow at once", function()
         local ns = H.Boot({ client = "era" })
-        T.eq(ns.Theme.Scale(), 1, "default")
+        local Theme = ns.Theme
+        T.eq(Theme.Scale(), 1, "default")
+        T.eq(ns.SettingsPanel.Option("scale"), nil, "no Window size option any more")
         H.Slash("")
         local window = _G.HeadHunterMainFrame
         T.eq(window:GetScale(), 1, "window at 100%")
+        T.ok(window.resizeGrip ~= nil, "a grip in the corner")
 
-        local S = ns.SettingsPanel
-        local option = S.Option("scale")
-        S.Set(option, 120)
-        T.eq(ns.db.settings.uiScale, 120, "saved")
-        T.eq(window:GetScale(), 1.2, "the open window follows")
-        S.Set(option, 500)
-        T.eq(ns.db.settings.uiScale, 130, "not above 130%")
-        S.Set(option, 10)
-        T.eq(ns.db.settings.uiScale, 90, "not below 90%")
+        T.eq(Theme.DragScale(1, 800, 200), 1.25, "800 px wide, dragged 200 px right: 125%")
+        T.eq(Theme.DragScale(1, 800, -200), 0.75, "dragged left: smaller")
+        T.eq(Theme.DragScale(1, 800, 2000), 1.5, "not above 150%")
+        T.eq(Theme.DragScale(1, 800, -2000), 0.7, "not below 70%")
+
+        T.eq(Theme.SaveScale(124.6), 125, "saved in whole %")
+        T.eq(ns.db.settings.uiScale, 125, "saved")
+        T.eq(window:GetScale(), 1.25, "the open window follows")
+        T.eq(Theme.SaveScale(500), 150, "not above 150%")
+        window.resizeGrip.scripts.OnMouseUp(window.resizeGrip, "RightButton")
+        T.eq(ns.db.settings.uiScale, 100, "right click: back to 100%")
         ns.db.settings.uiScale = nil
-        T.eq(ns.Theme.Scale(), 1, "an old save without the setting: 100%")
+        T.eq(Theme.Scale(), 1, "an old save without the setting: 100%")
         T.noErrors()
     end)
 

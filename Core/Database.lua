@@ -67,7 +67,7 @@ local DEFAULTS = {
         wantedMarks = true, -- the HeadHunter crosshair above WANTED players (UI/Nameplates.lua)
         shameMarks = true, -- the white feather above Hall of Shame players
         minimap = { angle = 200, hidden = false }, -- HH-060 minimap button
-        uiScale = 100, -- HH-125: Window size, 90..130 %
+        uiScale = 100, -- HH-125: window size, 70..150 %, set with the corner grip of the main window
         screenshots = true, -- HH-132: pictures of our PvP deaths and catches, for the admins (needs HeadHunter Sync)
     },
     zones = {}, -- zone mapID -> { name, continent, locale }: names for the website (Alerts/Zones.lua)

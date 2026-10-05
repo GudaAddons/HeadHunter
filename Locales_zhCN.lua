@@ -659,7 +659,7 @@ local CN = {
     POSTER_DEAD_OR_ALIVE = "生死不论",
     POSTER_REWARD = "赏金",
     SET_SCALE = "窗口大小",
-    SET_SCALE_TIP = "放大或缩小 HeadHunter 的窗口及其文字。",
+    RESIZE_TIP = "拖动可放大或缩小 HeadHunter 的窗口及其文字。右键点击：恢复到 100%。",
     SET_PERCENT = "%d%%",
     -- Duels search
     SEARCH_PLAYER = "查找玩家",

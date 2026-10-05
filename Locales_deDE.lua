@@ -663,7 +663,7 @@ local DE = {
     POSTER_DEAD_OR_ALIVE = "Tot oder lebendig",
     POSTER_REWARD = "Belohnung",
     SET_SCALE = "Fenstergröße",
-    SET_SCALE_TIP = "Macht die HeadHunter-Fenster und ihren Text größer oder kleiner.",
+    RESIZE_TIP = "Ziehen, um die HeadHunter-Fenster und ihren Text größer oder kleiner zu machen. Rechtsklick: zurück auf 100%.",
     SET_PERCENT = "%d %%",
     -- Duels search
     SEARCH_PLAYER = "Spieler suchen",

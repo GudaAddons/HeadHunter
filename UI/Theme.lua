@@ -9,7 +9,8 @@
 --   Theme.Font(fontString, role, size)      role: heading, text, bold, name or western
 --   Theme.Button(parent, text, variant)     variant: "gold" or "outline"
 --   Theme.Card(parent), Theme.Divider(parent), Theme.Border(frame)
---   Theme.ApplyScale(frame)                 follows the Window size option (uiScale)
+--   Theme.ApplyScale(frame)                 follows the window size (uiScale)
+--   Theme.ResizeGrip(frame)                 the corner grip that sets the window size
 --
 -- Theme.FontFile(role, locale, alphabet) is the pure part (tested offline).
 
@@ -44,7 +45,7 @@ Theme.COLORS = {
 }
 
 Theme.HEADER_HEIGHT = 44
-Theme.SCALE = { default = 100, min = 90, max = 130, step = 10 } -- the uiScale setting, in %
+Theme.SCALE = { default = 100, min = 70, max = 150 } -- the uiScale setting, in % (the corner grip)
 
 -------------------------------------------------
 -- Fonts (pure part: which file for which text)
@@ -600,12 +601,12 @@ function Theme.CreateTopTabs(f, tabs, onSelect)
 end
 
 -------------------------------------------------
--- Window size (the uiScale option)
+-- Window size (uiScale, set with the corner grip)
 -------------------------------------------------
 
 local scaled = {}
 
--- The Window size option as a scale, kept inside its limits
+-- The window size as a scale, kept inside its limits
 function Theme.Scale()
     local value = tonumber(ns.Database and ns.Database:GetSetting("uiScale")) or Theme.SCALE.default
     value = math.max(Theme.SCALE.min, math.min(Theme.SCALE.max, value))
@@ -621,3 +622,85 @@ ns.Events:Register("HH_SETTING_CHANGED", function(_, path)
     if path ~= "uiScale" then return end
     for f in pairs(scaled) do f:SetScale(Theme.Scale()) end
 end, OWNER)
+
+-- Saves a window size in %, kept inside the limits; every themed window follows it
+function Theme.SaveScale(percent)
+    percent = math.floor((tonumber(percent) or Theme.SCALE.default) + 0.5)
+    percent = math.max(Theme.SCALE.min, math.min(Theme.SCALE.max, percent))
+    ns.Database:SetSetting("uiScale", percent)
+    return percent
+end
+
+-- The scale for a drag of the corner: the window's width on screen at the start, plus
+-- how far the cursor moved right, as a share of that width (pure, tested offline)
+function Theme.DragScale(startScale, startWidth, moved)
+    if not startWidth or startWidth <= 0 then return startScale end
+    local scale = startScale * (startWidth + moved) / startWidth
+    return math.max(Theme.SCALE.min / 100, math.min(Theme.SCALE.max / 100, scale))
+end
+
+-- Keeps the window's top left corner where it is on screen while its scale changes,
+-- so the bottom right corner follows the cursor
+local function KeepTopLeft(f, left, top)
+    local scale = f:GetEffectiveScale()
+    f:ClearAllPoints()
+    f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left / scale, top / scale)
+end
+
+local function ShowGripTip(grip)
+    if not GameTooltip then return end
+    GameTooltip:SetOwner(grip, "ANCHOR_TOPLEFT")
+    GameTooltip:SetText(ns.L.SET_SCALE .. ": " .. string.format(ns.L.SET_PERCENT, math.floor(Theme.Scale() * 100 + 0.5)))
+    GameTooltip:AddLine(ns.L.RESIZE_TIP, 1, 1, 1, true)
+    GameTooltip:Show()
+end
+
+local function EndDrag(grip, f)
+    grip.dragging = false
+    Theme.SaveScale(f:GetScale() * 100)
+    if GameTooltip and GameTooltip:IsOwned(grip) then ShowGripTip(grip) end
+end
+
+-- The grip in the bottom right corner of a window (author, 2026-10-05; it replaces the
+-- Window size option): drag to make the window and its text bigger or smaller, right
+-- click for 100%. It sets the same uiScale, so every themed window follows.
+function Theme.ResizeGrip(f)
+    local grip = CreateFrame("Button", nil, f)
+    grip:SetSize(16, 16)
+    grip:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
+    grip:SetFrameLevel((f:GetFrameLevel() or 1) + 20)
+    grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    grip:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    grip:SetScript("OnMouseDown", function(self, button)
+        if button ~= "LeftButton" then return end
+        local scale = f:GetEffectiveScale()
+        self.startX = GetCursorPosition()
+        self.startScale = f:GetScale()
+        self.startWidth = f:GetWidth() * scale
+        self.left, self.top = f:GetLeft() * scale, f:GetTop() * scale
+        self.dragging = true
+    end)
+    grip:SetScript("OnMouseUp", function(self, button)
+        if button == "RightButton" then
+            Theme.SaveScale(Theme.SCALE.default)
+            if GameTooltip and GameTooltip:IsOwned(self) then ShowGripTip(self) end
+        elseif self.dragging then
+            EndDrag(self, f)
+        end
+    end)
+    grip:SetScript("OnUpdate", function(self)
+        if not self.dragging then return end
+        if IsMouseButtonDown and not IsMouseButtonDown("LeftButton") then
+            EndDrag(self, f)
+            return
+        end
+        f:SetScale(Theme.DragScale(self.startScale, self.startWidth, GetCursorPosition() - self.startX))
+        KeepTopLeft(f, self.left, self.top)
+    end)
+    grip:SetScript("OnEnter", ShowGripTip)
+    grip:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    f.resizeGrip = grip
+    return grip
+end

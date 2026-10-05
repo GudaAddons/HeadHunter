@@ -663,7 +663,7 @@ local KR = {
     POSTER_DEAD_OR_ALIVE = "생사불문",
     POSTER_REWARD = "현상금",
     SET_SCALE = "창 크기",
-    SET_SCALE_TIP = "HeadHunter 창과 글자를 크게 또는 작게 만듭니다.",
+    RESIZE_TIP = "드래그하여 HeadHunter 창과 글자를 크게 또는 작게 만듭니다. 우클릭: 100%로 되돌리기.",
     SET_PERCENT = "%d%%",
     -- Duels search
     SEARCH_PLAYER = "플레이어 찾기",

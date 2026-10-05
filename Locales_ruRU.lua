@@ -663,7 +663,7 @@ local RU = {
     POSTER_DEAD_OR_ALIVE = "Живым или мёртвым",
     POSTER_REWARD = "Награда",
     SET_SCALE = "Размер окна",
-    SET_SCALE_TIP = "Увеличивает или уменьшает окна HeadHunter и их текст.",
+    RESIZE_TIP = "Перетащите, чтобы сделать окна HeadHunter и их текст больше или меньше. Правый клик: вернуть 100%.",
     SET_PERCENT = "%d%%",
     -- Duels search
     SEARCH_PLAYER = "Найти игрока",

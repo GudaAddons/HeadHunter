@@ -794,6 +794,7 @@ local function CreateMainFrame()
     -- The website's look (UI/Theme.lua): leather, gold frame, tabs in the wood header
     local Theme = ns.Theme
     Theme.StyleFrame(f, L.WINDOW_TITLE)
+    Theme.ResizeGrip(f)
     local tabs = {}
     for i, section in ipairs(MainWindow.SECTIONS) do
         tabs[i] = { id = section.id, label = L["SECTION_" .. section.id:upper()] }
@@ -929,7 +930,7 @@ local function CreateMainFrame()
     f.search = search
 
     f.count = Theme.Text(f, "text", 13, "muted")
-    f.count:SetPoint("BOTTOMRIGHT", -18, 11)
+    f.count:SetPoint("BOTTOMRIGHT", -26, 11)
 
     -- Forever: saved data resets on reload (known client issue), on every tab; hover for more
     f.forever = CreateFrame("Frame", nil, f)

@@ -54,11 +54,7 @@ SettingsPanel.OPTIONS = {
     { key = "wantedMarks", kind = "toggle", path = "wantedMarks", label = "SET_WANTED_MARKS", tip = "SET_WANTED_MARKS_TIP" },
     { key = "shameMarks", kind = "toggle", path = "shameMarks", label = "SET_SHAME_MARKS", tip = "SET_SHAME_MARKS_TIP" },
     { key = "minimap", kind = "toggle", path = "minimap.hidden", invert = true, label = "SET_MINIMAP",
-        tip = "SET_MINIMAP_TIP" },
-    -- HH-125: the HeadHunter windows (UI/Theme.lua), in %
-    { key = "scale", kind = "number", path = "uiScale", min = 90, max = 130, step = 10, format = "SET_PERCENT",
-        label = "SET_SCALE", tip = "SET_SCALE_TIP" },
-}
+        tip = "SET_MINIMAP_TIP" },}
 
 -- The page an option or section is on: its section's page
 function SettingsPanel.PageOf(key)
