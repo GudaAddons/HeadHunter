@@ -55,10 +55,12 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 - **Bullies and Deadbeats**: "BULLY: X is here!" or "DEADBEAT: X is here!", at most once every 10 minutes per player.
 - **You are WANTED**: with the HeadHunter Sync app, HeadHunter tells you at login when the other faction has you on its WANTED list.
 - **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight and the HeadHunters of your side fighting there. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
+- **Duel spots**: "Duels in Orgrimmar (Layer 3): 12 duels, 6 players in 10 min. Ask for an invite: [name]" when many players duel near you. Click a name to whisper them. Turn it off in the options: **Duel spot alerts**.
 
 ### World map
 - A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 20 minutes after the last fight.
-- A **skull** shows where a WANTED outlaw made their last kill (for 10 minutes). The map shows the 10 biggest fights and the 10 highest ranked outlaws.
+- A blue **DUELS** area shows where players duel now, with the layer. Click it to ask a HeadHunter on that layer for a group invite, so you can join them.
+- A **skull** shows where a WANTED outlaw made their last kill (for 10 minutes). The map shows the 10 biggest fights, the 10 busiest duel spots and the 10 highest ranked outlaws.
 
 ![A PvP area on the world map](https://headhunterwow.com/images/screenshots/map.webp)
 
@@ -75,7 +77,7 @@ Type `/hh` or click the minimap button:
 
 On **WANTED**, **Bullies**, **Deadbeats**, **Busted**, **Barflies**, **Duels** and **My deaths**, a search box finds a player by name. Each tab keeps its own search.
 
-The window has the same look as the website. Too big or too small for your screen? Change **Window size** in the options (90% to 130%).
+The window has the same look as the website. Too big or too small for your screen? Drag the bottom right corner of the window (70% to 150%). Right-click the corner to go back to 100%.
 
 Hover a name for details, or click it to open their **WANTED poster** in the middle of the window: an old paper poster with a black and white picture of their race, their name, rank, kills, badges and the gold on their head. Next to it: their history, recent kills, the posse, gold bounties and the **Join the posse** and **Post a bounty** buttons.
 
@@ -131,6 +133,7 @@ Type `/hh online` to see how many HeadHunters are online right now, how many are
 - Ranked by record: wins minus losses first, then fewer losses. 6-1 is ahead of 8-3. With the same record, whoever got there first is ahead. You are listed from your first duel.
 - Ranks by net wins: **Quickdraw**, **Sharpshooter** (+5), **Deadeye** (+15) and **Legend** (+30). Under 5 duels you are a **Greenhorn**, listed after everyone with 5 or more.
 - The #1 of each faction is the **Top Gun**, once they are 5 or more wins ahead (Sharpshooter) and nobody else at the top has the same record. A Greenhorn cannot be Top Gun.
+- **Duel spots**: when HeadHunters see 10 duels between 4 or more players in 10 minutes, all level 19 or higher, that zone and layer is a duel spot. Every layer counts on its own. You see it on the map and in chat, with the HeadHunters there you can ask for a group invite. Type `/hh duelspots` to list them all. Only HeadHunters with this version share duel spots.
 
 ![Duels: every duelist with their rank and record](https://headhunterwow.com/images/screenshots/duels.webp)
 
@@ -168,7 +171,9 @@ Good to know about the app:
 | `/hh bounty` | Your hunter rank and the bounty you collected |
 | `/hh hotspots` | PvP activity per zone |
 | `/hh duels` | Duels: the best duelists and your rank |
-| `/hh map on/off` | PvP areas and skulls on the world map |
+| `/hh duelspots` | Places where players duel now, their layer and who to ask for an invite |
+| `/hh sim duels` | Test duel spots in your zone, only on your screen (`/hh sim duels clear` removes them) |
+| `/hh map on/off` | PvP areas, duel spots and skulls on the world map |
 | `/hh tooltip on/off` | WANTED line on enemy tooltips |
 | `/hh minimap` | Show or hide the minimap button |
 | `/hh claim` | Announce your gold bounty claim to all HeadHunters (Classic Era) |
