@@ -1,6 +1,19 @@
 -- HH-125: the website's look (UI/Theme.lua): fonts per client language, Window size.
 
 return function(T, H)
+    T.case("game file paths keep their folders (a single backslash would drop them)", function()
+        local ns = H.Boot({ client = "era" })
+        T.eq(ns.Theme.CIRCLE_MASK, [[Interface\CHARACTERFRAME\TempPortraitAlphaMask]], "the live dot's round mask")
+        local seen = 0
+        for _, path in ipairs({ ns.Theme.CIRCLE_MASK, ns.Hotspots.FIRE_ICON, ns.Screenshots and ns.Screenshots.FILE_PREFIX }) do
+            if type(path) == "string" and path:find("^Interface") then
+                T.ok(path:find("\\", 1, true) ~= nil, "folders kept: " .. path)
+                seen = seen + 1
+            end
+        end
+        T.eq(seen, 2, "both paths checked")
+    end)
+
     T.case("fonts: ours on Latin clients, the game's on Chinese and Korean ones", function()
         local ns = H.Boot({ client = "era" })
         local F = ns.Theme.FontFile

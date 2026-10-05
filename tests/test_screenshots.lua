@@ -21,9 +21,10 @@ return function(T, H)
             killer = { key = killer or "Grim Reaper" }, confidence = "exact" }
     end
 
-    T.case("off by default, and greyed out without HeadHunter Sync", function()
+    T.case("on by default, can be turned off, and greyed out without HeadHunter Sync", function()
         local ns, shots = Boot({ on = false })
-        T.eq(ns.Database:GetSetting("screenshots"), false, "off by default")
+        T.eq(ns.Database:GetSetting("screenshots"), true, "on by default")
+        ns.Database:SetSetting("screenshots", false)
         ns.Screenshots:OnDeathRecorded(Death())
         T.eq(#shots, 0, "no picture while off")
         local option = ns.SettingsPanel.Option("screenshots")
@@ -51,16 +52,12 @@ return function(T, H)
         T.noErrors()
     end)
 
-    T.case("a fair death gets no picture; one by a WANTED player does", function()
+    T.case("every death by an enemy player gets a picture, fair or not; never a simulation", function()
         local ns, shots = Boot()
         ns.Screenshots:OnDeathRecorded(Death("Fair Fighter", "fair"))
-        T.eq(#shots, 0, "fair death")
-        local Wanted = ns.Wanted
-        local byKey = Wanted.ByKey
-        Wanted.ByKey = function(_, key) return key == "Grim Reaper" and { id = key, wanted = true } or nil end
-        ns.Screenshots:OnDeathRecorded(Death("Grim Reaper", "fair"))
-        Wanted.ByKey = byKey
-        T.eq(#shots, 1, "killed by a WANTED player")
+        T.eq(#shots, 1, "a fair death counts toward WANTED, so it gets one")
+        ns.Screenshots:OnDeathRecorded({ id = "y", t = H.serverTime, classification = "unknown", killer = { name = "?" } })
+        T.eq(#shots, 1, "no picture without a known killer")
         ns.Screenshots:OnDeathRecorded({ id = "x", t = 1, classification = "coward", killer = { key = "Sim" }, confidence = "sim" })
         T.eq(#shots, 1, "never for a simulation")
     end)

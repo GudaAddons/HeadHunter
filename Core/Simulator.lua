@@ -203,6 +203,47 @@ function Simulator:Clear()
     return removed
 end
 
+-- /hh sim event ongoing|upcoming|clear (HeadHunter_Dev only): a made-up event of our
+-- faction and level on the Events tab, being played now or starting later. Kept in
+-- memory only; a /reload or clear takes it away.
+Simulator.EVENT_PLAYERS = { "Testone", "Testtwo", "Testthree", "Testfour" }
+Simulator.EVENT_LATER = 2 * 3600   -- an upcoming one starts this many seconds from now
+Simulator.EVENT_STARTED = 600      -- an ongoing one started this many seconds ago
+Simulator.EVENT_LOCK = 3600        -- locked this long before the start, as on the website
+local testEvents = 0
+
+function Simulator:Event(kind)
+    if not ns.Dev.Present() then
+        ns:Print(L.SIM_EVENT_NEEDS_DEV)
+        return
+    end
+    if kind == "clear" then
+        ns:Print(string.format(L.SIM_EVENT_CLEARED, ns.SiteData:ClearTestTournaments()))
+    elseif kind == "ongoing" or kind == "upcoming" then
+        local U = ns.Utils
+        local now = U.ServerTime()
+        local startsAt = kind == "ongoing" and now - self.EVENT_STARTED or now + self.EVENT_LATER
+        local level = U.UnitLevel("player") or 1
+        local realm = U.PlayerRealm()
+        local players = {}
+        for i, name in ipairs(self.EVENT_PLAYERS) do
+            players[i] = { entrant = "p" .. i, name = name, realm = realm }
+        end
+        testEvents = testEvents + 1
+        local t = ns.SiteData:AddTestTournament({
+            id = "test-" .. testEvents, name = string.format(L.SIM_EVENT_NAME, testEvents), venue = "gurubashi",
+            format = "1v1", best_of = 1, faction = false, min_level = level, max_level = level, places = 8,
+            starts_at = startsAt, locks_at = startsAt - self.EVENT_LOCK, signups_closed = false,
+            host = { name = U.UnitName("player"), realm = realm }, organizers = {}, players = players, teams = {},
+        })
+        if t then ns:Print(string.format(L.SIM_EVENT_ADDED, t.name, kind == "ongoing" and L.TAB_ONGOING or L.TAB_UPCOMING)) end
+    else
+        ns:Print(L.SIM_USAGE_EVENT)
+        return
+    end
+    if ns.MainWindow and ns.MainWindow.Refresh then ns.MainWindow:Refresh() end
+end
+
 ns.SlashCommands:Register("sim", function(args)
     local kind = table.remove(args, 1)
     kind = kind and kind:lower()
@@ -221,11 +262,16 @@ ns.SlashCommands:Register("sim", function(args)
         if args[1] and args[1]:lower() == "clear" then ns.Demo:Clear() else ns.Demo:Run() end
         return
     end
+    if kind == "event" then
+        Simulator:Event(args[1] and args[1]:lower())
+        return
+    end
     if kind ~= "death" and kind ~= "sighting" then
         print(L.SIM_USAGE_DEATH)
         print(L.SIM_USAGE_SIGHTING)
         print(L.SIM_USAGE_DEMO)
         print(L.SIM_USAGE_CLEAR)
+        if ns.Dev.Present() then print(L.SIM_USAGE_EVENT) end
         return
     end
     local enemy, err = Simulator:ParseEnemy(args)

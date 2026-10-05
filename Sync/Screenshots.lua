@@ -1,13 +1,14 @@
 -- HH-132: a screenshot of our PvP deaths and catches, for the HeadHunter admins.
 --
--- Off by default, and only with HeadHunter Sync (its HeadHunter_Data addon is
+-- On by default (author, 2026-10-05), and only with HeadHunter Sync (its HeadHunter_Data addon is
 -- installed): the app finds each picture in the game's Screenshots folder by the time
--- in its name, turns it into a small webp, uploads it and deletes the original. The
--- pictures are seen only in the website's admin panel.
+-- in its name, cuts out the middle of the screen (no chat), turns it into a small webp,
+-- uploads it and deletes the original. The pictures are seen only in the website's
+-- admin panel.
 --
 -- A picture is taken right after:
---   - our PvP death, when the killer is WANTED, a bully or a Deadbeat, or the kill was
---     a coward's (no picture of a fair death)
+--   - our PvP death by an enemy player, fair or not: these are the kills that make a
+--     player WANTED, the ones worth proving (author, 2026-10-05)
 --   - our catch of a WANTED player (HH_JUSTICE_ADDED, origin "local")
 --   - our kill of a bully or a Deadbeat (HH_SHAME_KILLED)
 -- One per killer or outlaw for WINDOW (a camp or a long fight gives one), at most
@@ -144,14 +145,10 @@ function Screenshots:Take(kind, group, target, ref)
     return shot
 end
 
--- Our death is worth a picture when the killer is hunted or listed, or it was a coward's
+-- Every death by a known enemy player counts toward WANTED (Rules/Engine.lua), so every
+-- one is worth a picture; WINDOW keeps it to one per killer an hour
 function Screenshots.DeathMatters(report)
-    if report.classification == "coward" then return true end
-    local key = report.killer and report.killer.key
-    if not key then return false end
-    local entry = ns.Wanted:ByKey(key)
-    if ns.Wanted.Hunted(entry) or (entry and entry.badges and entry.badges.coward) then return true end
-    return ns.Bounties:IsBlocked(key) and true or false
+    return type(report.killer) == "table" and report.killer.key ~= nil
 end
 
 function Screenshots:OnDeathRecorded(report)

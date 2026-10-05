@@ -15,7 +15,7 @@ local addonName, ns = ...
 
 local DB = ns:RegisterModule("Database", {})
 
-DB.SCHEMA_VERSION = 3
+DB.SCHEMA_VERSION = 4
 
 -- Old saved data mixed every realm. On WoW Forever it goes to the PvP realm, where the
 -- author played most (author, 2026-09-29); Era takes the realm of the last character.
@@ -67,7 +67,7 @@ local DEFAULTS = {
         shameMarks = true, -- the white feather above Hall of Shame players
         minimap = { angle = 200, hidden = false }, -- HH-060 minimap button
         uiScale = 100, -- HH-125: Window size, 90..130 %
-        screenshots = false, -- HH-132: pictures of our PvP deaths and catches, for the admins (needs HeadHunter Sync)
+        screenshots = true, -- HH-132: pictures of our PvP deaths and catches, for the admins (needs HeadHunter Sync)
     },
     zones = {}, -- zone mapID -> { name, continent, locale }: names for the website (Alerts/Zones.lua)
     homes = {}, -- home key -> HOME_DEFAULTS
@@ -148,6 +148,12 @@ MIGRATIONS[3] = function(db)
     for _, home in pairs(db.homes) do
         if type(home) == "table" then home.tournaments = nil end
     end
+end
+
+-- Screenshots are on by default (author, 2026-10-05). 0.4.3 and 0.4.4 saved the old
+-- default (off) into every player's settings the same day, so it is turned on once
+MIGRATIONS[4] = function(db)
+    if type(db.settings) == "table" then db.settings.screenshots = true end
 end
 
 -- Use this home's data. Returns true when the home changed.
