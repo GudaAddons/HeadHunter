@@ -458,31 +458,60 @@ end
 -- Our own fight
 -------------------------------------------------
 
--- The units we can look at: what we target, focus and point at, our group, and every
--- nameplate (friendly nameplates only when the player shows them)
-local SCAN_UNITS = { "target", "focus", "mouseover" }
+-- The units we can look at: what we target, focus and point at, our group and what
+-- they target, and every nameplate (friendly nameplates only when the player shows them)
+local SCAN_UNITS = { "target", "focus", "mouseover", "targettarget", "focustarget" }
 for i = 1, 4 do SCAN_UNITS[#SCAN_UNITS + 1] = "party" .. i end
+for i = 1, 4 do SCAN_UNITS[#SCAN_UNITS + 1] = "party" .. i .. "target" end
 for i = 1, 40 do SCAN_UNITS[#SCAN_UNITS + 1] = "raid" .. i end
+for i = 1, 40 do SCAN_UNITS[#SCAN_UNITS + 1] = "raid" .. i .. "target" end
 for i = 1, 40 do SCAN_UNITS[#SCAN_UNITS + 1] = "nameplate" .. i end
 
 local fightingEnemies, fightingAllies = {}, {} -- guid -> Now() last seen in combat
 
--- Players in combat around us now: enemies, and players of our faction (not us)
+-- In combat: true, false, or nil when the client hides it (WoW Forever may for enemies)
+local function InCombat(unit)
+    local U = ns.Utils
+    local value = U.SafeCall(UnitAffectingCombat, unit)
+    if value == nil or U.Accessible(value) == nil then return nil end
+    return value and true or false
+end
+
+-- An enemy whose target is one of us is in the fight, whatever the combat flag says
+local function TargetsOurSide(unit, mine)
+    local U = ns.Utils
+    local target = unit .. "target"
+    return mine ~= nil and U.UnitIsPlayer(target) and U.UnitFaction(target) == mine
+end
+
+-- Players in the fight around us now: enemies, and players of our faction (not us).
+-- Returns what it saw, for the debug log: enemies fighting, enemies not, combat unknown
 function Hotspots.ScanFighters()
     local U = ns.Utils
     local now = U.Now()
     local me, mine = U.UnitGUID("player"), U.UnitFaction("player")
+    local seen = {}
+    local fighting, idle, unknown = 0, 0, 0
     for _, unit in ipairs(SCAN_UNITS) do
         local guid = U.UnitGUID(unit)
-        if guid and guid ~= me and U.UnitIsPlayer(unit) and U.SafeCall(UnitAffectingCombat, unit) then
+        if guid and guid ~= me and not seen[guid] and U.UnitIsPlayer(unit) then
+            seen[guid] = true
+            local combat = InCombat(unit)
             if U.UnitIsEnemyPlayer(unit) then
-                ns.EnemyCache:ObserveUnit(unit, "nameplate")
-                fightingEnemies[guid] = now
-            elseif mine and U.UnitFaction(unit) == mine then
+                if combat == nil then unknown = unknown + 1 end
+                if combat or TargetsOurSide(unit, mine) then
+                    ns.EnemyCache:ObserveUnit(unit, "nameplate")
+                    fightingEnemies[guid] = now
+                    fighting = fighting + 1
+                else
+                    idle = idle + 1
+                end
+            elseif combat and mine and U.UnitFaction(unit) == mine then
                 fightingAllies[guid] = now
             end
         end
     end
+    return fighting, idle, unknown
 end
 
 -- GUIDs seen in combat within `seconds` (older ones are forgotten)
@@ -499,7 +528,8 @@ function Hotspots:Tick()
     if not ns.Guards:IsActive() then return end
     local U = ns.Utils
     if not U.SafeCall(UnitAffectingCombat, "player") then return end
-    Hotspots.ScanFighters()
+    local fighting, idle, unknown = Hotspots.ScanFighters()
+    ns:Debug("PvP scan: enemies fighting", fighting, "not fighting", idle, "combat unknown", unknown)
     local guids = Recent(fightingEnemies, self.FIGHT_RECENT)
     if #guids == 0 then return end
     -- Our side: us first, then the players of our faction fighting around us

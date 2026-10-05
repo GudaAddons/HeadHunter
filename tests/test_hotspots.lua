@@ -272,4 +272,30 @@ return function(T, H)
         T.eq(nowE, 2, "now: 2 of them")
         T.noErrors()
     end)
+
+    T.case("enemies attacking us count when the combat flag is hidden, and our group's targets are seen", function()
+        local ns = H.Boot({ client = "forever" })
+        H.inCombat = true
+        local SECRET = {}
+        _G.issecretvalue = function(value) return value == SECRET end
+        local function Player(unit, i, faction, inCombat)
+            H.units[unit] = { name = "Unit" .. i, realm = "Reaper", level = 30, class = "WARRIOR",
+                race = faction == "Horde" and "Orc" or "Human", faction = faction, isPlayer = true,
+                guid = string.format("Player-4613-0000000%d", i), inCombat = inCombat }
+        end
+        Player("nameplate1", 1, "Horde", SECRET)   -- combat flag hidden, hitting one of us
+        Player("nameplate1target", 4, "Alliance", true)
+        Player("nameplate2", 2, "Horde", SECRET)   -- combat flag hidden, targeting nobody of ours
+        Player("party1", 5, "Alliance", true)      -- a group member far away...
+        Player("party1target", 3, "Horde", true)   -- ...fighting an enemy we cannot see
+        local fighting, idle, unknown = ns.Hotspots.ScanFighters()
+        T.eq(fighting, 2, "the attacker and the group member's enemy")
+        T.eq(idle, 1, "the one targeting nobody of ours")
+        T.eq(unknown, 2, "two hidden combat flags")
+        H.Advance(5) -- tick
+        local _, nowE = ns.Hotspots:Now(1429)
+        T.eq(nowE, 2, "the map shows 2 enemies")
+        _G.issecretvalue = nil
+        T.noErrors()
+    end)
 end
