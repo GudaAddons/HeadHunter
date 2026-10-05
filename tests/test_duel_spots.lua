@@ -34,6 +34,13 @@ return function(T, H)
         Ping(ns, mapID, "Wren-Firemaw", { list[1] }, layer)
     end
 
+    -- Tooltip lines as text; a two-column row is "left | right"
+    local function Flat(lines)
+        local parts = {}
+        for i, line in ipairs(lines) do parts[i] = type(line) == "table" and (line[1] .. " | " .. line[2]) or line end
+        return table.concat(parts, "\n")
+    end
+
     local function Seen(ns, winner, loser, winnerLevel, loserLevel)
         ns.Events:Fire("HH_DUEL_SEEN", { winner = winner, loser = loser, t = H.serverTime,
             winnerLevel = winnerLevel or 30, loserLevel = loserLevel or 30 })
@@ -135,7 +142,7 @@ return function(T, H)
         T.eq(#D:Active(), 1, "layer 8 has 6 duels: not a spot")
         Spot(ns, 1436, nil, 10, 5, 100, "Iron-Firemaw")
         local list = D:Active()
-        T.eq(#list, 2, "other duels without a layer are their own spot")
+        T.eq(#list, 1, "duels without a layer never show")
         T.noErrors()
     end)
 
@@ -186,14 +193,14 @@ return function(T, H)
         local list = DuelList(ns, 10, 5)
         Ping(ns, 1436, "Brakka-Firemaw", list, nil)
         Ping(ns, 1436, "Wren-Firemaw", { list[1] }, nil)
-        T.eq(#D:Active(), 1, "only heard without a layer: Layer unknown")
+        T.eq(#D:Active(), 0, "only heard without a layer: never shown")
         Ping(ns, 1436, "Zulgar-Firemaw", list, 32)
         Ping(ns, 1436, "Iron-Firemaw", { list[1] }, 32)
         T.eq(D:State(1436, 32), 10, "the duels moved to layer 32")
         T.eq(D:State(1436, D.UNKNOWN_LAYER), 0, "none left without a layer")
         Ping(ns, 1436, "Pell-Firemaw", list, nil)
         T.eq(D:State(1436, D.UNKNOWN_LAYER), 0, "a later copy without a layer is not counted again")
-        T.eq(#D:Active(), 1, "the old Layer unknown mark is gone from the map")
+        T.eq(#D:Active(), 1, "one mark, on layer 32")
         local live = 0
         for _, spot in ipairs(D:Active()) do if not spot.remembered then live = live + 1 end end
         T.eq(live, 1, "one live mark, on layer 32")
@@ -335,12 +342,13 @@ return function(T, H)
         T.ok(pin ~= nil, "duel mark on Westfall")
         T.eq(pin.zone, 1436, "zone")
         T.eq(pin.layerKey, 3, "layer")
-        local text = table.concat(pin.lines, "\n")
+        local text = Flat(pin.lines)
         T.ok(text:find("Westfall", 1, true) ~= nil, "zone name")
-        T.ok(text:find("Layer 3: 10 duels, 5 players", 1, true) ~= nil, "the layer with its duels")
+        T.ok(text:find("Layer 3 | 10 duels, 5 players", 1, true) ~= nil, "a row for the layer with its duels")
         T.eq(pin.id, "duels:1436", "one mark for the zone")
         T.ok(text:find("HeadHunters there:", 1, true) ~= nil and text:find("Brakka", 1, true) ~= nil, "who is there")
-        T.ok(text:find("Click: ask a HeadHunter for a group invite to Layer 3", 1, true) ~= nil, "click hint names the layer")
+        T.ok(text:find("Left-click: ask a HeadHunter for a group invite to Layer 3", 1, true) ~= nil, "left click names the layer")
+        T.ok(text:find("Right-click: choose the layer", 1, true) ~= nil, "right click hint")
         H.mapRects["1436:1415"] = { 0.3, 0.4, 0.6, 0.8 }
         local onContinent = false
         for _, p in ipairs(ns.MapMarkers:PinsFor(1415)) do if p.kind == "duels" then onContinent = true end end
@@ -364,10 +372,17 @@ return function(T, H)
         local pins = {}
         for _, pin in ipairs(ns.MapMarkers:PinsFor(1429)) do if pin.kind == "duels" then pins[#pins + 1] = pin end end
         T.eq(#pins, 1, "one map mark for the zone")
-        local text = table.concat(pins[1].lines, "\n")
-        T.ok(text:find("Layer 5 (your layer): 12 duels", 1, true) ~= nil, "our layer listed")
-        T.ok(text:find("Layer 6: 12 duels", 1, true) ~= nil, "the other layer listed")
-        T.eq(pins[1].layerKey, 6, "a click asks for the other layer")
+        local text = Flat(pins[1].lines)
+        T.ok(text:find("Layer 5 (your layer) | 12 duels", 1, true) ~= nil, "our layer has a row")
+        T.ok(text:find("Layer 6 | 12 duels", 1, true) ~= nil, "the other layer has a row")
+        T.eq(pins[1].layerKey, 6, "a left click asks for the other layer")
+        local menu = ns.MapMarkers.DuelMenu(pins[1])
+        T.eq(#menu, 1, "the right-click menu lists only layers we are not on")
+        T.ok(menu[1].label:find("Layer 6", 1, true) ~= nil, "Layer 6 in the menu")
+        menu[1].func()
+        T.ok(H.Printed("Test: no whisper sent"), "picking it asks for that layer")
+        _G.ToggleDropDownMenu = function() end
+        T.eq(ns.Select.ContextMenu(UIParent, "Title", menu), "classic", "the menu opens on Classic")
         H.chatSent = {}
         T.eq(ns.DuelSpots:AskInvite(1429, 6), "sim", "made-up HeadHunter")
         T.eq(#H.chatSent, 0, "no whisper")

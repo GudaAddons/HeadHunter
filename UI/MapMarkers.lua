@@ -3,9 +3,9 @@
 -- outlaws (Rules/Wanted.lua) on the world map, in the zone, continent and world views.
 -- Hover: details (no click action; author, 2026-09-23).
 -- HH-134: duel spots (Alerts/DuelSpots.lua) are a blue area with "DUELS" in the middle,
--- one per zone; the tooltip lists every layer with duels (author, 2026-10-06).
--- That mark is the one with a click: it asks a HeadHunter on that layer for an invite
--- (author, 2026-10-05).
+-- one per zone; the tooltip has a row per layer with duels (author, 2026-10-06). That
+-- mark is the one with clicks: left asks a HeadHunter on the top duel layer for an
+-- invite, right opens a menu to choose the layer (author, 2026-10-06).
 --
 -- Drawn on our own layer over the map canvas, not through the map's data-provider
 -- system: on the 12.x engine (Forever) reading WorldMapFrame.mapID taints the addon
@@ -107,9 +107,12 @@ local function DuelPin(group, mapID, now)
     local x, y, zoneWidth = MapMarkers.Project(group.zone, group.x, group.y, mapID)
     if not x then return nil end
     local DuelSpots = ns.DuelSpots
-    local lines = { string.format(L.MAP_DUELS_TITLE, ns.Utils.MapName(group.zone) or L.UNKNOWN_ZONE) }
+    local lines = {
+        string.format(L.MAP_DUELS_TITLE, ns.Utils.MapName(group.zone) or L.UNKNOWN_ZONE),
+        string.format(L.DUEL_SPOT_LAST, math.floor(DuelSpots.WINDOW / 60)),
+    }
     for _, spot in ipairs(group.spots) do
-        lines[#lines + 1] = string.format(L.DUEL_SPOT_LAYER_LINE, DuelSpots:LayerText(spot), DuelSpots.Describe(spot))
+        lines[#lines + 1] = { DuelSpots:LayerText(spot), string.format(L.DUEL_SPOT_ROW, spot.duels, spot.players) }
     end
     local target = DuelSpots:InviteSpot(group)
     if target then
@@ -117,6 +120,8 @@ local function DuelPin(group, mapID, now)
     end
     lines[#lines + 1] = ns.Utils.Ago(math.max(0, now - group.t))
     if target then lines[#lines + 1] = string.format(L.DUEL_SPOT_CLICK, DuelSpots:LayerText(target)) end
+    local choices = DuelSpots:MenuSpots(group)
+    if #choices > 0 then lines[#lines + 1] = L.DUEL_SPOT_RIGHT_CLICK end
     return {
         kind = "duels",
         id = "duels:" .. group.zone,
@@ -125,8 +130,21 @@ local function DuelPin(group, mapID, now)
         alpha = MapMarkers.DUEL_ALPHA,
         zone = group.zone,
         layerKey = target and target.layerKey or group.spots[1].layerKey,
+        choices = choices,
         lines = lines,
     }
+end
+
+-- Right-click on a duel mark: the layers to choose from, each asking for an invite there
+function MapMarkers.DuelMenu(data)
+    local entries = {}
+    for _, spot in ipairs(data.choices or {}) do
+        entries[#entries + 1] = {
+            label = string.format(L.DUEL_SPOT_LAYER_LINE, ns.DuelSpots:LayerText(spot), string.format(L.DUEL_SPOT_ROW, spot.duels, spot.players)),
+            func = function() ns.DuelSpots:AskInvite(spot.zone, spot.layerKey) end,
+        }
+    end
+    return entries
 end
 
 local function WantedPin(entry, mapID, now)
@@ -311,7 +329,13 @@ local function ShowTooltip(button)
     if not GameTooltip then return end
     GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
     for i, line in ipairs(button.data.lines) do
-        if i == 1 then GameTooltip:SetText(line) else GameTooltip:AddLine(line, 1, 1, 1, true) end
+        if i == 1 then
+            GameTooltip:SetText(line)
+        elseif type(line) == "table" then
+            GameTooltip:AddDoubleLine(line[1], line[2], 1, 1, 1, 1, 1, 1)
+        else
+            GameTooltip:AddLine(line, 1, 1, 1, true)
+        end
     end
     GameTooltip:Show()
 end
@@ -344,9 +368,20 @@ end
 local DISCS = { { size = 1, alpha = 0.45 }, { size = 0.66, alpha = 0.7 }, { size = 0.33, alpha = 1 } }
 local AREA_KINDS = { hotspot = true, duels = true }
 
-local function AskInvite(label)
+-- Left-click: an invite to the top duel layer; right-click: choose the layer from a menu
+local function DuelClick(label, button)
     local data = label.data
-    if data and data.kind == "duels" then ns.DuelSpots:AskInvite(data.zone, data.layerKey) end
+    if not data or data.kind ~= "duels" then return end
+    if button == "RightButton" then
+        local entries = MapMarkers.DuelMenu(data)
+        if #entries == 0 then
+            ns:Print(L.DUEL_SPOT_SAME_LAYER)
+            return
+        end
+        ns.Select.ContextMenu(label, L.DUEL_SPOT_MENU_TITLE, entries)
+        return
+    end
+    ns.DuelSpots:AskInvite(data.zone, data.layerKey)
 end
 
 local function NewArea(kind)
@@ -375,8 +410,8 @@ local function NewArea(kind)
     MakeInteractive(label)
     if kind == "duels" then
         if label.SetMouseClickEnabled then pcall(label.SetMouseClickEnabled, label, true) end
-        if label.RegisterForClicks then label:RegisterForClicks("LeftButtonUp") end
-        label:SetScript("OnClick", AskInvite)
+        if label.RegisterForClicks then label:RegisterForClicks("LeftButtonUp", "RightButtonUp") end
+        label:SetScript("OnClick", DuelClick)
     end
     pin.label = label
     return pin

@@ -261,8 +261,12 @@ function DuelSpots:Witnessed(zone, layerKey, now)
     return count >= self.MIN_WITNESSES
 end
 
+-- Duels without a layer are kept (they move to a layer once one is known) but never make
+-- a spot: a mark, a menu row or a chat line on "Layer unknown" cannot be joined
+-- (author, 2026-10-06).
 function DuelSpots:IsSpot(zone, layerKey, now)
     local duels, players = self:State(zone, layerKey, now)
+    if layerKey == self.UNKNOWN_LAYER then return false, duels, players end
     local ok = duels >= self.MIN_DUELS and players >= self.MIN_PLAYERS and self:Witnessed(zone, layerKey, now)
     return ok, duels, players
 end
@@ -315,6 +319,16 @@ function DuelSpots:InviteSpot(group)
         if not self:OnOurLayer(spot.zone, spot.layerKey) and self:Inviters(spot.zone, spot.layerKey)[1] then return spot end
     end
     return nil
+end
+
+-- The layers of a zone's mark to choose from (right-click): every one we are not on,
+-- busiest first
+function DuelSpots:MenuSpots(group)
+    local list = {}
+    for _, spot in ipairs(group.spots) do
+        if not self:OnOurLayer(spot.zone, spot.layerKey) then list[#list + 1] = spot end
+    end
+    return list
 end
 
 function DuelSpots:Active(now)
