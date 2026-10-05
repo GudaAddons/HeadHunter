@@ -147,18 +147,17 @@ return function(T, H)
         T.noErrors()
     end)
 
-    T.case("duels older than 20 min drop out; the map keeps the spot 20 min after its last duel", function()
+    T.case("no duel for 3 min: the spot is gone; duels older than 20 min drop out", function()
         local ns = H.Boot({ client = "era" })
         local D = ns.DuelSpots
         Spot(ns, 1436, 3, 10, 5)
         T.eq(#D:Active(), 1, "spot")
-        H.serverTime = H.serverTime + 700
+        H.serverTime = H.serverTime + 170
+        T.eq(#D:Active(), 1, "the last duel under 3 min ago: still a spot")
+        H.serverTime = H.serverTime + 10
+        T.eq(#D:Active(), 0, "no duel for 3 min: gone")
+        H.serverTime = H.serverTime + 520
         T.eq(D:State(1436, 3), 9, "the oldest duel is over 20 min old")
-        local list = D:Active()
-        T.eq(#list, 1, "still on the map")
-        T.ok(list[1].remembered, "as it last was")
-        H.serverTime = H.serverTime + 600
-        T.eq(#D:Active(), 0, "gone 20 min after the last duel")
         T.noErrors()
     end)
 

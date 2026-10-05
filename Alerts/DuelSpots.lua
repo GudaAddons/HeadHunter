@@ -19,7 +19,8 @@
 -- Players see a duel spot as a mark on the world map (UI/MapMarkers.lua; a click asks a
 -- HeadHunter on that layer for an invite), a chat line when one starts in the alert
 -- range (alerts.duelSpots; names as links, a click whispers them) and /hh duelspots.
--- The map keeps a spot MAP_TIME seconds after its last duel, like PvP areas.
+-- A spot also needs a duel in the last QUIET seconds: when duels stop for 3 minutes it is
+-- gone (author, 2026-10-06). The map keeps it as it last was until then (MAP_TIME).
 
 local addonName, ns = ...
 local L = ns.L
@@ -34,7 +35,8 @@ DuelSpots.MIN_PLAYERS = 5
 DuelSpots.MIN_LEVEL = 19
 DuelSpots.MIN_WITNESSES = 2
 DuelSpots.SENDER_DUELS = 10
-DuelSpots.MAP_TIME = 1200
+DuelSpots.QUIET = 180
+DuelSpots.MAP_TIME = DuelSpots.QUIET
 DuelSpots.DEDUPE = ns.Duels.DEDUPE
 DuelSpots.TICK = 5
 DuelSpots.PING_INTERVAL = 60
@@ -224,7 +226,7 @@ end
 -------------------------------------------------
 
 -- Duels and different players on a zone and layer in the WINDOW (older duels are
--- forgotten, reporters after MAP_TIME)
+-- forgotten, reporters after WINDOW)
 function DuelSpots:State(zone, layerKey, now)
     local bucket = spots[zone] and spots[zone][layerKey]
     if not bucket then return 0, 0 end
@@ -238,7 +240,7 @@ function DuelSpots:State(zone, layerKey, now)
     end
     bucket.duels = kept
     for who, reporter in pairs(bucket.reporters) do
-        if reporter.t < now - self.MAP_TIME then bucket.reporters[who] = nil end
+        if reporter.t < now - self.WINDOW then bucket.reporters[who] = nil end
     end
     for _ in pairs(players) do count = count + 1 end
     return #kept, count
@@ -265,10 +267,21 @@ end
 -- a spot: a mark, a menu row or a chat line on "Layer unknown" cannot be joined
 -- (author, 2026-10-06).
 function DuelSpots:IsSpot(zone, layerKey, now)
+    now = now or ns.Utils.ServerTime()
     local duels, players = self:State(zone, layerKey, now)
     if layerKey == self.UNKNOWN_LAYER then return false, duels, players end
     local ok = duels >= self.MIN_DUELS and players >= self.MIN_PLAYERS and self:Witnessed(zone, layerKey, now)
+        and self:LastDuel(zone, layerKey) >= now - self.QUIET
     return ok, duels, players
+end
+
+-- Time of the newest duel on a zone and layer, 0 when none
+function DuelSpots:LastDuel(zone, layerKey)
+    local newest = 0
+    for _, duel in ipairs(spots[zone] and spots[zone][layerKey] and spots[zone][layerKey].duels or {}) do
+        if duel.t > newest then newest = duel.t end
+    end
+    return newest
 end
 
 -- The newest duel's place and time on a zone and layer
@@ -375,7 +388,7 @@ function DuelSpots:Inviters(zone, layerKey, now)
     now = now or ns.Utils.ServerTime()
     local me, list = Me(), {}
     for who, reporter in pairs(bucket.reporters) do
-        if who ~= me and reporter.sender and reporter.t >= now - self.MAP_TIME then list[#list + 1] = reporter end
+        if who ~= me and reporter.sender and reporter.t >= now - self.WINDOW then list[#list + 1] = reporter end
     end
     table.sort(list, function(a, b) return a.t > b.t end)
     local names = {}

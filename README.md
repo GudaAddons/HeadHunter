@@ -133,7 +133,7 @@ Type `/hh online` to see how many HeadHunters are online right now, how many are
 - Ranked by record: wins minus losses first, then fewer losses. 6-1 is ahead of 8-3. With the same record, whoever got there first is ahead. You are listed from your first duel.
 - Ranks by net wins: **Quickdraw**, **Sharpshooter** (+5), **Deadeye** (+15) and **Legend** (+30). Under 5 duels you are a **Greenhorn**, listed after everyone with 5 or more.
 - The #1 of each faction is the **Top Gun**, once they are 5 or more wins ahead (Sharpshooter) and nobody else at the top has the same record. A Greenhorn cannot be Top Gun.
-- **Duel spots**: when HeadHunters see 10 duels between 5 or more different players in 20 minutes, all level 19 or higher, that zone and layer is a duel spot. Every layer counts on its own. You see it on the map and in chat, with the HeadHunters there you can ask for a group invite. Type `/hh duelspots` to list them all. Only HeadHunters with this version share duel spots.
+- **Duel spots**: when HeadHunters see 10 duels between 5 or more different players in 20 minutes, all level 19 or higher, that zone and layer is a duel spot. It is gone when nobody duels there for 3 minutes. Every layer counts on its own. You see it on the map and in chat, with the HeadHunters there you can ask for a group invite. Type `/hh duelspots` to list them all. Only HeadHunters with this version share duel spots.
 
 ![Duels: every duelist with their rank and record](https://headhunterwow.com/images/screenshots/duels.webp)
 
