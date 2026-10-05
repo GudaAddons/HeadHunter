@@ -21,7 +21,7 @@ L.HELP_HEADER = "|cffc41e3a========== HeadHunter ==========|r"
 L.HELP_STATUS = "|cffffff00/hh status|r: Client, flags and database summary"
 L.HELP_DEBUG = "|cffffff00/hh debug [on|off]|r: Toggle debug mode (echo debug lines to chat)."
 L.HELP_LOG = "|cffffff00/hh log [clear]|r: Show the debug log window"
-L.HELP_PROBE = "|cffffff00/hh probe [watch|witness]|r: Report which WoW APIs this client offers; 'watch' logs live combat/death signals, 'witness' logs other players dying near you"
+L.HELP_PROBE = "|cffffff00/hh probe [watch|witness|screenshot]|r: Report which WoW APIs this client offers; 'watch' logs live combat/death signals, 'witness' logs other players dying near you, 'screenshot [1-10]' takes one screenshot to test it, at that quality if given"
 L.HELP_SIM = "|cffffff00/hh sim death|sighting|send|demo ...|r: Inject simulated data; 'send' shares it with other characters (debug); 'demo' fills every tab for screenshots"
 
 L.UNKNOWN_COMMAND = "Unknown command '%s'. Type /hh help."
