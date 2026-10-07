@@ -55,6 +55,7 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 - **Bullies and Deadbeats**: "BULLY: X is here!" or "DEADBEAT: X is here!", at most once every 10 minutes per player.
 - **You are WANTED**: with the HeadHunter Sync app, HeadHunter tells you at login when the other faction has you on its WANTED list.
 - **PvP hotspots**: Skirmish, Battle or Warzone when a big fight happens near you. The popup names the enemies in the fight and the HeadHunters of your side fighting there. Click **Help** to get the way to the fight: the HeadHunters fighting there see that you are coming, and if they are on another layer, one of them is asked for a group invite.
+- **Honorable kills**: every honorable kill you get outside battlegrounds is kept with its time and zone. HeadHunter Sync sends them to the website, which adds up a side's kills in a big open-world fight. Type `/hh hk` to see yours.
 - **Duel spots**: "Duels in Orgrimmar (Layer 3): 12 duels, 6 players in 20 min. Ask for an invite: [name]" when many players duel near you. Click a name to whisper them. Turn it off in the options: **Duel spot alerts**.
 
 ### World map
@@ -170,6 +171,7 @@ Good to know about the app:
 | `/hh posse` | Who is hunting which outlaw |
 | `/hh bounty` | Your hunter rank and the bounty you collected |
 | `/hh hotspots` | PvP activity per zone |
+| `/hh hk` | Your honorable kills per zone in the last 24 hours |
 | `/hh duels` | Duels: the best duelists and your rank |
 | `/hh duelspots` | Places where players duel now, their layer and who to ask for an invite |
 | `/hh sim duels` | Test duel spots in your zone, only on your screen (`/hh sim duels clear` removes them) |
