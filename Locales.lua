@@ -208,6 +208,7 @@ L.DEV_NO_SHARING = "|cffff8000Test mode|r (HeadHunter_Dev noSharing): nothing is
 
 -- Map markers (HH-046)
 L.MAP_HOTSPOT_TITLE = "|cffff3300PvP zone|r · |cffff9933%s|r in %s"
+L.HOTSPOT_MAP_CLICK = "|cff00ff00Left-click: the way to the fight, and a group invite from a HeadHunter there on another layer|r"
 L.MAP_PVP = "PVP"
 
 -- Duel spots (HH-134)

@@ -151,6 +151,23 @@ return function(T, H)
         T.ok(text:find("≈12 Horde fighting 1 Alliance", 1, true) ~= nil, "both sides: " .. text)
     end)
 
+    T.case("a PvP area of 2+ fires takes a click for help; a Skirmish does not", function()
+        local ns = H.Boot({ client = "era" })
+        Battle(ns, 1417)
+        local battle = ns.MapMarkers:PinsFor(1417)[1]
+        T.eq(battle.level, 2, "Battle")
+        T.ok(battle.clickable, "clickable")
+        T.eq(battle.zone, 1417, "knows its zone")
+        T.ok(Find("Left-click", battle.lines), "says what a click does")
+
+        Ping(ns, 1436, "Alpha-Firemaw", Ids(1, 4))
+        local skirmish = ns.MapMarkers:PinsFor(1436)[1]
+        T.eq(skirmish.level, 1, "Skirmish")
+        T.ok(not skirmish.clickable, "no click")
+        T.ok(not Find("Left-click", skirmish.lines), "no click hint")
+        T.noErrors()
+    end)
+
     T.case("a PvP area stays 10 min after the last activity; new activity restarts it", function()
         local ns = H.Boot({ client = "era" })
         Battle(ns, 1417) -- pings 5 s ago

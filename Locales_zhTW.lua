@@ -334,6 +334,7 @@ local TW = {
     SET_DUEL_SPOTS = "決鬥地點提醒",
     SET_DUEL_SPOTS_TIP = "附近決鬥很多時在聊天框提示（20 分鐘內 5 名不同玩家之間 10 場決鬥，都在 19 級或以上）。地圖上也會顯示這些地點。",
     MAP_HOTSPOT_TITLE = "|cffff3300PvP 區域|r · |cffff9933%s|r，位於 %s",
+    HOTSPOT_MAP_CLICK = "|cff00ff00左鍵點擊：前往戰鬥的路線，並請求那裡另一位面上的 HeadHunter 邀請你入隊|r",
     MAP_WANTED_TITLE = "|cffff2020通緝|r · |cffff4040%s|r",
     MAP_WANTED_STATUS = "%s · 擊殺 %d · 直至落網",
     MAP_WANTED_LAST_KILL = "最近擊殺 %s，位於 %s",

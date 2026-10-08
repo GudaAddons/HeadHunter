@@ -205,6 +205,7 @@ local DE = {
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300PvP-Gebiet|r · |cffff9933%s|r in %s",
+    HOTSPOT_MAP_CLICK = "|cff00ff00Linksklick: der Weg zum Kampf und eine Gruppeneinladung von einem HeadHunter dort auf einer anderen Ebene|r",
     MAP_PVP = "PVP",
     MAP_DUELS = "DUELLE",
     MAP_DUELS_TITLE = "|cff3399ffDuelle|r in %s",

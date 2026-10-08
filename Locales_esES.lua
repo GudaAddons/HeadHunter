@@ -206,6 +206,7 @@ local ES = {
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300Zona JcJ|r · |cffff9933%s|r en %s",
+    HOTSPOT_MAP_CLICK = "|cff00ff00Clic izquierdo: el camino al combate y una invitación de grupo de un HeadHunter de allí en otra capa|r",
     MAP_PVP = "JcJ",
     MAP_DUELS = "DUELOS",
     MAP_DUELS_TITLE = "|cff3399ffDuelos|r en %s",

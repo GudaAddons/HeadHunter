@@ -205,6 +205,7 @@ local KR = {
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300PvP 지역|r · |cffff9933%s|r, %s",
+    HOTSPOT_MAP_CLICK = "|cff00ff00왼쪽 클릭: 전투로 가는 길, 그리고 다른 레이어에 있는 그곳 HeadHunter의 파티 초대|r",
     MAP_PVP = "PVP",
     MAP_DUELS = "결투",
     MAP_DUELS_TITLE = "|cff3399ff결투|r, %s",

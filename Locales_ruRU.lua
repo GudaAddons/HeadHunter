@@ -205,6 +205,7 @@ local RU = {
 
     -- World map pins and guiding
     MAP_HOTSPOT_TITLE = "|cffff3300PvP-зона|r · |cffff9933%s|r, %s",
+    HOTSPOT_MAP_CLICK = "|cff00ff00ЛКМ: путь к бою и приглашение в группу от HeadHunter там, если он на другом слое|r",
     MAP_PVP = "PVP",
     MAP_DUELS = "ДУЭЛИ",
     MAP_DUELS_TITLE = "|cff3399ffДуэли|r: %s",

@@ -41,6 +41,9 @@ Hotspots.LEVEL_THROTTLE = 300
 Hotspots.IGNORE_TIME = 600
 Hotspots.MAX_SKEW = 300
 Hotspots.LEVELS = { { heat = 20, id = 3 }, { heat = 10, id = 2 }, { heat = 4, id = 1 } }
+-- From this level (Battle) a click on the map's PvP mark is Help (author, 2026-10-08):
+-- never for a Skirmish
+Hotspots.INVITE_LEVEL = 2
 
 local zones = {}        -- zone mapID -> { fighters = {id -> {t, x, y}}, allies = {id -> t}, enemies = {id -> t}, deaths = {id -> t} }
 local announced = {}    -- zone -> highest level announced in the current burst
