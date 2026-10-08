@@ -59,7 +59,7 @@ If your own group was in the fight, the kill shows as a **group fight** (for exa
 - **Duel spots**: "Duels in Orgrimmar (Layer 3): 12 duels, 6 players in 20 min. Ask for an invite: [name]" when many players duel near you. Click a name to whisper them. Turn it off in the options: **Duel spot alerts**.
 
 ### World map
-- A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 20 minutes after the last fight.
+- A red **PVP** area shows where fights are happening. It gets darker as the fight grows and stays for 10 minutes after the last fight.
 - A blue **DUELS** area shows where players duel now, one per zone. Hover it to see a row for every layer with duels. Left-click to ask a HeadHunter for a group invite to the busiest layer you are not on; right-click to choose the layer.
 - A **skull** shows where a WANTED outlaw made their last kill (for 10 minutes). The map shows the 10 biggest fights, the 10 busiest duel spots and the 10 highest ranked outlaws.
 

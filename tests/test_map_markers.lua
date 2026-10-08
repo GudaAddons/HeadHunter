@@ -151,7 +151,7 @@ return function(T, H)
         T.ok(text:find("≈12 Horde fighting 1 Alliance", 1, true) ~= nil, "both sides: " .. text)
     end)
 
-    T.case("a PvP area stays 20 min after the last activity; new activity restarts it", function()
+    T.case("a PvP area stays 10 min after the last activity; new activity restarts it", function()
         local ns = H.Boot({ client = "era" })
         Battle(ns, 1417) -- pings 5 s ago
         T.eq(#ns.MapMarkers:PinsFor(1417), 1, "burning")
@@ -163,13 +163,13 @@ return function(T, H)
         T.eq(pins[1].level, 2, "as it last was: Battle")
         T.ok(Find("5 min ago", pins[1].lines), "says when")
 
-        H.serverTime = H.serverTime + 14 * 60 -- 19 min 6 s after the pings
-        T.eq(#ns.MapMarkers:PinsFor(1417), 1, "19 min: still there")
-        Battle(ns, 1417)                       -- fighting again
-        H.serverTime = H.serverTime + 15 * 60
-        T.eq(#ns.MapMarkers:PinsFor(1417), 1, "restarted: 15 min after the new fight")
-        H.serverTime = H.serverTime + 6 * 60
-        T.eq(#ns.MapMarkers:PinsFor(1417), 0, "gone 20 min after the last activity")
+        H.serverTime = H.serverTime + 4 * 60 -- 9 min 6 s after the pings
+        T.eq(#ns.MapMarkers:PinsFor(1417), 1, "9 min: still there")
+        Battle(ns, 1417)                      -- fighting again
+        H.serverTime = H.serverTime + 9 * 60
+        T.eq(#ns.MapMarkers:PinsFor(1417), 1, "restarted: 9 min after the new fight")
+        H.serverTime = H.serverTime + 2 * 60
+        T.eq(#ns.MapMarkers:PinsFor(1417), 0, "gone 10 min after the last activity")
     end)
 
     T.case("WANTED outlaw: skull pin at the last kill, no fire pin for a lone ganker", function()

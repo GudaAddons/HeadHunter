@@ -30,8 +30,10 @@ local OWNER = "Hotspots"
 
 Hotspots.WINDOW = 300
 Hotspots.NOW_WINDOW = 120
-Hotspots.MAP_TIME = 1200 -- the map keeps a PvP area 20 min after the zone's last hot
-                         -- moment; new activity restarts it (author, 2026-09-23)
+-- The map keeps a PvP area MAP_TIME after the zone's last hot moment; new activity
+-- restarts it (author, 2026-09-23). 10 min, was 20 (author, 2026-10-08): a fight quiet
+-- that long is over, and the same time ends a war (HH-136)
+Hotspots.MAP_TIME = 600
 Hotspots.TICK = 5
 Hotspots.FIGHT_RECENT = 15
 Hotspots.PING_INTERVAL = 30
