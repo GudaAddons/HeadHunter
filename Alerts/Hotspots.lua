@@ -575,7 +575,7 @@ function Hotspots:Tick()
     local U = ns.Utils
     if not U.SafeCall(UnitAffectingCombat, "player") then return end
     local fighting, idle, unknown = Hotspots.ScanFighters()
-    ns:Debug("PvP scan: enemies fighting", fighting, "not fighting", idle, "combat unknown", unknown)
+    ns.Log:Add("debug", string.format("PvP scan: enemies fighting %d, not fighting %d, combat unknown %d", fighting, idle, unknown))
     local guids = Recent(fightingEnemies, self.FIGHT_RECENT)
     if #guids == 0 then return end
     -- Our side: us first, then the players of our faction fighting around us
