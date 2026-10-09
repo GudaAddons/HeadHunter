@@ -33,8 +33,12 @@ local OWNER = "HighNoon"
 HighNoon.MIN_DUELS = 5
 HighNoon.TOP_GUN_NET = 5 -- the Top Gun needs Sharpshooter (+5); the website's DuelRatingCalculator::TOP_GUN_NET
 HighNoon.DEBOUNCE = 1
-HighNoon.BUDGET_MS = 3        -- per frame
-HighNoon.YIELD_EVERY = 200    -- duels or players between two budget checks
+-- HH-137: the job's time per frame, and the duels or players between two budget checks
+HighNoon.BUDGET_MS = 3
+HighNoon.YIELD_EVERY = 200
+-- HH-137 (author, 2026-10-09): each faction's list holds its best LIST_SIZE, as many as
+-- the website sends; every duel still goes to the website, which ranks everyone
+HighNoon.LIST_SIZE = 300
 -- Highest first, by net wins
 HighNoon.RANKS = {
     { min = 30, id = "legend" },
@@ -228,14 +232,18 @@ function HighNoon.Build(yield)
         built = HighNoon.Compute(duels, yield)
     end
     local listed = {}
+    local count = 0
     for _, p in pairs(built) do
+        p.plain = ns.Utils.DisplayName(p.key) or p.key
+        p.needle = p.plain:lower()
         if p.faction and p.duels >= 1 then
             listed[p.faction] = listed[p.faction] or {}
-            table.insert(listed[p.faction], p)
+            HighNoon.KeepBest(listed[p.faction], p, HighNoon.LIST_SIZE)
         end
+        count = count + 1
+        Tick(yield, count)
     end
     for _, list in pairs(listed) do
-        table.sort(list, HighNoon.Better)
         for i, p in ipairs(list) do
             p.position = i
             p.topGun = nil
@@ -248,6 +256,22 @@ function HighNoon.Build(yield)
         end
     end
     return built, listed
+end
+
+-- Puts p into list (best first) when it is among the best `size`, in one pass over the
+-- players instead of sorting them all: most fall behind the last place and cost one look.
+-- better: the order, HighNoon.Better when nil
+function HighNoon.KeepBest(list, p, size, better)
+    better = better or HighNoon.Better
+    local last = #list
+    if last >= size and not better(p, list[last]) then return end
+    local low, high = 1, last + 1
+    while low < high do
+        local mid = math.floor((low + high) / 2)
+        if better(p, list[mid]) then high = mid else low = mid + 1 end
+    end
+    table.insert(list, low, p)
+    if #list > size then list[#list] = nil end
 end
 
 local function Publish(built, listed)
@@ -322,9 +346,31 @@ function HighNoon:Get(key)
     return key and players[key]
 end
 
--- Listed players of one faction, best first
+-- Listed players of one faction, best first: the best LIST_SIZE
 function HighNoon:List(faction)
     return lists[faction] or {}
+end
+
+-- Search order: listed players first, then the others, each best first
+local function ListedFirst(a, b)
+    if (a.position ~= nil) ~= (b.position ~= nil) then return a.position ~= nil end
+    return HighNoon.Better(a, b)
+end
+
+-- HH-137: anyone with duels whose name holds `text` (any case), also past the lists:
+-- listed players first, then the others, best first; at most LIST_SIZE.
+-- faction: nil for both
+function HighNoon:Search(text, faction)
+    local needle = text and text:lower()
+    local found = {}
+    if not needle or needle == "" then return found end
+    for _, p in pairs(players) do
+        if p.needle and p.duels >= 1 and (not faction or p.faction == faction)
+            and p.needle:find(needle, 1, true) then
+            HighNoon.KeepBest(found, p, HighNoon.LIST_SIZE, ListedFirst)
+        end
+    end
+    return found
 end
 
 HighNoon.RANK_COLORS = {
@@ -347,7 +393,10 @@ function HighNoon.Title(player)
     if player.duels < HighNoon.MinDuels() then
         return string.format(L.DUEL_TITLE_GREENHORN, HighNoon.RankName("greenhorn"), player.duels)
     end
-    return string.format(L.DUEL_TITLE, HighNoon.RankName(player.rank), player.position or 0,
+    if not player.position then
+        return string.format(L.DUEL_TITLE_UNLISTED, HighNoon.RankName(player.rank), HighNoon.NetText(player.net))
+    end
+    return string.format(L.DUEL_TITLE, HighNoon.RankName(player.rank), player.position,
         HighNoon.NetText(player.net))
 end
 

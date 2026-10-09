@@ -907,6 +907,106 @@ return function(T, H)
         T.noErrors()
     end)
 
+    -- n Alliance duelists with different records: WinI beat LoseI i % 7 + 1 times
+    local function ManyDuelists(ns, n)
+        local t = H.serverTime - 86400 * 30
+        for i = 1, n do
+            for _ = 1, i % 7 + 1 do
+                t = t + 61
+                ns.Duels:Add({ winner = "Win" .. i .. "-Firemaw", loser = "Lose" .. i .. "-Firemaw", t = t,
+                    faction = "Alliance", winnerRace = "Human", loserRace = "Gnome", winnerLevel = 30, loserLevel = 30 },
+                    "local")
+            end
+        end
+    end
+
+    T.case("each list holds its best 300, the same as sorting everyone; the rest have no place", function()
+        local ns = H.Boot({ client = "era" })
+        ManyDuelists(ns, 800)
+        Settle()
+        local HN = ns.HighNoon
+        local list = HN:List("Alliance")
+        T.eq(#list, HN.LIST_SIZE, "300 listed of 1600 duelists")
+
+        local everyone = {}
+        for i = 1, 800 do
+            everyone[#everyone + 1] = HN:Get("Win" .. i .. "-Firemaw")
+            everyone[#everyone + 1] = HN:Get("Lose" .. i .. "-Firemaw")
+        end
+        table.sort(everyone, HN.Better)
+        local same = true
+        for i = 1, HN.LIST_SIZE do same = same and everyone[i] == list[i] and list[i].position == i end
+        T.ok(same, "the same 300 in the same order, numbered")
+
+        local outside = everyone[HN.LIST_SIZE + 1]
+        T.eq(outside.position, nil, "the 301st has no place")
+        T.ok(HN.Established(outside), "and is no Greenhorn")
+        local title = HN.Title(outside)
+        T.ok(title:find("#", 1, true) == nil, "a title without a place: " .. title)
+        T.ok(title:find(HN.NetText(outside.net), 1, true) ~= nil, "with the net")
+        T.noErrors()
+    end)
+
+    T.case("search finds a duelist past the list, without a place", function()
+        local ns = H.Boot({ client = "era" })
+        ManyDuelists(ns, 800)
+        Settle()
+        local HN, MW = ns.HighNoon, ns.MainWindow
+        local outside
+        for i = 1, 800 do
+            local p = HN:Get("Lose" .. i .. "-Firemaw")
+            if not p.position then outside = p break end
+        end
+        T.ok(outside ~= nil, "someone past the list")
+        local rows = MW.Rows("duels", nil, nil, "Alliance", outside.plain)
+        local found
+        for _, row in ipairs(rows) do
+            if row.plain == outside.plain then found = row end
+        end
+        T.ok(found ~= nil, "found by name")
+        T.eq(found.position, "-", "no place")
+        T.eq(found.record, outside.wins .. "-" .. outside.losses, "with the record")
+        T.eq(#MW.Rows("duels", nil, nil, "Alliance", "o"), HN.LIST_SIZE, "a wide search shows at most 300")
+        local best = HN:List("Alliance")[1]
+        local listed = MW.Rows("duels", nil, nil, "Alliance", best.plain)
+        T.eq(listed[1].plain, best.plain, "a listed one comes first")
+        T.eq(listed[1].position, "1", "and keeps the place")
+        T.noErrors()
+    end)
+
+    T.case("10,000 duelists: the count compares each a few times, the list fills only drawn rows", function()
+        local ns = H.Boot({ client = "era" })
+        for i = 1, 5000 do
+            ns.Duels:Add({ winner = "Win" .. i .. "-Firemaw", loser = "Lose" .. i .. "-Firemaw",
+                t = H.serverTime - 86400 * 30 + i * 61, faction = "Horde", winnerRace = "Orc", loserRace = "Troll",
+                winnerLevel = 30, loserLevel = 30 }, "local")
+        end
+        local HN = ns.HighNoon
+        local better = HN.Better
+        local compared = 0
+        HN.Better = function(a, b)
+            compared = compared + 1
+            return better(a, b)
+        end
+        HN:Recompute()
+        HN.Better = better
+        T.eq(#HN:List("Horde"), HN.LIST_SIZE, "300 listed")
+        T.ok(compared < 10000 * 12, "about one look per player: " .. compared .. " for 10,000")
+
+        local rows = ns.MainWindow.Rows("duels")
+        local function Filled()
+            local n = 0
+            for _, row in ipairs(rows) do
+                if rawget(row, "filled") then n = n + 1 end
+            end
+            return n
+        end
+        T.eq(Filled(), 0, "no row text until drawn")
+        local _ = rows[1].name .. rows[2].rank
+        T.eq(Filled(), 2, "only the rows read")
+        T.noErrors()
+    end)
+
     -------------------------------------------------
     -- HH-093 tab and tooltip
     -------------------------------------------------

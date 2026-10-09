@@ -442,6 +442,7 @@ local KR = {
     DUEL_RANK_LEGEND = "전설",
     DUEL_RANK_TOPGUN = "탑건",
     DUEL_TITLE = "%s %d위 (%s)",
+    DUEL_TITLE_UNLISTED = "%s (%s)",
     DUEL_TITLE_TOPGUN = "|cffff8000탑건|r (%s)",
     DUEL_TITLE_GREENHORN = "%s (결투 %d회)",
     DUEL_TOOLTIP = "|cffffd100결투:|r %s",

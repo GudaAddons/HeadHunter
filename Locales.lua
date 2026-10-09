@@ -456,6 +456,8 @@ L.DUEL_RANK_DEADEYE = "Deadeye"
 L.DUEL_RANK_LEGEND = "Legend"
 L.DUEL_RANK_TOPGUN = "Top Gun"
 L.DUEL_TITLE = "%s #%d (%s)"
+-- HH-137: past the top of the list the place is not counted
+L.DUEL_TITLE_UNLISTED = "%s (%s)"
 L.DUEL_TITLE_TOPGUN = "|cffff8000Top Gun|r (%s)"
 L.DUEL_TITLE_GREENHORN = "%s (%d duels)"
 L.DUEL_TOOLTIP = "|cffffd100Duels:|r %s"

@@ -443,6 +443,7 @@ local IT = {
     DUEL_RANK_LEGEND = "Leggenda",
     DUEL_RANK_TOPGUN = "Asso",
     DUEL_TITLE = "%s n. %d (%s)",
+    DUEL_TITLE_UNLISTED = "%s (%s)",
     DUEL_TITLE_TOPGUN = "|cffff8000Asso|r (%s)",
     DUEL_TITLE_GREENHORN = "%s (duelli: %d)",
     DUEL_TOOLTIP = "|cffffd100Duelli:|r %s",

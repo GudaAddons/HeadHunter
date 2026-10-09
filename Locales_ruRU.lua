@@ -442,6 +442,7 @@ local RU = {
     DUEL_RANK_LEGEND = "Легенда",
     DUEL_RANK_TOPGUN = "Лучший стрелок",
     DUEL_TITLE = "%s №%d (%s)",
+    DUEL_TITLE_UNLISTED = "%s (%s)",
     DUEL_TITLE_TOPGUN = "|cffff8000Лучший стрелок|r (%s)",
     DUEL_TITLE_GREENHORN = "%s (дуэлей: %d)",
     DUEL_TOOLTIP = "|cffffd100Дуэли:|r %s",

@@ -287,6 +287,7 @@ local CN = {
     DUEL_RANK_LEGEND = "传奇",
     DUEL_RANK_TOPGUN = "王牌",
     DUEL_TITLE = "%s 第 %d 名（%s）",
+    DUEL_TITLE_UNLISTED = "%s（%s）",
     DUEL_TITLE_TOPGUN = "|cffff8000王牌|r（%s）",
     DUEL_TITLE_GREENHORN = "%s（%d 场决斗）",
     DUEL_TOOLTIP = "|cffffd100决斗：|r %s",
