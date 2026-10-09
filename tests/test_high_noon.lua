@@ -645,6 +645,7 @@ return function(T, H)
         T.eq(list[2].topGun, nil, "nor the #2")
 
         Duels(ns, "Tallow-Firemaw", "Quill-Firemaw", 1, "Horde", 30000)
+        ns.HighNoon:Ensure()
         Settle()
         list = ns.HighNoon:List("Horde")
         T.eq(list[1].key, "Tallow-Firemaw", "6-0 pulls ahead")
@@ -675,6 +676,7 @@ return function(T, H)
         T.eq(list[3].key, "Sean-Firemaw", "the 3-0 Greenhorn after both")
 
         Duels(ns, "Dampa-Firemaw", "Rot-Firemaw", 4, "Alliance", 30000)
+        ns.HighNoon:Ensure()
         Settle()
         T.eq(ns.HighNoon:List("Alliance")[1].topGun, true, "10-5 is Top Gun")
         T.noErrors()
@@ -705,6 +707,203 @@ return function(T, H)
         T.ok(H.Printed("Usage: /hh debug duels"), "usage")
         H.Slash("debug duels off")
         T.eq(ns.HighNoon:Get("Bob-Firemaw").rank, "greenhorn", "back to 5")
+        T.noErrors()
+    end)
+
+    -------------------------------------------------
+    -- HH-137 counting on need, as a job
+    -------------------------------------------------
+
+    -- The merge before HH-137: every duel once per website player
+    local function OldMerge(HN, site, duels, since)
+        local ours = HN.Compute(duels)
+        local fresh = {}
+        for key, theirs in pairs(site) do
+            local cutoff = theirs.lastT or since
+            local newer = {}
+            for _, duel in ipairs(duels) do
+                if (duel.winner == key or duel.loser == key) and (tonumber(duel.t) or 0) > cutoff then
+                    newer[#newer + 1] = duel
+                end
+            end
+            fresh[key] = HN.Compute(newer)[key]
+        end
+        local players = {}
+        for key, theirs in pairs(site) do
+            local p = {}
+            for k, v in pairs(theirs) do p[k] = v end
+            local f = fresh[key]
+            if f then
+                p.wins, p.losses, p.duels = p.wins + f.wins, p.losses + f.losses, p.duels + f.duels
+                if not p.lastT or f.lastT > p.lastT then
+                    p.lastT = f.lastT
+                    p.class, p.race, p.sex = f.class or p.class, f.race or p.race, f.sex or p.sex
+                end
+            end
+            p.faction = HN.FactionOf(p)
+            p.net = p.wins - p.losses
+            p.rank = HN.RankOf(p)
+            players[key] = p
+        end
+        for key, p in pairs(ours) do
+            if not players[key] then players[key] = p end
+        end
+        return players
+    end
+
+    -- duelCount duels between playerCount players, and a website record for every second one
+    local function BigData(duelCount, playerCount)
+        local duels, site = {}, {}
+        local races = { "Human", "Orc", "Gnome", "Troll" }
+        for i = 1, duelCount do
+            local w = "P" .. (i * 7 % playerCount) .. "-Firemaw"
+            local l = "P" .. (i * 13 % playerCount + 1) .. "-Firemaw"
+            if w ~= l then
+                duels[#duels + 1] = { winner = w, loser = l, t = 1000 + i * 60, faction = "Alliance",
+                    winnerRace = races[i % 4 + 1], loserClass = "MAGE" }
+            end
+        end
+        for i = 0, playerCount, 2 do
+            site["P" .. i .. "-Firemaw"] = { key = "P" .. i .. "-Firemaw", faction = "Alliance", wins = i % 9,
+                losses = i % 5, duels = i % 9 + i % 5, lastT = i % 3 == 0 and nil or 1000 + i * 600 }
+        end
+        return duels, site
+    end
+
+    local function Same(a, b)
+        local count = 0
+        for key, p in pairs(a) do
+            local q = b[key]
+            if not q then return false, key .. " missing" end
+            for _, field in ipairs({ "wins", "losses", "duels", "net", "rank", "faction", "lastT", "class", "race" }) do
+                if p[field] ~= q[field] then return false, key .. "." .. field end
+            end
+            count = count + 1
+        end
+        for key in pairs(b) do
+            if not a[key] then return false, key .. " extra" end
+        end
+        return true, count
+    end
+
+    T.case("the merge by player gives the same records as before", function()
+        local HN = H.Boot({ client = "era" }).HighNoon
+        local duels, site = BigData(2000, 150)
+        local same, detail = Same(HN.Merge(site, duels, 5000), OldMerge(HN, site, duels, 5000))
+        T.ok(same, "same records (" .. tostring(detail) .. ")")
+        T.ok(type(detail) == "number" and detail > 100, "many players compared")
+    end)
+
+    T.case("the merge reads each duel a few times, not once per website player", function()
+        local HN = H.Boot({ client = "era" }).HighNoon
+        local duels, site = BigData(5000, 1000)
+        local reads = 0
+        local watched = {}
+        for i, duel in ipairs(duels) do
+            watched[i] = setmetatable({}, { __index = function(_, field)
+                reads = reads + 1
+                return duel[field]
+            end })
+        end
+        HN.Merge(site, watched, 5000)
+        T.ok(reads < #duels * 30, "linear in the duels: " .. reads .. " reads for " .. #duels .. " duels")
+    end)
+
+    T.case("a new duel marks the lists out of date; they are counted when someone needs them", function()
+        local ns = H.Boot({ client = "era" })
+        Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 5)
+        Settle()
+        local HN = ns.HighNoon
+        T.eq(HN:Get("Vati-Firemaw").wins, 5, "counted after login")
+        T.eq(HN:IsStale(), false, "up to date")
+
+        Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 1, "Alliance", 10000)
+        Settle()
+        T.eq(ns.Duels:Count(), 6, "the duel is kept at once")
+        T.eq(HN:IsStale(), true, "out of date")
+        T.eq(HN:Get("Vati-Firemaw").wins, 5, "nobody needed them: not counted again")
+
+        HN:Ensure()
+        T.eq(HN:Get("Vati-Firemaw").wins, 5, "the last lists until the count is done")
+        Settle()
+        T.eq(HN:Get("Vati-Firemaw").wins, 6, "counted")
+        T.eq(HN:IsStale(), false, "up to date again")
+        T.noErrors()
+    end)
+
+    T.case("the Duels tab counts out-of-date lists, and new duels while it is open", function()
+        local ns = H.Boot({ client = "era" })
+        Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 5)
+        Settle()
+        Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 1, "Alliance", 10000)
+        Settle()
+        local MW = ns.MainWindow
+        MW:Toggle()
+        MW:SelectTab("duels")
+        Settle()
+        Settle()
+        T.eq(ns.HighNoon:Get("Vati-Firemaw").wins, 6, "opening the tab counts them")
+        T.eq(MW.shownRows[1].record, "6-0", "and shows them")
+
+        Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 1, "Alliance", 20000)
+        for _ = 1, 3 do Settle() end
+        T.eq(MW.shownRows[1].record, "7-0", "a duel while the tab is open shows")
+
+        MW:SelectTab("wanted")
+        Duels(ns, "Vati-Firemaw", "Bob-Firemaw", 1, "Alliance", 30000)
+        for _ = 1, 3 do Settle() end
+        T.eq(ns.HighNoon:Get("Vati-Firemaw").wins, 7, "another tab: not counted")
+        T.noErrors()
+    end)
+
+    T.case("a tooltip shows the last title and counts out-of-date lists", function()
+        local ns = H.Boot({ client = "era", tooltip = "script" })
+        Duels(ns, "Bob-Firemaw", "Cid-Firemaw", 5)
+        Settle()
+        Duels(ns, "Cid-Firemaw", "Bob-Firemaw", 4, "Alliance", 10000)
+        Settle()
+        H.units.mouseover = { name = "Bob", level = 40, class = "MAGE", race = "Gnome", faction = "Alliance",
+            isPlayer = true, guid = "Player-1-0000B0B" }
+        H.ShowUnitTooltip("mouseover", 2)
+        T.ok(H.tooltipLines[1]:find("Top Gun", 1, true) ~= nil, "the last title at once")
+        Settle()
+        T.eq(ns.HighNoon:Get("Bob-Firemaw").net, 1, "counted after the tooltip asked")
+        T.noErrors()
+    end)
+
+    T.case("the count runs a few ms a frame and gives the same lists", function()
+        local ns = H.Boot({ client = "era" })
+        local duels = BigData(3000, 400)
+        for _, duel in ipairs(duels) do
+            duel.winnerLevel, duel.loserLevel = 30, 30
+            duel.t = H.serverTime - 86400 + duel.t
+            ns.Duels:Add(duel, "local")
+        end
+        local HN = ns.HighNoon
+        HN:Recompute()
+        local expected = {}
+        for _, p in ipairs(HN:List("Alliance")) do expected[#expected + 1] = p.key .. p.position end
+
+        local function DueNow()
+            for _, timer in ipairs(H.timers) do
+                if timer.at <= H.clock then return true end
+            end
+            return false
+        end
+        H.profileStep = 0.5
+        HN:MarkStale()
+        HN:Ensure()
+        H.Advance(1)
+        local frames = 1
+        while DueNow() and frames < 1000 do
+            H.Advance(0)
+            frames = frames + 1
+        end
+        H.profileStep = 0
+        T.ok(frames > 3, "spread over " .. frames .. " frames")
+        local got = {}
+        for _, p in ipairs(HN:List("Alliance")) do got[#got + 1] = p.key .. p.position end
+        T.eq(table.concat(got, ","), table.concat(expected, ","), "the same lists")
         T.noErrors()
     end)
 

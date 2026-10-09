@@ -1063,9 +1063,11 @@ end
 
 local shownOngoing -- the ongoing count last logged (debug)
 
+-- The Duels tab needs the High Noon lists: they are counted again when out of date (HH-137)
 function MainWindow:Refresh()
     sinceRefresh = 0
     if not (frame and frame:IsShown()) then return end
+    if current.tab == "duels" then ns.HighNoon:Ensure() end
     local event = self:OpenEvent()
     local columns = event and self.COLUMNS.event or self.COLUMNS[current.tab] or self.COLUMNS.events
     local section = self.SectionOf(current.tab)
@@ -1566,6 +1568,12 @@ ns.Events:Register("HH_INITIALIZED", function()
             "HH_HIGHNOON_UPDATED", "HH_BOUNTY_UPDATED", "HH_MATCHES_CHANGED", "HH_GLASS_ADDED" }) do
         ns.Events:Register(event, request, OWNER)
     end
+    -- New duels while the Duels tab is open: its lists are counted again (HH-137)
+    local onDuels = function()
+        if current.tab == "duels" then MainWindow:RequestRefresh() end
+    end
+    ns.Events:Register("HH_DUEL_ADDED", onDuels, OWNER)
+    ns.Events:Register("HH_DUEL_UPDATED", onDuels, OWNER)
 end, OWNER)
 
 -- /hh with no arguments opens the window (see Core/SlashCommands.lua)
