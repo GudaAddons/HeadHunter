@@ -316,6 +316,7 @@ local TW = {
     MAP_DUELS_TITLE = "|cff3399ff決鬥|r，位於 %s",
     DUEL_SPOT_LINE = "%s %s 有人在決鬥（%s）：%s。",
     DUEL_SPOT_DESCRIBE = "%d 場決鬥，%d 名玩家，最近 %d 分鐘",
+    DUEL_SPOT_UNCONFIRMED = "%s（1 名 HeadHunter 看到）",
     DUEL_SPOT_LAYER = "分層 %d",
     DUEL_SPOT_LAYER_YOURS = "分層 %d（你的分層）",
     DUEL_SPOT_LAYER_UNKNOWN = "分層未知",

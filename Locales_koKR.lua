@@ -215,6 +215,7 @@ local KR = {
     MAP_DUELS_TITLE = "|cff3399ff결투|r, %s",
     DUEL_SPOT_LINE = "%s %s에서 결투 중 (%s): %s.",
     DUEL_SPOT_DESCRIBE = "결투 %d회, 플레이어 %d명, 최근 %d분",
+    DUEL_SPOT_UNCONFIRMED = "%s (HeadHunter 1명 목격)",
     DUEL_SPOT_LAYER = "레이어 %d",
     DUEL_SPOT_LAYER_YOURS = "레이어 %d (내 레이어)",
     DUEL_SPOT_LAYER_UNKNOWN = "레이어 알 수 없음",

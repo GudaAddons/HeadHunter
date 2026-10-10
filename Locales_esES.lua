@@ -216,6 +216,7 @@ local ES = {
     MAP_DUELS_TITLE = "|cff3399ffDuelos|r en %s",
     DUEL_SPOT_LINE = "%s Duelos en %s (%s): %s.",
     DUEL_SPOT_DESCRIBE = "%d duelos, %d jugadores en %d min",
+    DUEL_SPOT_UNCONFIRMED = "%s (visto por 1 HeadHunter)",
     DUEL_SPOT_LAYER = "Capa %d",
     DUEL_SPOT_LAYER_YOURS = "Capa %d (tu capa)",
     DUEL_SPOT_LAYER_UNKNOWN = "Capa desconocida",

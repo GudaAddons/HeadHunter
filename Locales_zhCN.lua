@@ -315,6 +315,7 @@ local CN = {
     MAP_DUELS_TITLE = "|cff3399ff决斗|r，位于 %s",
     DUEL_SPOT_LINE = "%s %s 有人在决斗（%s）：%s。",
     DUEL_SPOT_DESCRIBE = "%d 场决斗，%d 名玩家，最近 %d 分钟",
+    DUEL_SPOT_UNCONFIRMED = "%s（1 名 HeadHunter 看到）",
     DUEL_SPOT_LAYER = "分层 %d",
     DUEL_SPOT_LAYER_YOURS = "分层 %d（你的分层）",
     DUEL_SPOT_LAYER_UNKNOWN = "分层未知",

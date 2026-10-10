@@ -215,6 +215,7 @@ local RU = {
     MAP_DUELS_TITLE = "|cff3399ffДуэли|r: %s",
     DUEL_SPOT_LINE = "%s Дуэли: %s (%s): %s.",
     DUEL_SPOT_DESCRIBE = "%d дуэлей, %d игроков за %d мин",
+    DUEL_SPOT_UNCONFIRMED = "%s (видел 1 HeadHunter)",
     DUEL_SPOT_LAYER = "Слой %d",
     DUEL_SPOT_LAYER_YOURS = "Слой %d (ваш слой)",
     DUEL_SPOT_LAYER_UNKNOWN = "Слой неизвестен",
