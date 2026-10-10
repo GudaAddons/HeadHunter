@@ -6,7 +6,7 @@
 
 **Got ganked? HeadHunter records who killed you, shares it with your faction and marks WANTED outlaws on the map. Form a posse and bring them to justice.**
 
-For **Classic Era** and **WoW: Forever**.
+For **WoW Forever**.
 
 See the WANTED board, the best duelists and the top hunters on **[headhunterwow.com](https://headhunterwow.com)**.
 
@@ -116,7 +116,6 @@ Got ganked? Put gold on your killer's head.
 - You get a message when your bounty is claimed. At your next mailbox, HeadHunter asks you to send the gold, and one click writes the mail. HeadHunter never sends gold without your click, and never more than you posted.
 - The hunter's HeadHunter sees your mail and marks you as **pays up**. Not paid after 3 days, the claim is unpaid. If you do not pay, you are a **Deadbeat**: no bounties for 30 days and your name on the Deadbeats list. Paying late gets you out.
 - If the same hunter claimed on that player before, the mail window warns you that it may be an alt. You can refuse that one without becoming a **Deadbeat**.
-- **Classic Era:** after claiming, click **Announce** (or type `/hh claim`) so the owner hears about it, even outside your guild and group.
 
 ### Catch-up
 When you log in, HeadHunter asks other HeadHunters what you missed while you were offline, so your WANTED list is up to date.
@@ -124,11 +123,10 @@ When you log in, HeadHunter asks other HeadHunters what you missed while you wer
 ### Who is online
 Type `/hh online` to see how many HeadHunters are online right now, how many are Alliance and how many are Horde.
 - **WoW Forever:** everyone in your region, both factions.
-- **Classic Era:** only your guild and group. The game does not let addons count further.
 - With more than 500 online, it says **500+**.
 
 ### Duels
-- Classic Era: every duel next to a HeadHunter counts, even when the duelists do not use the addon, as long as HeadHunter knows both levels (target or mouse over the duelists). WoW Forever: duels count when one of the duelists uses HeadHunter. Running away counts as a loss.
+- Duels count when one of the duelists uses HeadHunter. Running away counts as a loss.
 - Only duels between players of level 10 or higher, at most 5 levels apart, count. Beating lowbies does not help.
 - Duels are shared like death reports, and never make anyone WANTED.
 - Click a player of your own faction in the Duels list to whisper them.
@@ -151,7 +149,7 @@ A WoW addon cannot use the internet. That is why there is a small, free desktop 
 2. **Play as usual.** When the game saves (logout, `/reload` or quit), the app sends your deaths, catches, duels, bounty and gold bounties to the website. It runs quietly in the tray.
 3. **Get the website's lists back.** The app also writes the website's WANTED list, duel lists, catches, Barflies and your own records into the game, as a small extra addon called **HeadHunter Data**. You see them after your next login or `/reload`.
 4. **WoW Forever:** when your lists reset (see *Good to know*), the app brings your own deaths, duels and bounty back.
-5. **Every realm keeps its own data:** PvP, Normal, Roleplay and Hardcore (and every Classic Era realm) each have their own lists, deaths, duels and bounty. A character on a Normal realm sees only Normal realm data. HeadHunter data saved before this update went to the WoW Forever PvP realm.
+5. **Every realm keeps its own data:** PvP, Normal, Roleplay and Hardcore each have their own lists, deaths, duels and bounty. A character on a Normal realm sees only Normal realm data. HeadHunter data saved before this update went to the WoW Forever PvP realm.
 
 Good to know about the app:
 - The app only reads HeadHunter's saved data and only talks to headhunterwow.com. Nothing else on your PC is touched.
@@ -180,7 +178,6 @@ Good to know about the app:
 | `/hh map on/off` | PvP areas, duel spots and skulls on the world map |
 | `/hh tooltip on/off` | WANTED line on enemy tooltips |
 | `/hh minimap` | Show or hide the minimap button |
-| `/hh claim` | Announce your gold bounty claim to all HeadHunters (Classic Era) |
 | `/hh catchup` | Ask other HeadHunters what you missed |
 | `/hh online` | How many HeadHunters are online, per faction |
 
@@ -188,11 +185,8 @@ All settings are also on the options page: **Esc > Options > AddOns > HeadHunter
 
 ## Good to know
 
-- **Classic Era:** reports go to your guild and group automatically. To reach every HeadHunter on the realm, click **Report** after a death (or type `/hh report`). The same goes for **Announce** after you bring down an outlaw (`/hh justice`). The game only allows these realm-wide messages after a click.
-- **Classic Era** has no map waypoints, so HeadHunter tells you the coordinates in chat instead.
-- **WoW: Forever** shares everything automatically.
+- HeadHunter shares everything with other HeadHunters automatically.
 - **WoW: Forever is in testing mode.** The Forever client does not load saved data back (a known client issue, not a HeadHunter bug), so your lists and settings reset on every reload or login. Catch-up handles it: when you log in, other HeadHunters send back what you missed, so your lists refill from the realm. The HeadHunter Sync app also brings your own records back from the website. HeadHunter tells you this in chat when you log in on Forever.
 - HeadHunter is off in dungeons, raids and battlegrounds. Duels never count as PvP kills.
 - Gold bounties are paid by mail between players of the same faction. HeadHunter never holds your gold.
-- **Classic Era:** the other faction's Deadbeats reach you through the website, so use the HeadHunter Sync app. WoW Forever shares them directly.
 - The more players use HeadHunter, the better it works. Tell your guild!
