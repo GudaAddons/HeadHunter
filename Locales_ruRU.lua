@@ -126,6 +126,7 @@ local RU = {
     DAYS_AGO = "%d д %d ч назад",
     UNKNOWN_ZONE = "неизвестная зона",
     POSSE_JOIN = "В погоню",
+    POSSE_NOT_YOUR_LEVEL = "Не ваш уровень",
     POSSE_DECLINE = "Отказаться",
     POSSE_JOINED_PIN = "Вы в погоне за %s. Метка поставлена: %s.",
     POSSE_JOINED_COORDS = "Вы в погоне за %s. Последний раз замечен: %s, %.1f, %.1f.",

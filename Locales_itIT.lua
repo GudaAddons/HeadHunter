@@ -127,6 +127,7 @@ local IT = {
     DAYS_AGO = "%d g %d h fa",
     UNKNOWN_ZONE = "una zona sconosciuta",
     POSSE_JOIN = "Unisciti alla caccia",
+    POSSE_NOT_YOUR_LEVEL = "Non è il tuo livello",
     POSSE_DECLINE = "Rifiuta",
     POSSE_JOINED_PIN = "Ti sei unito alla caccia a %s. Segnalino posto a %s.",
     POSSE_JOINED_COORDS = "Ti sei unito alla caccia a %s. Visto l'ultima volta a %s in %.1f, %.1f.",

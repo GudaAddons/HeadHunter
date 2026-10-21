@@ -126,6 +126,7 @@ local DE = {
     DAYS_AGO = "vor %d T. %d Std.",
     UNKNOWN_ZONE = "einem unbekannten Gebiet",
     POSSE_JOIN = "Dem Jagdtrupp beitreten",
+    POSSE_NOT_YOUR_LEVEL = "Nicht deine Stufe",
     POSSE_DECLINE = "Ablehnen",
     POSSE_JOINED_PIN = "Du bist dem Jagdtrupp gegen %s beigetreten. Wegpunkt gesetzt in %s.",
     POSSE_JOINED_COORDS = "Du bist dem Jagdtrupp gegen %s beigetreten. Zuletzt gesehen in %s bei %.1f, %.1f.",

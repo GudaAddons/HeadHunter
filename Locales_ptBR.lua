@@ -126,6 +126,7 @@ local BR = {
     DAYS_AGO = "há %d d %d h",
     UNKNOWN_ZONE = "uma zona desconhecida",
     POSSE_JOIN = "Entrar na caçada",
+    POSSE_NOT_YOUR_LEVEL = "Não é do seu nível",
     POSSE_DECLINE = "Recusar",
     POSSE_JOINED_PIN = "Você entrou na caçada a %s. Marcador definido em %s.",
     POSSE_JOINED_COORDS = "Você entrou na caçada a %s. Visto por último em %s em %.1f, %.1f.",

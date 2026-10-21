@@ -126,6 +126,7 @@ local FR = {
     DAYS_AGO = "il y a %d j %d h",
     UNKNOWN_ZONE = "une zone inconnue",
     POSSE_JOIN = "Rejoindre la traque",
+    POSSE_NOT_YOUR_LEVEL = "Pas ton niveau",
     POSSE_DECLINE = "Refuser",
     POSSE_JOINED_PIN = "Vous avez rejoint la traque de %s. Point de passage placé à %s.",
     POSSE_JOINED_COORDS = "Vous avez rejoint la traque de %s. Vu pour la dernière fois à %s en %.1f, %.1f.",

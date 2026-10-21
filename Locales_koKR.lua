@@ -126,6 +126,7 @@ local KR = {
     DAYS_AGO = "%d일 %d시간 전",
     UNKNOWN_ZONE = "알 수 없는 지역",
     POSSE_JOIN = "추격대 참가",
+    POSSE_NOT_YOUR_LEVEL = "레벨이 맞지 않음",
     POSSE_DECLINE = "거절",
     POSSE_JOINED_PIN = "%s 추격대에 참가했습니다. %s에 웨이포인트를 설정했습니다.",
     POSSE_JOINED_COORDS = "%s 추격대에 참가했습니다. 마지막 목격: %s, %.1f, %.1f.",

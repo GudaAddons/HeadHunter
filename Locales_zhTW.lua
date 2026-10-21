@@ -213,6 +213,7 @@ local TW = {
     POSTER_RECENT = "近期擊殺",
     POSTER_NO_KILLS = "沒有已知擊殺。",
     POSSE_JOIN = "加入追捕隊",
+    POSSE_NOT_YOUR_LEVEL = "等級不符",
     POSSE_DECLINE = "拒絕",
     POSSE_SUMMARY = "追捕隊：%s",
     POSSE_YOU = "你",

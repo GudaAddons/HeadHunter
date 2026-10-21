@@ -212,6 +212,7 @@ local CN = {
     POSTER_RECENT = "近期击杀",
     POSTER_NO_KILLS = "没有已知击杀。",
     POSSE_JOIN = "加入追捕队",
+    POSSE_NOT_YOUR_LEVEL = "等级不符",
     POSSE_DECLINE = "拒绝",
     POSSE_SUMMARY = "追捕队：%s",
     POSSE_YOU = "你",
