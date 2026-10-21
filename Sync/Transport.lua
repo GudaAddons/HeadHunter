@@ -44,6 +44,11 @@ Transport.MAX_TEXT_MESSAGES = 2 -- channel text lines sent per click
 Transport.DUPLICATE_WINDOW = 30 -- seconds a message heard on one route is not taken again
 Transport.JOIN_RETRIES = 3    -- joins tried after the first, JOIN_RETRY_DELAY apart, before the warning
 Transport.JOIN_RETRY_DELAY = 20
+-- HH-151: records carried for HeadHunters of other servers use at most half the send
+-- budget, after our own (Sync/Bridge.lua); RELAY_TAKE records are packed per message
+Transport.RELAY_PER_SECOND = 0.5
+Transport.RELAY_BURST = 2
+Transport.RELAY_TAKE = 3
 Transport.MAX_DIRECT = 150    -- whisper messages waiting (catch-up answers)
 
 -- Lower number = sent first
@@ -60,6 +65,8 @@ local direct = {}      -- array of { message, target }: whispers to one player, 
 
 local tokens = Transport.BURST
 local lastRefill
+local relayTokens = Transport.RELAY_BURST
+local relayRefill
 
 Transport.stats = { sent = 0, records = 0, received = 0, dropped = 0, failed = 0 }
 
@@ -280,9 +287,48 @@ local function Refill(now)
     lastRefill = now
 end
 
+-- HH-151: the routes carried records go out on: the group, and our channel
+local function RelayRoutes(channelID, refused)
+    local routes = {}
+    if ns.Utils.SafeCall(IsInRaid) then
+        routes[#routes + 1] = { name = "GROUP", chatType = "RAID" }
+    elseif ns.Utils.SafeCall(IsInGroup) then
+        routes[#routes + 1] = { name = "GROUP", chatType = "PARTY" }
+    end
+    if channelID and not refused then
+        routes[#routes + 1] = { name = "CHANNEL", chatType = "CHANNEL", target = channelID }
+    end
+    return routes
+end
+
+-- Carried records, while both buckets have a token: ours first (Flush), then these
+local function FlushRelay(faction)
+    local Bridge = ns.Bridge
+    if not Bridge or Bridge.QueueCount() == 0 then return end
+    local now = ns.Utils.Now()
+    relayRefill = relayRefill or now
+    relayTokens = math.min(Transport.RELAY_BURST, relayTokens + (now - relayRefill) * Transport.RELAY_PER_SECOND)
+    relayRefill = now
+    for _, route in ipairs(RelayRoutes(Transport:ChannelID(), Transport.channelRefused)) do
+        while tokens >= 1 and relayTokens >= 1 do
+            local records = Bridge:Take(route.name, Transport.RELAY_TAKE)
+            if #records == 0 then break end
+            local messages = ns.Protocol.Pack(faction, ns.Protocol.TYPES.ENVELOPE, records)
+            for _, message in ipairs(messages) do
+                if tokens < 1 or relayTokens < 1 then
+                    Bridge.stats.dropped = Bridge.stats.dropped + 1
+                elseif Send(message, route) then
+                    tokens, relayTokens = tokens - 1, relayTokens - 1
+                    Transport.stats.sent = Transport.stats.sent + 1
+                end
+            end
+        end
+    end
+end
+
 -- Pack and send as much of the outbox as the token bucket allows, on every route
 function Transport:Flush()
-    if #outbox == 0 then
+    if #outbox == 0 and not (ns.Bridge and ns.Bridge.QueueCount() > 0) then
         self.diag.blocked = nil
         return
     end
@@ -353,6 +399,8 @@ function Transport:Flush()
         sentUpTo = last - 1
         i = last
     end
+
+    FlushRelay(faction)
 
     if sentUpTo > 0 then
         local remaining = {}
@@ -459,6 +507,10 @@ local function ProcessInbox()
             local ok, err = pcall(handler, item.record, item.sender, item.faction, item.chatType)
             if not ok then ns:Error(err) end
         end
+        if ns.Bridge and (item.chatType == "CHANNEL" or item.chatType == "PARTY" or item.chatType == "RAID") then
+            local ok, err = pcall(ns.Bridge.Heard, ns.Bridge, item.type, item.record, item.sender, item.faction, item.chatType)
+            if not ok then ns:Error(err) end
+        end
         if clock() - started > Transport.INBOX_BUDGET_MS then
             C_Timer.After(0, ProcessInbox)
             return
@@ -502,7 +554,7 @@ function Transport:Receive(message, chatType, sender)
     -- posters and witnesses never reach us; their Deadbeats come from the website.
     local TYPES = ns.Protocol.TYPES
     -- HH-110: any message shows its sender is online, not only a presence one
-    ns.Presence:Heard(sender, faction, typeCode == TYPES.PRESENCE and records[1] or nil)
+    ns.Presence:Heard(sender, faction, typeCode == TYPES.PRESENCE and records[1] or nil, self.ServerOf(sender, chatType))
     if faction ~= ns.Utils.UnitFaction("player") then
         self.stats.crossFaction = (self.stats.crossFaction or 0) + 1
         ns:Debug("Other faction (" .. faction .. ") message from", tostring(sender), "via", tostring(chatType),
@@ -538,6 +590,24 @@ function Transport:HeardBefore(sender, message)
     local at = heard[key]
     heard[key] = now
     return at ~= nil and now - at < self.DUPLICATE_WINDOW
+end
+
+-- HH-151: the home server of a sender, when the route tells it: our channel is our
+-- server's, a group member's comes from their GUID
+function Transport.ServerOf(sender, chatType)
+    if chatType == "CHANNEL" then return ns.Utils.PlayerServer() end
+    if (chatType == "PARTY" or chatType == "RAID") and ns.Bridge then return ns.Bridge.GroupServer(sender) end
+    return nil
+end
+
+-- HH-151: a record carried for its author, handled as if they had sent it (inbox budget)
+function Transport:Dispatch(typeCode, record, sender, faction, chatType)
+    inboxTail = inboxTail + 1
+    inbox[inboxTail] = { type = typeCode, record = record, sender = sender, faction = faction, chatType = chatType }
+    if not processing then
+        processing = true
+        C_Timer.After(0, ProcessInbox)
+    end
 end
 
 function Transport:OnAddonMessage(prefix, message, chatType, sender)
@@ -654,6 +724,17 @@ ns.SlashCommands:Register("sync", function(args)
     ns:Print(string.format(ns.L.SYNC_DIAG, tostring(ns.Utils.UnitFaction("player")),
         #routes > 0 and table.concat(routes, "+") or "none",
         d.blocked or "no", tostring(d.lastResult), tostring(d.lastSender), tostring(d.lastIgnored)))
+    local B = ns.Bridge
+    if B then
+        local servers = {}
+        for _, server in pairs(B.GroupServers()) do servers[server] = true end
+        servers[ns.Utils.PlayerServer() or 0] = nil
+        local others = 0
+        for _ in pairs(servers) do others = others + 1 end
+        ns:Print(string.format(ns.L.SYNC_RELAY, B.Enabled() and "on" or "off", B.World(), others,
+            B.stats.forwarded, B.stats.delivered, B.stats.duplicates, B.stats.skipped, B.stats.dropped,
+            B.stats.refused, B.QueueCount(), B.SeenCount(), B.stats.links))
+    end
     local rejected = ns.Reports and ns.Reports.lastRejected
     if rejected then ns:Print(string.format(ns.L.SYNC_REJECTED, rejected)) end
 end, ns.L.HELP_SYNC)
