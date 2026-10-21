@@ -56,6 +56,7 @@ L.KILL_GANG = "|cffcc66ffGang|r (%d vs 1)"
 L.KILL_GROUP = "|cffcc66ffGroup fight|r (%d vs %d)"
 
 L.SYNC_PING_QUEUED = "Sync ping queued (sent within ~3 s). Other HeadHunter users will print it."
+L.SYNC_CHANNEL_BLOCKED = "The HeadHunter channel cannot be used here (a password on it, or an account without a subscription). You still share with your group and guild."
 L.SYNC_PING_RECEIVED = "Sync ping from %s [%s] (%s) via %s"
 L.SYNC_WHISPER_QUEUED = "Addon whisper ping queued for %s. If it arrives, they print \"Sync ping from ...\"."
 L.SYNC_WHISPER_USAGE = "Usage: /hh sync whisper \"<name>\""

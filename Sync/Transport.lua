@@ -7,7 +7,10 @@
 --   Transport:SendDirect(typeCode, records, target) -- addon whispers to one player (catch-up)
 --
 -- Automatic routes (addon messages, no player action needed), chosen per flush:
---   Forever: the hidden channel HeadHunterSync (realm/region wide)
+--   Forever: the hidden channel HeadHunterSync (realm/region wide, every layer), and
+--            RAID or PARTY too when grouped, so a group always shares, also when the
+--            channel does not reach one of them (HH-150). A message heard twice (channel
+--            and group) from the same sender within DUPLICATE_WINDOW is taken once.
 --   Era:     GUILD when in a guild, RAID or PARTY when grouped. Era refuses addon
 --            messages on custom channels (result 4 InvalidChatType, in game 2026-09-23).
 -- Realm-wide on Era: plain chat text on the same channel IS delivered when it comes
@@ -38,6 +41,9 @@ Transport.INBOX_BUDGET_MS = 3
 Transport.JOIN_DEFER_MAX = 15 -- x 2 s waiting for the server channels to take /1
 Transport.MAX_OUTBOX = 200    -- records kept while no route is available
 Transport.MAX_TEXT_MESSAGES = 2 -- channel text lines sent per click
+Transport.DUPLICATE_WINDOW = 30 -- seconds a message heard on one route is not taken again
+Transport.JOIN_RETRIES = 3    -- joins tried after the first, JOIN_RETRY_DELAY apart, before the warning
+Transport.JOIN_RETRY_DELAY = 20
 Transport.MAX_DIRECT = 150    -- whisper messages waiting (catch-up answers)
 
 -- Lower number = sent first
@@ -120,13 +126,41 @@ function Transport:JoinChannel(attempt)
         C_Timer.After(2, function() self:JoinChannel(attempt + 1) end)
         return
     end
-    -- frameID 0: the channel is not added to any chat window
+    self:TryJoin(0)
+end
+
+-- frameID 0: the channel is not added to any chat window. Not joined after the retries
+-- (a password on it, an account that may not use custom channels): one warning, and the
+-- group and guild routes carry on (HH-150).
+function Transport:TryJoin(retry)
     local join = securecall or function(fn, ...) return fn(...) end
     pcall(join, JoinChannelByName, self.CHANNEL, nil, 0, 0)
     C_Timer.After(3, function()
         self.joined = self:ChannelID() ~= nil
         ns:Debug("Sync channel", self.joined and "joined" or "NOT joined", self:ChannelID())
+        if self.joined or self.channelRefused then return end
+        if retry < self.JOIN_RETRIES then
+            C_Timer.After(self.JOIN_RETRY_DELAY, function() self:TryJoin(retry + 1) end)
+        else
+            self:ChannelBlocked("not joined")
+        end
     end)
+end
+
+-- The channel cannot be used: said once per session, in chat and the log
+function Transport:ChannelBlocked(reason)
+    self.channelRefused = self.channelRefused or reason
+    if self.blockedWarned then return end
+    self.blockedWarned = true
+    ns.Log:Add("info", "Sync channel blocked: " .. tostring(reason))
+    ns:Print(ns.L.SYNC_CHANNEL_BLOCKED)
+end
+
+-- CHANNEL_PASSWORD_REQUEST: someone put a password on our channel
+function Transport:OnPasswordRequest(channelName)
+    if type(channelName) == "string" and channelName:lower() == self.CHANNEL:lower() then
+        self:ChannelBlocked("password")
+    end
 end
 
 -------------------------------------------------
@@ -185,6 +219,11 @@ function Transport:AutoRoutes()
     local channelID = self:ChannelID()
     if channelID and not self.channelRefused then
         routes[1] = { chatType = "CHANNEL", target = channelID }
+        if ns.Utils.SafeCall(IsInRaid) then
+            routes[2] = { chatType = "RAID" }
+        elseif ns.Utils.SafeCall(IsInGroup) then
+            routes[2] = { chatType = "PARTY" }
+        end
         return routes
     end
     if ns.Utils.SafeCall(IsInGuild) then
@@ -444,6 +483,10 @@ function Transport:Receive(message, chatType, sender)
         return
     end
     if ns.Utils.SameCharacter(sender, ns.Utils.UnitKey("player")) then return end
+    if self:HeardBefore(sender, message) then
+        self.stats.duplicates = (self.stats.duplicates or 0) + 1
+        return
+    end
     self.diag.lastSender = tostring(sender) .. " via " .. tostring(chatType)
     local faction, typeCode, records = ns.Protocol.Unpack(message)
     if not faction then
@@ -478,6 +521,23 @@ function Transport:Receive(message, chatType, sender)
         processing = true
         C_Timer.After(0, ProcessInbox)
     end
+end
+
+-- The same message from the same sender within DUPLICATE_WINDOW (sent on the channel and
+-- to the group): true the second time. Old entries go every DUPLICATE_WINDOW.
+local heard, heardPrunedAt = {}, 0
+function Transport:HeardBefore(sender, message)
+    local now = ns.Utils.Now()
+    if now - heardPrunedAt >= self.DUPLICATE_WINDOW then
+        for key, at in pairs(heard) do
+            if now - at >= self.DUPLICATE_WINDOW then heard[key] = nil end
+        end
+        heardPrunedAt = now
+    end
+    local key = tostring(ns.Utils.CompactName(sender) or sender) .. "\0" .. message
+    local at = heard[key]
+    heard[key] = now
+    return at ~= nil and now - at < self.DUPLICATE_WINDOW
 end
 
 function Transport:OnAddonMessage(prefix, message, chatType, sender)
@@ -517,6 +577,7 @@ ns.Events:Register("HH_INITIALIZED", function()
     InstallChatFilters()
     Events:Register("CHAT_MSG_ADDON", function(_, ...) Transport:OnAddonMessage(...) end, OWNER)
     Events:Register("CHAT_MSG_CHANNEL", function(_, ...) Transport:OnChannelText(...) end, OWNER)
+    pcall(Events.Register, Events, "CHANNEL_PASSWORD_REQUEST", function(_, name) Transport:OnPasswordRequest(name) end, OWNER)
     Events:Register("PLAYER_ENTERING_WORLD", function()
         if not Transport.joinStarted then
             Transport.joinStarted = true

@@ -475,6 +475,7 @@ local CN = {
     DEATHS_HEADER = "记录到的 PvP 死亡：%d（最新在前）",
     DEATH_RECORDED = "被 |cffff4040%s|r 击杀（%s） · %s",
     SYNC_PING_QUEUED = "同步 ping 已排队（约 3 秒内发出）。其他 HeadHunter 会把它打印出来。",
+    SYNC_CHANNEL_BLOCKED = "此处无法使用 HeadHunter 频道（频道设了密码，或账号没有订阅）。你仍会与队伍和公会共享。",
     SYNC_PING_RECEIVED = "收到来自 %s [%s]（%s）经 %s 的同步 ping",
     SYNC_WHISPER_QUEUED = "已为 %s 排队插件密语 ping。若对方收到，会打印 \"Sync ping from ...\"。",
     SYNC_WHISPER_USAGE = "用法：/hh sync whisper \"<name>\"",

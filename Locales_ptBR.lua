@@ -63,6 +63,7 @@ local BR = {
 
     -- Sync and reports
     SYNC_PING_QUEUED = "Ping de sincronização na fila (enviado em ~3 s). Outros HeadHunters vão exibi-lo.",
+    SYNC_CHANNEL_BLOCKED = "O canal do HeadHunter não pode ser usado aqui (tem senha ou a conta não tem assinatura). Você continua compartilhando com seu grupo e sua guilda.",
     SYNC_PING_RECEIVED = "Ping de sincronização de %s [%s] (%s) via %s",
     SYNC_WHISPER_QUEUED = "Ping por sussurro de addon na fila para %s. Se chegar, aparece \"Sync ping from ...\" para essa pessoa.",
     SYNC_WHISPER_USAGE = "Uso: /hh sync whisper \"<name>\"",

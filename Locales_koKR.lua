@@ -63,6 +63,7 @@ local KR = {
 
     -- Sync and reports
     SYNC_PING_QUEUED = "동기화 핑 대기 중 (약 3초 안에 전송). 다른 HeadHunter 사용자에게 표시됩니다.",
+    SYNC_CHANNEL_BLOCKED = "여기서는 HeadHunter 채널을 쓸 수 없습니다 (채널에 비밀번호가 있거나 구독이 없는 계정). 파티와 길드와는 계속 공유합니다.",
     SYNC_PING_RECEIVED = "%s [%s] (%s)의 동기화 핑, 경로 %s",
     SYNC_WHISPER_QUEUED = "%s에게 애드온 귓속말 핑 대기 중. 도착하면 상대에게 \"Sync ping from ...\"이 표시됩니다.",
     SYNC_WHISPER_USAGE = "사용법: /hh sync whisper \"<name>\"",

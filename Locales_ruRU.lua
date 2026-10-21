@@ -63,6 +63,7 @@ local RU = {
 
     -- Sync and reports
     SYNC_PING_QUEUED = "Пинг синхронизации в очереди (отправка через ~3 с). Другие HeadHunter его увидят.",
+    SYNC_CHANNEL_BLOCKED = "Канал HeadHunter здесь недоступен (на нём пароль или у аккаунта нет подписки). Данные по-прежнему передаются вашей группе и гильдии.",
     SYNC_PING_RECEIVED = "Пинг синхронизации от %s [%s] (%s) через %s",
     SYNC_WHISPER_QUEUED = "Пинг шёпотом аддона для %s в очереди. Если он дойдёт, у них появится \"Sync ping from ...\".",
     SYNC_WHISPER_USAGE = "Использование: /hh sync whisper \"<name>\"",
